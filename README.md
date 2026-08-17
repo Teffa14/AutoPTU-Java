@@ -39,17 +39,23 @@ For each subsystem:
 
 - [x] Java 21 library skeleton.
 - [x] Cross-language oracle contract types.
+- [x] Java canonicalizer matching the Python oracle's stable-value normalization rules.
 - [x] First real rules port: targeting, range, areas, footprints, and line of sight.
-- [x] Java tests for the first targeting slice.
-- [ ] Export golden targeting fixtures from Python.
+- [x] First calculation primitives: combat-stage clamp/multipliers, accuracy stages, and weather DB modifiers.
+- [x] Java tests for targeting, canonicalization, and calculation primitives.
+- [x] Evaluated reference repositories for Python->Java migration and tabletop/game-engine architecture.
+- [ ] Export golden targeting/calculation fixtures directly from Python.
+- [ ] Add AutoPTU runtime type-manifest exporter.
 - [ ] Port deterministic RNG contract.
-- [ ] Port core calculations.
+- [ ] Expand core calculations into damage/accuracy/type math.
 - [ ] Port movement legality.
 - [ ] Port action economy and phases.
 - [ ] Port statuses and effects.
 - [ ] Port move, ability, item, perk, and Trainer Feature hook registries.
 - [ ] Port AI policy after rules parity.
 - [ ] Add Craftics/Cobblemon adapter after the core is stable.
+
+See `docs/REFERENCE_REPOS.md` for the migration research and `docs/PORTING_PLAN.md` for the ordered port plan.
 
 ## Build
 
