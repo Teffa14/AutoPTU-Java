@@ -1,6 +1,7 @@
 package io.autoptu.core.rules;
 
 import io.autoptu.core.model.GridCoord;
+import io.autoptu.core.model.JumpProfile;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
 
@@ -185,6 +186,173 @@ public final class Movement {
             MovementProfile actor
     ) {
         return legalShiftTiles(grid, actor, 0, ignored -> true);
+    }
+
+    /** Match Python _jump_path_blocked_steps after capabilities are resolved. */
+    public static int jumpPathBlockedSteps(
+            MovementGrid grid,
+            JumpProfile actor,
+            GridCoord origin,
+            GridCoord destination
+    ) {
+        if (grid == null) {
+            throw new IllegalArgumentException("grid is required");
+        }
+        if (actor == null) {
+            throw new IllegalArgumentException("actor is required");
+        }
+        if (actor.canFly() || actor.canPhase() || actor.liquefied()) {
+            return 0;
+        }
+
+        List<GridCoord> path = stepToward(origin, destination);
+        if (path.size() <= 1) {
+            return 0;
+        }
+
+        int blockedSteps = 0;
+        for (int index = 0; index < path.size() - 1; index++) {
+            GridCoord coord = path.get(index);
+            String tileType = normalizedTileType(grid.tileType(coord));
+            if (isBlocked(grid, coord, tileType) || tileType.contains("void")) {
+                blockedSteps++;
+            }
+        }
+        return blockedSteps;
+    }
+
+    /** Port of Python legal_long_jump_tiles with a resolved jump profile. */
+    public static Set<GridCoord> legalLongJumpTiles(
+            MovementGrid grid,
+            JumpProfile actor,
+            Predicate<GridCoord> canFit
+    ) {
+        if (grid == null) {
+            throw new IllegalArgumentException("grid is required");
+        }
+        if (actor == null) {
+            throw new IllegalArgumentException("actor is required");
+        }
+        Predicate<GridCoord> fit = canFit == null ? ignored -> true : canFit;
+        GridCoord origin = actor.position();
+        Set<GridCoord> reachable = new LinkedHashSet<>();
+        reachable.add(origin);
+
+        int limit = actor.longJump();
+        if (limit <= 0) {
+            return reachable;
+        }
+
+        int maxLimit = limit + actor.wallrunnerLimit();
+        for (int dx = -maxLimit; dx <= maxLimit; dx++) {
+            for (int dy = -maxLimit; dy <= maxLimit; dy++) {
+                if (dx == 0 && dy == 0) {
+                    continue;
+                }
+                if (Math.max(Math.abs(dx), Math.abs(dy)) > maxLimit) {
+                    continue;
+                }
+
+                GridCoord destination = new GridCoord(origin.x() + dx, origin.y() + dy);
+                if (!grid.inBounds(destination)) {
+                    continue;
+                }
+                String tileType = normalizedTileType(grid.tileType(destination));
+                if (tileType.contains("void")) {
+                    continue;
+                }
+
+                boolean blocked = isBlocked(grid, destination, tileType);
+                if (blocked && !(actor.canFly() || actor.canBurrow() || actor.canPhase() || actor.liquefied())) {
+                    continue;
+                }
+
+                boolean water = tileType.contains("water");
+                if (water && !(actor.canFly() || actor.canSwim())) {
+                    continue;
+                }
+                if (!fit.test(destination)) {
+                    continue;
+                }
+
+                int blockedSteps = jumpPathBlockedSteps(grid, actor, origin, destination);
+                if (blockedSteps > 0) {
+                    if (blockedSteps > actor.wallrunnerLimit()) {
+                        continue;
+                    }
+                } else if (Math.max(Math.abs(dx), Math.abs(dy)) > limit) {
+                    continue;
+                }
+                reachable.add(destination);
+            }
+        }
+        return reachable;
+    }
+
+    public static Set<GridCoord> legalLongJumpTiles(MovementGrid grid, JumpProfile actor) {
+        return legalLongJumpTiles(grid, actor, ignored -> true);
+    }
+
+    /** Port of Python legal_high_jump_tiles with a resolved jump profile. */
+    public static Set<GridCoord> legalHighJumpTiles(
+            MovementGrid grid,
+            JumpProfile actor,
+            Predicate<GridCoord> canFit
+    ) {
+        if (grid == null) {
+            throw new IllegalArgumentException("grid is required");
+        }
+        if (actor == null) {
+            throw new IllegalArgumentException("actor is required");
+        }
+        Predicate<GridCoord> fit = canFit == null ? ignored -> true : canFit;
+        GridCoord origin = actor.position();
+        Set<GridCoord> reachable = new LinkedHashSet<>();
+        reachable.add(origin);
+
+        int limit = actor.highJump();
+        if (limit <= 0) {
+            return reachable;
+        }
+
+        for (int dx = -limit; dx <= limit; dx++) {
+            for (int dy = -limit; dy <= limit; dy++) {
+                if (dx == 0 && dy == 0) {
+                    continue;
+                }
+                if (Math.max(Math.abs(dx), Math.abs(dy)) > limit) {
+                    continue;
+                }
+
+                GridCoord destination = new GridCoord(origin.x() + dx, origin.y() + dy);
+                if (!grid.inBounds(destination)) {
+                    continue;
+                }
+                String tileType = normalizedTileType(grid.tileType(destination));
+                if (tileType.contains("void")) {
+                    continue;
+                }
+
+                boolean blocked = isBlocked(grid, destination, tileType);
+                if (blocked && !(actor.canFly() || actor.canBurrow() || actor.canPhase() || actor.liquefied())) {
+                    continue;
+                }
+                if (!fit.test(destination)) {
+                    continue;
+                }
+                reachable.add(destination);
+            }
+        }
+        return reachable;
+    }
+
+    public static Set<GridCoord> legalHighJumpTiles(MovementGrid grid, JumpProfile actor) {
+        return legalHighJumpTiles(grid, actor, ignored -> true);
+    }
+
+    /** Python legal_jump_tiles is currently an alias for long jump. */
+    public static Set<GridCoord> legalJumpTiles(MovementGrid grid, JumpProfile actor) {
+        return legalLongJumpTiles(grid, actor);
     }
 
     private static boolean isBlocked(MovementGrid grid, GridCoord coord, String tileType) {
