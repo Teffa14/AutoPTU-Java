@@ -12,7 +12,10 @@ import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.DamageResult;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.ShiftApplicationResult;
+import io.autoptu.core.random.PythonRandom;
+import io.autoptu.core.rules.Accuracy;
 import io.autoptu.core.rules.ActionBudget;
+import io.autoptu.core.rules.DamageResolution;
 import io.autoptu.core.rules.Movement;
 import io.autoptu.core.rules.ShiftApplication;
 
@@ -24,7 +27,8 @@ import java.util.function.Predicate;
  * First authoritative action dispatcher for headless and Minecraft execution.
  *
  * The runtime revalidates choices from core state before mutation. Controllers may
- * select a BattleChoice, but they cannot directly set positions, HP, or spend actions.
+ * select a BattleChoice, but they cannot directly set positions, HP, random rolls,
+ * critical state, or spend actions.
  */
 public final class BattleRuntime {
     private BattleRuntime() {
@@ -47,9 +51,56 @@ public final class BattleRuntime {
             return applyShift(state, actor, shiftChoice, canFit);
         }
         if (choice instanceof MoveChoice) {
-            throw new UnsupportedOperationException("MoveChoice rule resolution is not ported yet; use applyRevalidatedResolvedMoveOutcome after authoritative rules resolve the move");
+            throw new UnsupportedOperationException("MoveChoice requires authoritative move context; use applyAuthoritativeMove");
         }
         throw new IllegalArgumentException("unsupported battle choice: " + choice.getClass().getName());
+    }
+
+    /**
+     * Revalidates geometry and action economy, consumes Python-compatible RNG in
+     * battle order, resolves accuracy/critical/damage in Java, then mutates state.
+     *
+     * This is the direct-move boundary intended for the Minecraft server adapter:
+     * callers provide semantic rule inputs, never rolls, crit flags, damage, or HP.
+     */
+    public static AppliedActionResult applyAuthoritativeMove(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            MoveOption move,
+            String actorSize,
+            String targetSize,
+            Set<GridCoord> lineOfSightBlockers,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput input
+    ) {
+        if (rng == null) {
+            throw new IllegalArgumentException("rng is required");
+        }
+        if (input == null) {
+            throw new IllegalArgumentException("input is required");
+        }
+
+        MoveChoiceRevalidation.requireLegalCombatantMove(
+                state,
+                choice,
+                move,
+                actorSize,
+                targetSize,
+                lineOfSightBlockers
+        );
+
+        int roll = rng.randIntInclusive(1, 20);
+        AccuracyResult accuracy = Accuracy.resolve(input.accuracyCheck(roll, null));
+        if (!accuracy.hit() && input.rerollOnMiss()) {
+            int reroll = rng.randIntInclusive(1, 20);
+            accuracy = Accuracy.resolve(input.accuracyCheck(roll, reroll));
+        }
+
+        DamageResult damage = accuracy.hit()
+                ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit()))
+                : null;
+        return applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
     }
 
     /**
