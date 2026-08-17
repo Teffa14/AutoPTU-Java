@@ -24,6 +24,7 @@ val oracleTargeting = providers.gradleProperty("oracleTargeting")
 val oracleMovement = providers.gradleProperty("oracleMovement")
 val oracleCalculations = providers.gradleProperty("oracleCalculations")
 val oraclePtuTables = providers.gradleProperty("oraclePtuTables")
+val oracleTurnFlow = providers.gradleProperty("oracleTurnFlow")
 
 tasks.test {
     useJUnitPlatform()
@@ -38,6 +39,9 @@ tasks.test {
     }
     if (oraclePtuTables.isPresent) {
         systemProperty("autoptu.ptu.tables.oracle", oraclePtuTables.get())
+    }
+    if (oracleTurnFlow.isPresent) {
+        systemProperty("autoptu.turnflow.oracle", oracleTurnFlow.get())
     }
 }
 
