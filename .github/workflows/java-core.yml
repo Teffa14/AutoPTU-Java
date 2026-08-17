@@ -40,6 +40,7 @@ jobs:
           python3 -m py_compile tools/python/export_accuracy_fixtures.py
           python3 -m py_compile tools/python/export_stat_resolution_fixtures.py
           python3 -m py_compile tools/python/export_action_space_fixtures.py
+          python3 -m py_compile tools/python/export_damage_fixtures.py
 
       - name: Export Python oracle fixtures
         run: |
@@ -52,6 +53,7 @@ jobs:
           python3 tools/python/export_accuracy_fixtures.py --source-root python-oracle --output build/oracle/accuracy.tsv
           python3 tools/python/export_stat_resolution_fixtures.py --source-root python-oracle --output build/oracle/stats.tsv
           python3 tools/python/export_action_space_fixtures.py --source-root python-oracle --output build/oracle/action-space.tsv
+          python3 tools/python/export_damage_fixtures.py --source-root python-oracle --output build/oracle/damage.tsv
 
       - name: Run Java core and Python-oracle parity tests
         run: >-
@@ -65,3 +67,4 @@ jobs:
           -PoracleAccuracy="$GITHUB_WORKSPACE/build/oracle/accuracy.tsv"
           -PoracleStats="$GITHUB_WORKSPACE/build/oracle/stats.tsv"
           -PoracleActionSpace="$GITHUB_WORKSPACE/build/oracle/action-space.tsv"
+          -PoracleDamage="$GITHUB_WORKSPACE/build/oracle/damage.tsv"
