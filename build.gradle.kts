@@ -31,6 +31,7 @@ val oracleAccuracy = providers.gradleProperty("oracleAccuracy")
 val oracleStats = providers.gradleProperty("oracleStats")
 val oracleActionSpace = providers.gradleProperty("oracleActionSpace")
 val oracleDamage = providers.gradleProperty("oracleDamage")
+val oracleMoveEvents = providers.gradleProperty("oracleMoveEvents")
 
 tasks.test {
     useJUnitPlatform()
@@ -44,6 +45,7 @@ tasks.test {
     if (oracleStats.isPresent) systemProperty("autoptu.stats.oracle", oracleStats.get())
     if (oracleActionSpace.isPresent) systemProperty("autoptu.actionspace.oracle", oracleActionSpace.get())
     if (oracleDamage.isPresent) systemProperty("autoptu.damage.oracle", oracleDamage.get())
+    if (oracleMoveEvents.isPresent) systemProperty("autoptu.move.events.oracle", oracleMoveEvents.get())
 }
 
 tasks.withType<JavaCompile>().configureEach {
