@@ -65,6 +65,9 @@ class FixtureActor:
     def can_phase(self):
         return self._phase
 
+    def is_trainer_combatant(self):
+        return False
+
     def has_status(self, name):
         return name == "Liquefied" and self._liquefied
 
