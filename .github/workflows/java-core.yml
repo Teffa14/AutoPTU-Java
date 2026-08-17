@@ -30,6 +30,7 @@ jobs:
           python3 -m py_compile tools/python/export_ptu_table_fixtures.py
           python3 -m py_compile tools/python/export_turnflow_fixtures.py
           python3 -m py_compile tools/python/export_jump_fixtures.py
+          python3 -m py_compile tools/python/export_accuracy_fixtures.py
 
       - name: Export Python oracle fixtures
         run: |
@@ -51,6 +52,9 @@ jobs:
           python3 tools/python/export_jump_fixtures.py \
             --source-root python-oracle \
             --output build/oracle/jump.tsv
+          python3 tools/python/export_accuracy_fixtures.py \
+            --source-root python-oracle \
+            --output build/oracle/accuracy.tsv
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -72,3 +76,4 @@ jobs:
           -PoraclePtuTables="$GITHUB_WORKSPACE/build/oracle/ptu-tables.tsv"
           -PoracleTurnFlow="$GITHUB_WORKSPACE/build/oracle/turnflow.tsv"
           -PoracleJump="$GITHUB_WORKSPACE/build/oracle/jump.tsv"
+          -PoracleAccuracy="$GITHUB_WORKSPACE/build/oracle/accuracy.tsv"

@@ -26,6 +26,7 @@ val oracleCalculations = providers.gradleProperty("oracleCalculations")
 val oraclePtuTables = providers.gradleProperty("oraclePtuTables")
 val oracleTurnFlow = providers.gradleProperty("oracleTurnFlow")
 val oracleJump = providers.gradleProperty("oracleJump")
+val oracleAccuracy = providers.gradleProperty("oracleAccuracy")
 
 tasks.test {
     useJUnitPlatform()
@@ -46,6 +47,9 @@ tasks.test {
     }
     if (oracleJump.isPresent) {
         systemProperty("autoptu.jump.oracle", oracleJump.get())
+    }
+    if (oracleAccuracy.isPresent) {
+        systemProperty("autoptu.accuracy.oracle", oracleAccuracy.get())
     }
 }
 
