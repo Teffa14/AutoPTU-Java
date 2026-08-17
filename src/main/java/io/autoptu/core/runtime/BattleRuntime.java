@@ -98,7 +98,7 @@ public final class BattleRuntime {
         }
 
         DamageResult damage = accuracy.hit()
-                ? DamageResolution.resolve(rng, input.damageCheck(accuracy.critical()))
+                ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit()))
                 : null;
         return applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
     }
