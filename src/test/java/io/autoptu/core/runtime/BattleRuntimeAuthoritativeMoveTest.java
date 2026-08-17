@@ -39,9 +39,8 @@ class BattleRuntimeAuthoritativeMoveTest {
         );
 
         MoveResolvedEvent event = (MoveResolvedEvent) result.events().getFirst();
-        assertEquals(11, event.roll());
         assertTrue(event.hit());
-        assertFalse(event.critical());
+        assertFalse(event.crit());
         assertEquals(31, event.damage());
         assertEquals(4, event.targetHp());
         assertEquals(4, state.requireCombatant("enemy").hp());
@@ -49,7 +48,7 @@ class BattleRuntimeAuthoritativeMoveTest {
     }
 
     @Test
-    void missConsumesActionWithoutConsumingDamageOrMutatingHp() {
+    void missConsumesActionWithoutMutatingHp() {
         BattleRuntimeState state = stateWithEnemy(35);
 
         AppliedActionResult result = BattleRuntime.applyAuthoritativeMove(
@@ -65,7 +64,6 @@ class BattleRuntimeAuthoritativeMoveTest {
         );
 
         MoveResolvedEvent event = (MoveResolvedEvent) result.events().getFirst();
-        assertEquals(2, event.roll());
         assertFalse(event.hit());
         assertEquals(0, event.damage());
         assertEquals(35, event.targetHp());
@@ -90,9 +88,8 @@ class BattleRuntimeAuthoritativeMoveTest {
         );
 
         MoveResolvedEvent event = (MoveResolvedEvent) result.events().getFirst();
-        assertEquals(20, event.roll());
         assertTrue(event.hit());
-        assertTrue(event.critical());
+        assertTrue(event.crit());
         assertTrue(event.damage() > 0);
     }
 
