@@ -1,5 +1,6 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.action.TargetCandidate;
@@ -37,6 +38,9 @@ public final class MoveChoiceRevalidation {
         }
         if (move == null) {
             throw new IllegalArgumentException("move is required");
+        }
+        if (choice.targetMode() != ChoiceTargetMode.COMBATANT || choice.targetId().isBlank()) {
+            throw new IllegalArgumentException("runtime move revalidation currently requires a combatant target");
         }
         if (!choice.moveId().equals(move.moveId())) {
             throw new IllegalArgumentException("move metadata does not match choice moveId");
