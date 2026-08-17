@@ -20,8 +20,13 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
 
+val oracleTargeting = providers.gradleProperty("oracleTargeting")
+
 tasks.test {
     useJUnitPlatform()
+    if (oracleTargeting.isPresent) {
+        systemProperty("autoptu.targeting.oracle", oracleTargeting.get())
+    }
 }
 
 tasks.withType<JavaCompile>().configureEach {
