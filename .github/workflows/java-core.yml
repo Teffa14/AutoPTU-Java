@@ -42,6 +42,7 @@ jobs:
           python3 -m py_compile tools/python/export_action_space_fixtures.py
           python3 -m py_compile tools/python/export_damage_fixtures.py
           python3 -m py_compile tools/python/export_move_event_fixtures.py
+          python3 -m py_compile tools/python/export_shift_application_fixtures.py
 
       - name: Export Python oracle fixtures
         run: |
@@ -56,6 +57,7 @@ jobs:
           python3 tools/python/export_action_space_fixtures.py --source-root python-oracle --output build/oracle/action-space.tsv
           python3 tools/python/export_damage_fixtures.py --source-root python-oracle --output build/oracle/damage.tsv
           python3 tools/python/export_move_event_fixtures.py --source-root python-oracle --output build/oracle/move-events.tsv
+          python3 tools/python/export_shift_application_fixtures.py --source-root python-oracle --output build/oracle/shift-application.tsv
 
       - name: Run Java core and Python-oracle parity tests
         run: >-
@@ -71,3 +73,4 @@ jobs:
           -PoracleActionSpace="$GITHUB_WORKSPACE/build/oracle/action-space.tsv"
           -PoracleDamage="$GITHUB_WORKSPACE/build/oracle/damage.tsv"
           -PoracleMoveEvents="$GITHUB_WORKSPACE/build/oracle/move-events.tsv"
+          -PoracleShiftApplication="$GITHUB_WORKSPACE/build/oracle/shift-application.tsv"
