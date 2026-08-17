@@ -20,6 +20,7 @@ What AutoPTU should borrow:
 - Expose `legalChoices(state)` and `applyChoice(state, choice)` style boundaries where possible.
 - Keep ordered battle events as part of correctness, not just final HP.
 - Make RNG injectable and fixture-driven.
+- Turn every discovered differential mismatch into a permanent regression case.
 
 Do not copy its Zig implementation. The useful part is the compatibility methodology and protocol design.
 
@@ -33,6 +34,7 @@ Why it matters:
 - MegaMek is a large Java implementation of the BattleTech tabletop rules.
 - It handles movement, weapons, physical attacks, terrain/maps, initiative/phases, custom units, scenarios, and network multiplayer.
 - This is much closer to AutoPTU's real complexity than a small Pokemon battle simulator.
+- Its game flow uses explicit typed phases rather than treating the entire match as one resolver.
 
 What AutoPTU should borrow conceptually:
 - Explicit game phases instead of one giant resolver.
@@ -62,7 +64,26 @@ What AutoPTU should borrow conceptually:
 License warning:
 - GPL-3.0. Architecture reference only unless licensing is intentionally changed.
 
-## 4. marcrd/Spellsource-Server
+## 4. FreeCol/freecol
+
+Repository: https://github.com/FreeCol/freecol
+License: GPL-2.0
+Relevance: High as a migration philosophy reference
+
+Why it matters:
+- FreeCol is a Java turn-based strategy game built to reproduce the gameplay and rules of an existing game.
+- Its project description explicitly emphasizes an incremental clone: add features one at a time while keeping a running program throughout development.
+- It modernizes presentation and adds multiplayer without making visual implementation responsible for the original rules.
+
+What AutoPTU should borrow conceptually:
+- Preserve behavior while allowing the implementation and presentation layer to change completely.
+- Keep the Java port executable throughout migration instead of waiting for an all-at-once rewrite.
+- Port one vertical rule slice at a time and retain a usable engine at every milestone.
+
+License warning:
+- GPL-2.0. Architecture/process reference only unless licensing is intentionally changed.
+
+## 5. marcrd/Spellsource-Server
 
 Repository: https://github.com/marcrd/Spellsource-Server
 Relevance: High for migration tooling
@@ -77,7 +98,7 @@ What AutoPTU should borrow:
 - Keep the Java engine API narrow enough to drive from a parity harness.
 - Avoid making Minecraft/Craftics the test harness. The battle core should be runnable independently.
 
-## 5. chrishumphreys/p2j
+## 6. chrishumphreys/p2j
 
 Repository: https://github.com/chrishumphreys/p2j
 License: GPL-3.0
@@ -97,7 +118,7 @@ What not to do:
 - Do not run the entire AutoPTU monolith through p2j and trust the output.
 - Do not copy GPL translator code into this repository.
 
-## 6. facebookresearch/CodeGen / TransCoder-ST
+## 7. facebookresearch/CodeGen / TransCoder-ST
 
 Repositories:
 - https://github.com/facebookresearch/CodeGen
@@ -118,7 +139,7 @@ Caution:
 - The standalone TransCoder repository is archived.
 - Generated translations should be treated as drafts only.
 
-## 7. jpy-consortium/jpy
+## 8. jpy-consortium/jpy
 
 Repository: https://github.com/jpy-consortium/jpy
 Relevance: Medium as a temporary bridge
@@ -130,16 +151,28 @@ Why it matters:
 
 Possible AutoPTU use:
 - Differential tests could invoke Java methods directly from Python while the port is incomplete.
-- This may be useful if JSON/subprocess fixtures become too slow or awkward.
+- This may be useful if file/subprocess fixtures become too slow or awkward.
 
 Do not make it a production requirement for the Minecraft mod. The target remains a standalone Java battle core.
+
+## Rejected as primary solutions
+
+### BeeWare VOC
+
+VOC compiles/transpiles Python for JVM execution, but that solves a different problem: running Python semantics on the JVM. AutoPTU needs maintainable Java source and a Java-native battle core that Craftics/Cobblemon can consume directly. VOC is also archived, so it is not a foundation for this migration.
+
+### Wholesale source-to-source transpilation
+
+A generated Java clone of the 40k-line BattleState would preserve the same coupling while introducing translation uncertainty. It would make debugging parity harder, not easier. Translation tools are useful only for isolated functions after their contracts and fixtures exist.
 
 ## Recommended strategy after this research
 
 1. Keep manual/assisted Java ports as the source of production code.
-2. Add Python runtime type tracing to make Java type design less guessy.
+2. Use Python runtime type tracing to make Java type design less guessy.
 3. Build golden fixtures from Python for every ported subsystem.
-4. Add a small Java parity runner that accepts fixture input and emits canonical output.
-5. Use translation tools only to produce drafts of isolated functions.
-6. Require Java tests plus Python-vs-Java differential tests before declaring a subsystem ported.
-7. Study MegaMek/TripleA for decomposition patterns, but keep their GPL code out of this MIT-style clean-room port unless licensing is deliberately changed.
+4. Run Python and Java differential tests in CI against a pinned Python oracle commit.
+5. Make RNG consumption and ordered event output part of the compatibility contract.
+6. Use translation tools only to produce drafts of isolated functions.
+7. Require Java tests plus Python-vs-Java differential tests before declaring a subsystem ported.
+8. Study MegaMek, TripleA, and FreeCol for decomposition patterns, but keep GPL implementation code out of this clean-room port unless licensing is deliberately changed.
+9. Keep Minecraft/Craftics outside the rules tests. They should consume the Java battle core only after rules parity is established.
