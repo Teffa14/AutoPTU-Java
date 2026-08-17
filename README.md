@@ -42,14 +42,16 @@ For each subsystem:
 - [x] Stable-value canonicalizer matching Python oracle normalization.
 - [x] Python `random.Random` integer-seed compatibility for the RNG operations currently required by the port.
 - [x] Targeting: range, areas, footprints, target anchors, and line of sight.
-- [x] Movement legality: Overland/Swim/Sky, terrain costs, blockers, Wallrunner, sprint, and landing-fit boundary.
+- [x] Shift movement legality: Overland/Swim/Sky, terrain costs, blockers, Wallrunner, sprint, and landing-fit boundary.
+- [x] Jump movement: long jump, high jump, blocked-path behavior, Wallrunner extension, water landing rules, and fit predicates.
 - [x] Core PTU tables: Damage Base dice table and type-effectiveness step chart.
 - [x] Calculation primitives: stages, accuracy stages, weather DB, crit probability, Burn, flat/scalar modifiers, and rounding points.
 - [x] Typed turn flow: ActionType, TurnPhase, phase sequence, and action budget.
 - [x] Deterministic initiative ordering, Trick Room ordering, League ordering, and declared-action ordering.
 - [x] Python runtime type-manifest exporter for designing Java records/interfaces from observed engine behavior.
-- [x] Cross-repository CI that checks out a pinned Python AutoPTU commit and compares targeting, movement, calculations, PTU tables, and turn-flow fixtures.
+- [x] Cross-repository CI that checks out a pinned Python AutoPTU commit and compares targeting, shift/jump movement, calculations, PTU tables, and turn-flow fixtures.
 - [x] Reference-repository research for Python->Java migration and large tabletop/game-engine architecture.
+- [x] Defined migration acceptance protocol with separate compile, Java-test, and Python-parity gates.
 - [ ] Expand RNG compatibility only as new Python call sites require it.
 - [ ] Port core combatant/grid battle state.
 - [ ] Port full accuracy/damage resolution pipeline.
@@ -59,7 +61,7 @@ For each subsystem:
 - [ ] Port AI policy after legal-action and resolution parity is stable.
 - [ ] Add Craftics/Cobblemon adapter after the core is stable.
 
-See `docs/REFERENCE_REPOS.md` for the migration research, `docs/TYPE_TRACING.md` for runtime type discovery, and `docs/PORTING_PLAN.md` for the ordered port plan.
+See `docs/REFERENCE_REPOS.md` for the migration research, `docs/MIGRATION_AGENT_PROTOCOL.md` for the acceptance loop, `docs/TYPE_TRACING.md` for runtime type discovery, and `docs/PORTING_PLAN.md` for the ordered port plan.
 
 ## Build
 
