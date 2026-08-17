@@ -1,14 +1,17 @@
 package io.autoptu.core.rules;
 
+import io.autoptu.core.model.AttackModifier;
+
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * First deterministic calculation primitives ported from
- * auto_ptu/rules/calculations.py.
+ * Deterministic calculation primitives ported from auto_ptu/rules/calculations.py.
  *
- * Keep formulas behaviorally identical to the Python oracle. More combat
- * calculations should be added here only with parity tests.
+ * Keep formulas behaviorally identical to the Python oracle. Stateful ability,
+ * item, and status resolution belongs in higher-level adapters until its own
+ * parity slice is ready.
  */
 public final class Calculations {
     public static final int STAGE_MIN = -6;
@@ -53,7 +56,63 @@ public final class Calculations {
                 .getOrDefault(normalizedType, 0);
     }
 
+    /** Mirror Python crit_probability(move, hit_chance). */
+    public static double critProbability(int critRange, double hitChance) {
+        int threshold = critRange == 0 ? 20 : critRange;
+        int successFaces = Math.max(0, 21 - threshold);
+        double probability = successFaces / 20.0;
+        return Math.min(probability, hitChance);
+    }
+
+    /** Mirror the legacy physical Burn damage modifier. */
+    public static int applyStatusModifiers(int baseDamage, String moveCategory, boolean burned) {
+        if ("physical".equals(normalize(moveCategory)) && burned) {
+            return (int) Math.floor(baseDamage * 0.5);
+        }
+        return baseDamage;
+    }
+
+    /**
+     * Mirror apply_context_damage_modifiers: all flat modifiers are applied first,
+     * then scalar modifiers are applied in declaration order with floor after each.
+     */
+    public static int applyContextDamageModifiers(int baseDamage, List<AttackModifier> modifiers) {
+        int damage = baseDamage;
+        List<AttackModifier> safe = modifiers == null ? List.of() : modifiers;
+        for (AttackModifier modifier : safe) {
+            if ("damage_flat".equals(modifier.kind())) {
+                damage += (int) modifier.value();
+            }
+        }
+        for (AttackModifier modifier : safe) {
+            if ("damage_scalar".equals(modifier.kind())) {
+                damage = (int) Math.floor(damage * modifier.value());
+            }
+        }
+        return damage;
+    }
+
+    /** Mirror calculations._normalized_range_kind. */
+    public static String normalizedRangeKind(String rangeKind, String targetKind) {
+        String kind = firstNonBlank(rangeKind, targetKind, "ranged").toLowerCase(Locale.ROOT);
+        return kind.contains("melee") ? "melee" : "ranged";
+    }
+
+    /** Common final step in Python resolve_move_action. */
+    public static int applyTypeMultiplierFloor(int baseDamage, double typeMultiplier) {
+        return (int) Math.floor(baseDamage * typeMultiplier);
+    }
+
     private static String normalize(String value) {
         return value == null ? "" : value.strip().toLowerCase(Locale.ROOT);
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 }
