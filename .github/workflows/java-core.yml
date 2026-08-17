@@ -25,12 +25,16 @@ jobs:
         run: |
           python3 -m py_compile tools/python/export_runtime_types.py
           python3 -m py_compile tools/python/export_targeting_fixtures.py
+          python3 -m py_compile tools/python/export_movement_fixtures.py
 
-      - name: Export Python targeting oracle fixtures
-        run: >-
-          python3 tools/python/export_targeting_fixtures.py
-          --source-root python-oracle
-          --output build/oracle/targeting.tsv
+      - name: Export Python oracle fixtures
+        run: |
+          python3 tools/python/export_targeting_fixtures.py \
+            --source-root python-oracle \
+            --output build/oracle/targeting.tsv
+          python3 tools/python/export_movement_fixtures.py \
+            --source-root python-oracle \
+            --output build/oracle/movement.tsv
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -47,3 +51,4 @@ jobs:
         run: >-
           gradle test --stacktrace
           -PoracleTargeting="$GITHUB_WORKSPACE/build/oracle/targeting.tsv"
+          -PoracleMovement="$GITHUB_WORKSPACE/build/oracle/movement.tsv"

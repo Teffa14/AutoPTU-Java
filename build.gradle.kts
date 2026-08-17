@@ -21,11 +21,15 @@ dependencies {
 }
 
 val oracleTargeting = providers.gradleProperty("oracleTargeting")
+val oracleMovement = providers.gradleProperty("oracleMovement")
 
 tasks.test {
     useJUnitPlatform()
     if (oracleTargeting.isPresent) {
         systemProperty("autoptu.targeting.oracle", oracleTargeting.get())
+    }
+    if (oracleMovement.isPresent) {
+        systemProperty("autoptu.movement.oracle", oracleMovement.get())
     }
 }
 
