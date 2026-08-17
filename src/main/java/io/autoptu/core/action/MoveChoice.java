@@ -3,6 +3,8 @@ package io.autoptu.core.action;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.GridCoord;
 
+import java.util.Locale;
+
 /**
  * Legal move decision. targetId is blank for FIELD/TILE targets; targetAnchor is
  * always present so a renderer can aim the animation without knowing PTU rules.
@@ -36,7 +38,7 @@ public record MoveChoice(
     public String stableKey() {
         return "move|" + actorId
                 + "|" + moveId
-                + "|" + targetMode.name().toLowerCase()
+                + "|" + targetMode.name().toLowerCase(Locale.ROOT)
                 + "|" + targetId
                 + "|" + targetAnchor.x() + "," + targetAnchor.y()
                 + "|" + actionType.value();
