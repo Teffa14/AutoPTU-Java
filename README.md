@@ -42,11 +42,13 @@ For each subsystem:
 - [x] Java canonicalizer matching the Python oracle's stable-value normalization rules.
 - [x] First real rules port: targeting, range, areas, footprints, and line of sight.
 - [x] First calculation primitives: combat-stage clamp/multipliers, accuracy stages, and weather DB modifiers.
-- [x] Java tests for targeting, canonicalization, and calculation primitives.
+- [x] Deterministic integer-seeded RNG compatible with Python `random.Random` for `random()`, `getrandbits(0..32)`, `randrange(stop)`, `randint(a,b)`, and choice indexes.
+- [x] Python-generated RNG parity fixtures, including multi-word and mixed-call sequences.
+- [x] Java tests for targeting, canonicalization, calculations, and RNG parity.
 - [x] Evaluated reference repositories for Python->Java migration and tabletop/game-engine architecture.
 - [ ] Export golden targeting/calculation fixtures directly from Python.
 - [ ] Add AutoPTU runtime type-manifest exporter.
-- [ ] Port deterministic RNG contract.
+- [ ] Expand RNG compatibility only as engine call sites require it.
 - [ ] Expand core calculations into damage/accuracy/type math.
 - [ ] Port movement legality.
 - [ ] Port action economy and phases.
