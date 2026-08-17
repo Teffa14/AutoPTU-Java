@@ -2,6 +2,7 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
+import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.action.ShiftChoice;
 import io.autoptu.core.event.MoveResolvedEvent;
 import io.autoptu.core.event.ShiftResolvedEvent;
@@ -10,6 +11,7 @@ import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.DamageDice;
 import io.autoptu.core.model.DamageResult;
 import io.autoptu.core.model.GridCoord;
+import io.autoptu.core.model.MoveSpec;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
 import io.autoptu.core.rules.ActionBudget;
@@ -95,6 +97,79 @@ class BattleRuntimeTest {
     }
 
     @Test
+    void revalidatedResolvedMoveAppliesWhenChoiceIsStillLegal() {
+        BattleRuntimeState state = stateWithEnemy(35);
+        MoveChoice choice = combatantMove("water-gun");
+
+        AppliedActionResult result = BattleRuntime.applyRevalidatedResolvedMoveOutcome(
+                state,
+                choice,
+                rangedMove("water-gun"),
+                "Medium",
+                "Medium",
+                Set.of(),
+                "Player",
+                new AccuracyResult(true, false, 12, 5),
+                damage(12)
+        );
+
+        assertEquals(23, state.requireCombatant("enemy").hp());
+        assertTrue(!state.requireCombatant("actor").actionBudget().hasActionAvailable(ActionType.STANDARD));
+        MoveResolvedEvent event = (MoveResolvedEvent) result.events().getFirst();
+        assertEquals(23, event.targetHp());
+    }
+
+    @Test
+    void staleResolvedMoveIsRejectedBeforeHpOrBudgetMutation() {
+        BattleRuntimeState state = stateWithEnemy(35);
+        MoveChoice staleChoice = combatantMove("water-gun");
+        state.requireCombatant("enemy").moveTo(new GridCoord(5, 5));
+
+        assertThrows(IllegalArgumentException.class, () -> BattleRuntime.applyRevalidatedResolvedMoveOutcome(
+                state,
+                staleChoice,
+                rangedMove("water-gun"),
+                "Medium",
+                "Medium",
+                Set.of(),
+                "Player",
+                new AccuracyResult(true, false, 12, 5),
+                damage(12)
+        ));
+
+        assertEquals(35, state.requireCombatant("enemy").hp());
+        assertTrue(state.requireCombatant("actor").actionBudget().hasActionAvailable(ActionType.STANDARD));
+    }
+
+    @Test
+    void lineOfSightChangeRejectsMoveBeforeMutation() {
+        BattleRuntimeState state = stateWithEnemyAt(new GridCoord(3, 1), 35);
+        MoveChoice choice = new MoveChoice(
+                "actor",
+                "water-gun",
+                ChoiceTargetMode.COMBATANT,
+                "enemy",
+                new GridCoord(3, 1),
+                ActionType.STANDARD
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> BattleRuntime.applyRevalidatedResolvedMoveOutcome(
+                state,
+                choice,
+                rangedMove("water-gun"),
+                "Medium",
+                "Medium",
+                Set.of(new GridCoord(2, 1)),
+                "Player",
+                new AccuracyResult(true, false, 12, 5),
+                damage(12)
+        ));
+
+        assertEquals(35, state.requireCombatant("enemy").hp());
+        assertTrue(state.requireCombatant("actor").actionBudget().hasActionAvailable(ActionType.STANDARD));
+    }
+
+    @Test
     void missConsumesActionWithoutMutatingTargetHp() {
         BattleRuntimeState state = stateWithEnemy(35);
 
@@ -163,6 +238,11 @@ class BattleRuntimeTest {
         );
     }
 
+    private static MoveOption rangedMove(String moveId) {
+        MoveSpec spec = new MoveSpec("Ranged", "Ranged", 3, 3, null, null, "Ranged");
+        return MoveOption.standard(moveId, spec);
+    }
+
     private static DamageResult damage(int amount) {
         return new DamageResult(new DamageDice(1, 6, 0), amount, 0, amount, amount, amount, amount);
     }
@@ -179,6 +259,10 @@ class BattleRuntimeTest {
     }
 
     private static BattleRuntimeState stateWithEnemy(int enemyHp) {
+        return stateWithEnemyAt(new GridCoord(2, 1), enemyHp);
+    }
+
+    private static BattleRuntimeState stateWithEnemyAt(GridCoord enemyPosition, int enemyHp) {
         RuntimeCombatantState actor = new RuntimeCombatantState(
                 "actor",
                 MovementProfile.walking(new GridCoord(1, 1), 3),
@@ -188,7 +272,7 @@ class BattleRuntimeTest {
         );
         RuntimeCombatantState enemy = new RuntimeCombatantState(
                 "enemy",
-                MovementProfile.walking(new GridCoord(2, 1), 3),
+                MovementProfile.walking(enemyPosition, 3),
                 enemyHp,
                 50,
                 new ActionBudget()
