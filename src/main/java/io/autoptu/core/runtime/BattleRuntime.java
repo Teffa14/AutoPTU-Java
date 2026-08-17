@@ -3,6 +3,7 @@ package io.autoptu.core.runtime;
 import io.autoptu.core.action.BattleChoice;
 import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
+import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.action.ShiftChoice;
 import io.autoptu.core.event.BattleEventFactory;
 import io.autoptu.core.event.MoveResolvedEvent;
@@ -46,9 +47,35 @@ public final class BattleRuntime {
             return applyShift(state, actor, shiftChoice, canFit);
         }
         if (choice instanceof MoveChoice) {
-            throw new UnsupportedOperationException("MoveChoice rule resolution is not ported yet; use applyResolvedMoveOutcome after authoritative rules resolve the move");
+            throw new UnsupportedOperationException("MoveChoice rule resolution is not ported yet; use applyRevalidatedResolvedMoveOutcome after authoritative rules resolve the move");
         }
         throw new IllegalArgumentException("unsupported battle choice: " + choice.getClass().getName());
+    }
+
+    /**
+     * Revalidates a resolved combatant-target move against current authoritative
+     * geometry and action economy before applying its outcome.
+     */
+    public static AppliedActionResult applyRevalidatedResolvedMoveOutcome(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            MoveOption move,
+            String actorSize,
+            String targetSize,
+            Set<GridCoord> lineOfSightBlockers,
+            String source,
+            AccuracyResult accuracy,
+            DamageResult damage
+    ) {
+        MoveChoiceRevalidation.requireLegalCombatantMove(
+                state,
+                choice,
+                move,
+                actorSize,
+                targetSize,
+                lineOfSightBlockers
+        );
+        return applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
     }
 
     /**
