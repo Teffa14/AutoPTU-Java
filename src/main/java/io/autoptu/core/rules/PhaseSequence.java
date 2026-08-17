@@ -18,7 +18,7 @@ public final class PhaseSequence {
 
     /** Match PhaseController.advance_phase: unknown/null starts from index zero, END stays END. */
     public static TurnPhase next(TurnPhase current) {
-        int index = ORDER.indexOf(current);
+        int index = current == null ? 0 : ORDER.indexOf(current);
         if (index < 0) {
             index = 0;
         }
