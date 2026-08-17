@@ -14,6 +14,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Validate Python migration tools
+        run: python3 -m py_compile tools/python/export_runtime_types.py
+
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
