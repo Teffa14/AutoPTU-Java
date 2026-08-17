@@ -38,26 +38,28 @@ For each subsystem:
 ## Current status
 
 - [x] Java 21 library skeleton.
-- [x] Cross-language oracle contract types.
-- [x] Java canonicalizer matching the Python oracle's stable-value normalization rules.
-- [x] First real rules port: targeting, range, areas, footprints, and line of sight.
-- [x] First calculation primitives: combat-stage clamp/multipliers, accuracy stages, and weather DB modifiers.
-- [x] Deterministic integer-seeded RNG compatible with Python `random.Random` for `random()`, `getrandbits(0..32)`, `randrange(stop)`, `randint(a,b)`, and choice indexes.
-- [x] Python-generated RNG parity fixtures, including multi-word and mixed-call sequences.
-- [x] Java tests for targeting, canonicalization, calculations, and RNG parity.
-- [x] Evaluated reference repositories for Python->Java migration and tabletop/game-engine architecture.
-- [ ] Export golden targeting/calculation fixtures directly from Python.
-- [ ] Add AutoPTU runtime type-manifest exporter.
-- [ ] Expand RNG compatibility only as engine call sites require it.
-- [ ] Expand core calculations into damage/accuracy/type math.
-- [ ] Port movement legality.
-- [ ] Port action economy and phases.
-- [ ] Port statuses and effects.
+- [x] Cross-language oracle input/output contracts.
+- [x] Stable-value canonicalizer matching Python oracle normalization.
+- [x] Python `random.Random` integer-seed compatibility for the RNG operations currently required by the port.
+- [x] Targeting: range, areas, footprints, target anchors, and line of sight.
+- [x] Movement legality: Overland/Swim/Sky, terrain costs, blockers, Wallrunner, sprint, and landing-fit boundary.
+- [x] Core PTU tables: Damage Base dice table and type-effectiveness step chart.
+- [x] Calculation primitives: stages, accuracy stages, weather DB, crit probability, Burn, flat/scalar modifiers, and rounding points.
+- [x] Typed turn flow: ActionType, TurnPhase, phase sequence, and action budget.
+- [x] Deterministic initiative ordering, Trick Room ordering, League ordering, and declared-action ordering.
+- [x] Python runtime type-manifest exporter for designing Java records/interfaces from observed engine behavior.
+- [x] Cross-repository CI that checks out a pinned Python AutoPTU commit and compares targeting, movement, calculations, PTU tables, and turn-flow fixtures.
+- [x] Reference-repository research for Python->Java migration and large tabletop/game-engine architecture.
+- [ ] Expand RNG compatibility only as new Python call sites require it.
+- [ ] Port core combatant/grid battle state.
+- [ ] Port full accuracy/damage resolution pipeline.
+- [ ] Port status controller, terrain, hazards, forced movement, and reactions.
 - [ ] Port move, ability, item, perk, and Trainer Feature hook registries.
-- [ ] Port AI policy after rules parity.
+- [ ] Port semantic battle-event emission and full BattleSpec -> BattleTranscript parity.
+- [ ] Port AI policy after legal-action and resolution parity is stable.
 - [ ] Add Craftics/Cobblemon adapter after the core is stable.
 
-See `docs/REFERENCE_REPOS.md` for the migration research and `docs/PORTING_PLAN.md` for the ordered port plan.
+See `docs/REFERENCE_REPOS.md` for the migration research, `docs/TYPE_TRACING.md` for runtime type discovery, and `docs/PORTING_PLAN.md` for the ordered port plan.
 
 ## Build
 
@@ -65,4 +67,4 @@ See `docs/REFERENCE_REPOS.md` for the migration research and `docs/PORTING_PLAN.
 gradle test
 ```
 
-GitHub Actions validates the Java core on every push and pull request.
+GitHub Actions validates the Java core and Python-oracle parity on every push and pull request.
