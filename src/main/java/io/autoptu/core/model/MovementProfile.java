@@ -47,4 +47,22 @@ public record MovementProfile(
                 0
         );
     }
+
+    /** Preserve resolved capabilities while advancing the authoritative grid position. */
+    public MovementProfile withPosition(GridCoord nextPosition) {
+        return new MovementProfile(
+                nextPosition,
+                overland,
+                swimSpeed,
+                skySpeed,
+                sprintMultiplier,
+                canFly,
+                canSwim,
+                canBurrow,
+                canPhase,
+                liquefied,
+                ignoresRoughTerrain,
+                wallrunnerLimit
+        );
+    }
 }
