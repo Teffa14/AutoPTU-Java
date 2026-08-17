@@ -38,30 +38,18 @@ jobs:
           python3 -m py_compile tools/python/export_turnflow_fixtures.py
           python3 -m py_compile tools/python/export_jump_fixtures.py
           python3 -m py_compile tools/python/export_accuracy_fixtures.py
+          python3 -m py_compile tools/python/export_stat_resolution_fixtures.py
 
       - name: Export Python oracle fixtures
         run: |
-          python3 tools/python/export_targeting_fixtures.py \
-            --source-root python-oracle \
-            --output build/oracle/targeting.tsv
-          python3 tools/python/export_movement_fixtures.py \
-            --source-root python-oracle \
-            --output build/oracle/movement.tsv
-          python3 tools/python/export_calculation_fixtures.py \
-            --source-root python-oracle \
-            --output build/oracle/calculations.tsv
-          python3 tools/python/export_ptu_table_fixtures.py \
-            --source-root python-oracle \
-            --output build/oracle/ptu-tables.tsv
-          python3 tools/python/export_turnflow_fixtures.py \
-            --source-root python-oracle \
-            --output build/oracle/turnflow.tsv
-          python3 tools/python/export_jump_fixtures.py \
-            --source-root python-oracle \
-            --output build/oracle/jump.tsv
-          python3 tools/python/export_accuracy_fixtures.py \
-            --source-root python-oracle \
-            --output build/oracle/accuracy.tsv
+          python3 tools/python/export_targeting_fixtures.py --source-root python-oracle --output build/oracle/targeting.tsv
+          python3 tools/python/export_movement_fixtures.py --source-root python-oracle --output build/oracle/movement.tsv
+          python3 tools/python/export_calculation_fixtures.py --source-root python-oracle --output build/oracle/calculations.tsv
+          python3 tools/python/export_ptu_table_fixtures.py --source-root python-oracle --output build/oracle/ptu-tables.tsv
+          python3 tools/python/export_turnflow_fixtures.py --source-root python-oracle --output build/oracle/turnflow.tsv
+          python3 tools/python/export_jump_fixtures.py --source-root python-oracle --output build/oracle/jump.tsv
+          python3 tools/python/export_accuracy_fixtures.py --source-root python-oracle --output build/oracle/accuracy.tsv
+          python3 tools/python/export_stat_resolution_fixtures.py --source-root python-oracle --output build/oracle/stats.tsv
 
       - name: Run Java core and Python-oracle parity tests
         run: >-
@@ -73,3 +61,4 @@ jobs:
           -PoracleTurnFlow="$GITHUB_WORKSPACE/build/oracle/turnflow.tsv"
           -PoracleJump="$GITHUB_WORKSPACE/build/oracle/jump.tsv"
           -PoracleAccuracy="$GITHUB_WORKSPACE/build/oracle/accuracy.tsv"
+          -PoracleStats="$GITHUB_WORKSPACE/build/oracle/stats.tsv"
