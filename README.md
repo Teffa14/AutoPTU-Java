@@ -4,6 +4,8 @@ Clean Java 21 port of the AutoPTU battle rules engine.
 
 This repository is intentionally **not** a Minecraft mod yet. The first goal is behavioral parity with the existing Python AutoPTU engine. Craftics, Cobblemon, and Minecraft should consume this library later instead of owning PTU rules themselves.
 
+The target runtime is an AI-driven tactical grid autobattler inside Minecraft: AutoPTU-Java decides legal actions and battle results; Minecraft/Cobblemon/Craftics adapt world state and render the resulting events.
+
 ## Source oracle
 
 The Python implementation in `Teffa14/AutoPTU` remains authoritative while this port is incomplete.
@@ -46,22 +48,25 @@ For each subsystem:
 - [x] Jump movement: long jump, high jump, blocked-path behavior, Wallrunner extension, water landing rules, and fit predicates.
 - [x] Core PTU tables: Damage Base dice table and type-effectiveness step chart.
 - [x] Calculation primitives: stages, accuracy stages, weather DB, crit probability, Burn, flat/scalar modifiers, and rounding points.
+- [x] Invariant d20 accuracy resolution: needed roll, natural 1/20, crit threshold, Blur, melee No Guard, and Probability Control rerolls.
 - [x] Typed turn flow: ActionType, TurnPhase, phase sequence, and action budget.
 - [x] Deterministic initiative ordering, Trick Room ordering, League ordering, and declared-action ordering.
+- [x] Deterministic autobattler action-space contract: Shift, direct combatant targets, SELF/FIELD, tile-aimed AoE, footprints, LoS, and action-budget filtering.
 - [x] Python runtime type-manifest exporter for designing Java records/interfaces from observed engine behavior.
-- [x] Cross-repository CI that checks out a pinned Python AutoPTU commit and compares targeting, shift/jump movement, calculations, PTU tables, and turn-flow fixtures.
+- [x] Cross-repository CI that checks out a pinned Python AutoPTU commit and compares ported rule slices against it.
 - [x] Reference-repository research for Python->Java migration and large tabletop/game-engine architecture.
 - [x] Defined migration acceptance protocol with separate compile, Java-test, and Python-parity gates.
+- [x] Defined Minecraft autobattler architecture and core/adapter boundary.
 - [ ] Expand RNG compatibility only as new Python call sites require it.
 - [ ] Port core combatant/grid battle state.
-- [ ] Port full accuracy/damage resolution pipeline.
+- [ ] Port full damage resolution pipeline and stateful accuracy modifiers.
 - [ ] Port status controller, terrain, hazards, forced movement, and reactions.
 - [ ] Port move, ability, item, perk, and Trainer Feature hook registries.
 - [ ] Port semantic battle-event emission and full BattleSpec -> BattleTranscript parity.
-- [ ] Port AI policy after legal-action and resolution parity is stable.
-- [ ] Add Craftics/Cobblemon adapter after the core is stable.
+- [ ] Port AI scoring/policy over the legal `BattleChoice` list.
+- [ ] Add Craftics/Cobblemon adapter after a parity-safe vertical slice exists.
 
-See `docs/REFERENCE_REPOS.md` for the migration research, `docs/MIGRATION_AGENT_PROTOCOL.md` for the acceptance loop, `docs/TYPE_TRACING.md` for runtime type discovery, and `docs/PORTING_PLAN.md` for the ordered port plan.
+See `docs/REFERENCE_REPOS.md` for migration research, `docs/MIGRATION_AGENT_PROTOCOL.md` for the acceptance loop, `docs/MINECRAFT_AUTOBATTLER_ARCHITECTURE.md` for the Minecraft runtime boundary, `docs/TYPE_TRACING.md` for runtime type discovery, and `docs/PORTING_PLAN.md` for the ordered port plan.
 
 ## Build
 
