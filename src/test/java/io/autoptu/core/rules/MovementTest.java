@@ -75,7 +75,11 @@ class MovementTest {
         GridCoord origin = new GridCoord(0, 0);
         MovementGrid grid = new MovementGrid(
                 4, 1, Set.of(),
-                Map.of(new GridCoord(1, 0), "Water", new GridCoord(2, 0), "Water")
+                Map.of(
+                        new GridCoord(1, 0), "Water",
+                        new GridCoord(2, 0), "Water",
+                        new GridCoord(3, 0), "Water"
+                )
         );
 
         MovementProfile walker = MovementProfile.walking(origin, 3);
@@ -88,6 +92,23 @@ class MovementTest {
         Set<GridCoord> swimResult = Movement.legalShiftTiles(grid, swimmer);
         assertTrue(swimResult.contains(new GridCoord(2, 0)));
         assertFalse(swimResult.contains(new GridCoord(3, 0)));
+    }
+
+    @Test
+    void mixedTerrainUsesTheDestinationTilesMovementModeLikePython() {
+        GridCoord origin = new GridCoord(0, 0);
+        MovementGrid grid = new MovementGrid(
+                4, 1, Set.of(),
+                Map.of(new GridCoord(1, 0), "Water", new GridCoord(2, 0), "Water")
+        );
+        MovementProfile swimmer = new MovementProfile(
+                origin, 3, 2, 0, 1.0,
+                false, true, false, false, false, false, 0
+        );
+
+        // The first two steps use Swim=2. Returning to land at x=3 switches
+        // the destination-tile limit back to Overland=3, matching movement.py.
+        assertTrue(Movement.legalShiftTiles(grid, swimmer).contains(new GridCoord(3, 0)));
     }
 
     @Test
