@@ -5,6 +5,7 @@ import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.hook.BuiltinDamageModifierHooks;
 import io.autoptu.core.hook.DamageModifierHookContext;
 import io.autoptu.core.hook.DamageModifierHookRegistry;
+import io.autoptu.core.hook.DamageModifierHookResult;
 import io.autoptu.core.model.AttackModifier;
 import io.autoptu.core.model.CombatantStatProfile;
 import io.autoptu.core.model.GridCoord;
@@ -130,15 +131,15 @@ public final class RuntimeMoveResolution {
         boolean meleeNoGuard = isMelee(move) && (actor.noGuard() || target.noGuard());
         int effectiveDb = authoritativeStabDamageBase(move, metadata, actor);
         double typeMultiplier = authoritativeTypeMultiplier(metadata, target, input.typeMultiplier());
-        List<AttackModifier> damageModifiers = authoritativeDamageModifiers(
+        DamageModifierHookResult damageHooks = authoritativeDamageHooks(
                 state, choice, move, actor, target, metadata);
         MoveResolutionInput stateBoundInput = new MoveResolutionInput(
                 metadata.ac(), evasion, actor.accuracyStage(), metadata.critRange(), meleeNoGuard,
                 target.blur(), actor.probabilityControl(), effectiveDb, attackValue,
-                defenseValue, actor.sniper(), typeMultiplier, damageModifiers
+                defenseValue, actor.sniper(), typeMultiplier, damageHooks.modifiers()
         );
         return BattleRuntime.applyAuthoritativeMove(state, choice, move, actorSize, targetSize,
-                lineOfSightBlockers, source, rng, stateBoundInput);
+                lineOfSightBlockers, source, rng, stateBoundInput, damageHooks.events());
     }
 
     private static int authoritativeStabDamageBase(MoveOption move, MoveCombatProfile metadata, RuntimeCombatantState actor) {
@@ -151,7 +152,7 @@ public final class RuntimeMoveResolution {
         return PtuTables.typeMultiplier(metadata.moveType(), target.types());
     }
 
-    private static List<AttackModifier> authoritativeDamageModifiers(
+    private static DamageModifierHookResult authoritativeDamageHooks(
             BattleRuntimeState state,
             MoveChoice choice,
             MoveOption move,
@@ -172,8 +173,9 @@ public final class RuntimeMoveResolution {
                 move,
                 metadata
         );
-        resolved.addAll(DAMAGE_MODIFIER_HOOKS.resolve(hookContext));
-        return List.copyOf(resolved);
+        DamageModifierHookResult hookResult = DAMAGE_MODIFIER_HOOKS.resolve(hookContext);
+        resolved.addAll(hookResult.modifiers());
+        return DamageModifierHookResult.of(resolved, hookResult.events());
     }
 
     private static boolean isMelee(MoveOption move) {
