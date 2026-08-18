@@ -5,6 +5,7 @@ import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.action.ShiftChoice;
+import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.event.BattleEventFactory;
 import io.autoptu.core.event.MoveResolvedEvent;
 import io.autoptu.core.event.StatusSkipEvent;
@@ -24,6 +25,7 @@ import io.autoptu.core.rules.ShiftApplication;
 import io.autoptu.core.rules.StatusSkipExceptionResolution;
 import io.autoptu.core.rules.StatusSkipResolution;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -81,6 +83,23 @@ public final class BattleRuntime {
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
             PythonRandom rng, MoveResolutionInput input
     ) {
+        return applyAuthoritativeMove(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers,
+                source, rng, input, List.of()
+        );
+    }
+
+    /**
+     * Resolve a move and prepend semantic rule-effect events derived from the same
+     * authoritative snapshot. The event list is playback output only and cannot alter
+     * legality, RNG, action economy, damage, or resulting state.
+     */
+    public static AppliedActionResult applyAuthoritativeMove(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            PythonRandom rng, MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents
+    ) {
         if (rng == null) throw new IllegalArgumentException("rng is required");
         if (input == null) throw new IllegalArgumentException("input is required");
 
@@ -98,7 +117,7 @@ public final class BattleRuntime {
         DamageResult damage = accuracy.hit() ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit())) : null;
         AppliedActionResult result = applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
         actor.moveFrequencyUsage().recordUse(move);
-        return result;
+        return prependEvents(preResolutionEvents, result);
     }
 
     public static AppliedActionResult applyRevalidatedResolvedMoveOutcome(
@@ -152,6 +171,20 @@ public final class BattleRuntime {
         for (String combatantId : state.combatantIds()) {
             state.requireCombatant(combatantId).moveFrequencyUsage().resetRound();
         }
+    }
+
+    private static AppliedActionResult prependEvents(
+            List<? extends BattleEvent> before,
+            AppliedActionResult result
+    ) {
+        if (before == null || before.isEmpty()) return result;
+        ArrayList<BattleEvent> events = new ArrayList<>(before.size() + result.events().size());
+        for (BattleEvent event : before) {
+            if (event == null) throw new IllegalArgumentException("preResolutionEvents cannot contain null");
+            events.add(event);
+        }
+        events.addAll(result.events());
+        return new AppliedActionResult(events);
     }
 
     private static TrainerFeatureEvent trainerFeatureEvent(
