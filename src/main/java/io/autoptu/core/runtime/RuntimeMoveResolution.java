@@ -12,8 +12,8 @@ import java.util.Set;
 
 /**
  * Minecraft-facing direct-move entrypoint that derives effective combat stats,
- * evasion, accuracy stage, Sniper, No Guard, and intrinsic move metadata from
- * authoritative runtime state before delegating to BattleRuntime.
+ * evasion, accuracy stage, Sniper, No Guard, Blur, and intrinsic move metadata
+ * from authoritative runtime state before delegating to BattleRuntime.
  */
 public final class RuntimeMoveResolution {
     private RuntimeMoveResolution() {
@@ -200,9 +200,9 @@ public final class RuntimeMoveResolution {
     /**
      * Preferred direct-move boundary for Minecraft autobattles.
      *
-     * Target evasion, attacker accuracy stage, Sniper, and melee No Guard are
-     * derived from the server-owned runtime snapshot. Adapter-supplied values for
-     * those fields are ignored.
+     * Target evasion, attacker accuracy stage, Sniper, melee No Guard, and Blur
+     * are derived from the server-owned runtime snapshot. Adapter-supplied values
+     * for those fields are ignored.
      */
     public static AppliedActionResult applyUsingAuthoritativeCombatState(
             BattleRuntimeState state,
@@ -241,7 +241,7 @@ public final class RuntimeMoveResolution {
                 actor.accuracyStage(),
                 input.critRange(),
                 meleeNoGuard,
-                input.blurApplies(),
+                target.blur(),
                 input.rerollOnMiss(),
                 input.effectiveDb(),
                 input.attackValue(),
