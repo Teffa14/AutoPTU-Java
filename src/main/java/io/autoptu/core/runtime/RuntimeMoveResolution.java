@@ -5,12 +5,14 @@ import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.model.AttackModifier;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveCombatProfile;
+import io.autoptu.core.model.EvasionProfile;
 import io.autoptu.core.random.PythonRandom;
 import io.autoptu.core.rules.BuiltinDamageModifierResolution;
 import io.autoptu.core.rules.EvasionResolution;
 import io.autoptu.core.rules.PtuTables;
 import io.autoptu.core.rules.StabResolution;
 import io.autoptu.core.rules.StatResolution;
+import io.autoptu.core.rules.StatusEvasionResolution;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,21 +42,13 @@ public final class RuntimeMoveResolution {
             boolean ignorePositiveAttackStage,
             boolean ignorePositiveDefenseStage
     ) {
-        if (state == null) {
-            throw new IllegalArgumentException("state is required");
-        }
-        if (choice == null) {
-            throw new IllegalArgumentException("choice is required");
-        }
-        if (input == null) {
-            throw new IllegalArgumentException("input is required");
-        }
-
+        if (state == null) throw new IllegalArgumentException("state is required");
+        if (choice == null) throw new IllegalArgumentException("choice is required");
+        if (input == null) throw new IllegalArgumentException("input is required");
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
         int attackValue = StatResolution.offensive(actor.requireStatProfile(), damageCategory, ignorePositiveAttackStage);
         int defenseValue = StatResolution.defensive(target.requireStatProfile(), damageCategory, ignorePositiveDefenseStage);
-
         MoveResolutionInput resolvedInput = new MoveResolutionInput(
                 input.moveAc(), input.evasion(), input.accuracyStage(), input.critRange(),
                 input.meleeNoGuard(), input.blurApplies(), input.rerollOnMiss(), input.effectiveDb(),
@@ -91,7 +85,6 @@ public final class RuntimeMoveResolution {
         if (choice == null) throw new IllegalArgumentException("choice is required");
         if (move == null) throw new IllegalArgumentException("move is required");
         if (input == null) throw new IllegalArgumentException("input is required");
-
         MoveCombatProfile metadata = move.requireCombatProfile();
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
         int evasion = EvasionResolution.resolve(target.requireEvasionProfile(), metadata.damageCategory());
@@ -105,15 +98,7 @@ public final class RuntimeMoveResolution {
                 ignorePositiveAttackStage, ignorePositiveDefenseStage);
     }
 
-    /**
-     * Preferred direct-move boundary for Minecraft autobattles.
-     * Server-owned state supplies combatant stats, evasion, typings, statuses,
-     * and the still-transitional pre-resolved modifier projection; move metadata
-     * supplies AC/category/base DB/type; attacker state supplies accuracy stage,
-     * Sniper, melee No Guard, STAB and the consumable Probability Control reroll.
-     * Built-in status modifiers such as Burn are derived here and cannot be
-     * supplied or cleared by the Minecraft adapter.
-     */
+    /** Preferred direct-move boundary for Minecraft autobattles. */
     public static AppliedActionResult applyUsingAuthoritativeCombatState(
             BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source, PythonRandom rng,
@@ -123,11 +108,12 @@ public final class RuntimeMoveResolution {
         if (choice == null) throw new IllegalArgumentException("choice is required");
         if (move == null) throw new IllegalArgumentException("move is required");
         if (input == null) throw new IllegalArgumentException("input is required");
-
         MoveCombatProfile metadata = move.requireCombatProfile();
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
-        int evasion = EvasionResolution.resolve(target.requireEvasionProfile(), metadata.damageCategory());
+        EvasionProfile authoritativeEvasion = StatusEvasionResolution.apply(
+                target.requireEvasionProfile(), state.statuses(choice.targetId()));
+        int evasion = EvasionResolution.resolve(authoritativeEvasion, metadata.damageCategory());
         boolean meleeNoGuard = isMelee(move) && (actor.noGuard() || target.noGuard());
         int effectiveDb = authoritativeStabDamageBase(move, metadata, actor);
         double typeMultiplier = authoritativeTypeMultiplier(metadata, target, input.typeMultiplier());
@@ -142,39 +128,22 @@ public final class RuntimeMoveResolution {
                 ignorePositiveAttackStage, ignorePositiveDefenseStage);
     }
 
-    private static int authoritativeStabDamageBase(
-            MoveOption move,
-            MoveCombatProfile metadata,
-            RuntimeCombatantState actor
-    ) {
-        if (metadata.moveType() == null || actor.types().isEmpty()) {
-            return metadata.damageBase();
-        }
+    private static int authoritativeStabDamageBase(MoveOption move, MoveCombatProfile metadata, RuntimeCombatantState actor) {
+        if (metadata.moveType() == null || actor.types().isEmpty()) return metadata.damageBase();
         return StabResolution.resolve(metadata.damageBase(), move.moveId(), metadata.moveType(), actor.types());
     }
 
-    private static double authoritativeTypeMultiplier(
-            MoveCombatProfile metadata,
-            RuntimeCombatantState target,
-            double legacyMultiplier
-    ) {
-        if (metadata.moveType() == null || target.types().isEmpty()) {
-            return legacyMultiplier;
-        }
+    private static double authoritativeTypeMultiplier(MoveCombatProfile metadata, RuntimeCombatantState target, double legacyMultiplier) {
+        if (metadata.moveType() == null || target.types().isEmpty()) return legacyMultiplier;
         return PtuTables.typeMultiplier(metadata.moveType(), target.types());
     }
 
     private static List<AttackModifier> authoritativeDamageModifiers(
-            BattleRuntimeState state,
-            String actorId,
-            RuntimeCombatantState actor,
-            MoveCombatProfile metadata
+            BattleRuntimeState state, String actorId, RuntimeCombatantState actor, MoveCombatProfile metadata
     ) {
         ArrayList<AttackModifier> resolved = new ArrayList<>();
         for (AttackModifier modifier : actor.damageModifiers()) {
-            if (modifier != null && !"burned".equalsIgnoreCase(modifier.slug())) {
-                resolved.add(modifier);
-            }
+            if (modifier != null && !"burned".equalsIgnoreCase(modifier.slug())) resolved.add(modifier);
         }
         resolved.addAll(BuiltinDamageModifierResolution.resolve(metadata.damageCategory(), state.statuses(actorId)));
         return List.copyOf(resolved);
