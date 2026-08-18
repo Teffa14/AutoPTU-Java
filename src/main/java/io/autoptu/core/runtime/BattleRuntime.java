@@ -7,17 +7,20 @@ import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.action.ShiftChoice;
 import io.autoptu.core.event.BattleEventFactory;
 import io.autoptu.core.event.MoveResolvedEvent;
+import io.autoptu.core.event.StatusSkipEvent;
 import io.autoptu.core.model.AccuracyResult;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.DamageResult;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.ShiftApplicationResult;
+import io.autoptu.core.model.TurnPhase;
 import io.autoptu.core.random.PythonRandom;
 import io.autoptu.core.rules.Accuracy;
 import io.autoptu.core.rules.ActionBudget;
 import io.autoptu.core.rules.DamageResolution;
 import io.autoptu.core.rules.Movement;
 import io.autoptu.core.rules.ShiftApplication;
+import io.autoptu.core.rules.StatusSkipResolution;
 
 import java.util.List;
 import java.util.Set;
@@ -33,6 +36,31 @@ public final class BattleRuntime {
         if (choice instanceof ShiftChoice shiftChoice) return applyShift(state, actor, shiftChoice, canFit);
         if (choice instanceof MoveChoice) throw new UnsupportedOperationException("MoveChoice requires authoritative move context; use applyAuthoritativeMove");
         throw new IllegalArgumentException("unsupported battle choice: " + choice.getClass().getName());
+    }
+
+    /**
+     * Apply the base Python StatusController status-skip consequence.
+     *
+     * Trainer Feature exceptions such as Supreme Concentration and Duelist's Manual
+     * remain future slices. Callers must invoke this only after those exceptions have
+     * been resolved. The core consumes the base STANDARD and SHIFT buckets and emits
+     * a semantic event for Minecraft playback.
+     */
+    public static AppliedActionResult applyStatusSkip(
+            BattleRuntimeState state,
+            String actorId,
+            String status,
+            TurnPhase phase,
+            String reason
+    ) {
+        if (state == null) throw new IllegalArgumentException("state is required");
+        if (actorId == null || actorId.isBlank()) throw new IllegalArgumentException("actorId is required");
+        if (phase == null) throw new IllegalArgumentException("phase is required");
+
+        RuntimeCombatantState actor = state.requireCombatant(actorId);
+        StatusSkipResolution.apply(actor.actionBudget());
+        StatusSkipEvent event = new StatusSkipEvent(actor.combatantId(), status, phase, reason);
+        return new AppliedActionResult(List.of(event));
     }
 
     public static AppliedActionResult applyAuthoritativeMove(
