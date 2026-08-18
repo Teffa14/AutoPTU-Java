@@ -8,6 +8,11 @@ import sys
 from pathlib import Path
 
 
+def stable_key(move) -> str:
+    ac = "null" if move.ac is None else str(move.ac)
+    return f"ac={ac}|db={move.db}|crit={move.crit_range}|category={str(move.category or '').strip().lower()}"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True)
@@ -52,17 +57,8 @@ def main() -> int:
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle, delimiter="\t")
-        writer.writerow(["case", "ac", "damage_base", "crit_range", "damage_category"])
         for case_id, move in cases:
-            writer.writerow(
-                [
-                    case_id,
-                    "" if move.ac is None else move.ac,
-                    move.db,
-                    move.crit_range,
-                    str(move.category or "").strip().lower(),
-                ]
-            )
+            writer.writerow([case_id, stable_key(move)])
     return 0
 
 
