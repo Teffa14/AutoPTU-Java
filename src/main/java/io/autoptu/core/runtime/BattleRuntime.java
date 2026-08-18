@@ -23,141 +23,61 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
-/**
- * First authoritative action dispatcher for headless and Minecraft execution.
- *
- * The runtime revalidates choices from core state before mutation. Controllers may
- * select a BattleChoice, but they cannot directly set positions, HP, random rolls,
- * critical state, or spend actions.
- */
 public final class BattleRuntime {
-    private BattleRuntime() {
-    }
+    private BattleRuntime() {}
 
-    public static AppliedActionResult applyAction(
-            BattleRuntimeState state,
-            BattleChoice choice,
-            Predicate<GridCoord> canFit
-    ) {
-        if (state == null) {
-            throw new IllegalArgumentException("state is required");
-        }
-        if (choice == null) {
-            throw new IllegalArgumentException("choice is required");
-        }
-
+    public static AppliedActionResult applyAction(BattleRuntimeState state, BattleChoice choice, Predicate<GridCoord> canFit) {
+        if (state == null) throw new IllegalArgumentException("state is required");
+        if (choice == null) throw new IllegalArgumentException("choice is required");
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
-        if (choice instanceof ShiftChoice shiftChoice) {
-            return applyShift(state, actor, shiftChoice, canFit);
-        }
-        if (choice instanceof MoveChoice) {
-            throw new UnsupportedOperationException("MoveChoice requires authoritative move context; use applyAuthoritativeMove");
-        }
+        if (choice instanceof ShiftChoice shiftChoice) return applyShift(state, actor, shiftChoice, canFit);
+        if (choice instanceof MoveChoice) throw new UnsupportedOperationException("MoveChoice requires authoritative move context; use applyAuthoritativeMove");
         throw new IllegalArgumentException("unsupported battle choice: " + choice.getClass().getName());
     }
 
-    /**
-     * Revalidates geometry and action economy, consumes Python-compatible RNG in
-     * battle order, resolves accuracy/critical/damage in Java, then mutates state.
-     *
-     * This is the direct-move boundary intended for the Minecraft server adapter:
-     * callers provide semantic rule inputs, never rolls, crit flags, damage, or HP.
-     */
     public static AppliedActionResult applyAuthoritativeMove(
-            BattleRuntimeState state,
-            MoveChoice choice,
-            MoveOption move,
-            String actorSize,
-            String targetSize,
-            Set<GridCoord> lineOfSightBlockers,
-            String source,
-            PythonRandom rng,
-            MoveResolutionInput input
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            PythonRandom rng, MoveResolutionInput input
     ) {
-        if (rng == null) {
-            throw new IllegalArgumentException("rng is required");
-        }
-        if (input == null) {
-            throw new IllegalArgumentException("input is required");
-        }
+        if (rng == null) throw new IllegalArgumentException("rng is required");
+        if (input == null) throw new IllegalArgumentException("input is required");
 
-        MoveChoiceRevalidation.requireLegalCombatantMove(
-                state,
-                choice,
-                move,
-                actorSize,
-                targetSize,
-                lineOfSightBlockers
-        );
+        MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
 
+        RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
         int roll = rng.randIntInclusive(1, 20);
         AccuracyResult accuracy = Accuracy.resolve(input.accuracyCheck(roll, null));
         if (!accuracy.hit() && input.rerollOnMiss()) {
+            actor.consumeProbabilityControl();
             int reroll = rng.randIntInclusive(1, 20);
             accuracy = Accuracy.resolve(input.accuracyCheck(roll, reroll));
         }
 
-        DamageResult damage = accuracy.hit()
-                ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit()))
-                : null;
+        DamageResult damage = accuracy.hit() ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit())) : null;
         return applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
     }
 
-    /**
-     * Revalidates a resolved combatant-target move against current authoritative
-     * geometry and action economy before applying its outcome.
-     */
     public static AppliedActionResult applyRevalidatedResolvedMoveOutcome(
-            BattleRuntimeState state,
-            MoveChoice choice,
-            MoveOption move,
-            String actorSize,
-            String targetSize,
-            Set<GridCoord> lineOfSightBlockers,
-            String source,
-            AccuracyResult accuracy,
-            DamageResult damage
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            AccuracyResult accuracy, DamageResult damage
     ) {
-        MoveChoiceRevalidation.requireLegalCombatantMove(
-                state,
-                choice,
-                move,
-                actorSize,
-                targetSize,
-                lineOfSightBlockers
-        );
+        MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
         return applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
     }
 
-    /**
-     * Applies an already-resolved direct combatant move to authoritative state.
-     *
-     * Accuracy and damage values must come from the Java core rule pipeline. This
-     * boundary owns action consumption, HP mutation, and semantic event emission so
-     * Minecraft/Cobblemon adapters can only render the authoritative outcome.
-     */
     public static AppliedActionResult applyResolvedMoveOutcome(
-            BattleRuntimeState state,
-            MoveChoice choice,
-            String source,
-            AccuracyResult accuracy,
-            DamageResult damage
+            BattleRuntimeState state, MoveChoice choice, String source,
+            AccuracyResult accuracy, DamageResult damage
     ) {
-        if (state == null) {
-            throw new IllegalArgumentException("state is required");
-        }
-        if (choice == null) {
-            throw new IllegalArgumentException("choice is required");
-        }
-        if (accuracy == null) {
-            throw new IllegalArgumentException("accuracy is required");
-        }
+        if (state == null) throw new IllegalArgumentException("state is required");
+        if (choice == null) throw new IllegalArgumentException("choice is required");
+        if (accuracy == null) throw new IllegalArgumentException("accuracy is required");
         if (choice.targetMode() != ChoiceTargetMode.COMBATANT || choice.targetId().isBlank()) {
             throw new IllegalArgumentException("resolved move outcome currently requires a combatant target");
         }
-        if (accuracy.hit() && damage == null) {
-            throw new IllegalArgumentException("damage is required for a hit");
-        }
+        if (accuracy.hit() && damage == null) throw new IllegalArgumentException("damage is required for a hit");
 
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
@@ -169,42 +89,26 @@ public final class BattleRuntime {
 
         int resolvedDamage = accuracy.hit() ? Math.max(0, damage.damage()) : 0;
         int nextHp = Math.max(0, target.hp() - resolvedDamage);
-
         if (!budget.consume(actionType, choice.moveId())) {
             throw new IllegalStateException(actionType.value() + " action is already consumed");
         }
         target.setHp(nextHp);
 
         MoveResolvedEvent event = BattleEventFactory.moveResolved(
-                source,
-                actor.combatantId(),
-                target.combatantId(),
-                choice.moveId(),
-                accuracy,
-                accuracy.hit() ? damage : null,
-                target.hp()
+                source, actor.combatantId(), target.combatantId(), choice.moveId(),
+                accuracy, accuracy.hit() ? damage : null, target.hp()
         );
         return new AppliedActionResult(List.of(event));
     }
 
     private static AppliedActionResult applyShift(
-            BattleRuntimeState state,
-            RuntimeCombatantState actor,
-            ShiftChoice choice,
-            Predicate<GridCoord> canFit
+            BattleRuntimeState state, RuntimeCombatantState actor,
+            ShiftChoice choice, Predicate<GridCoord> canFit
     ) {
-        Set<GridCoord> legalDestinations = Movement.legalShiftTiles(
-                state.grid(),
-                actor.movementProfile(),
-                0,
-                canFit
-        );
+        Set<GridCoord> legalDestinations = Movement.legalShiftTiles(state.grid(), actor.movementProfile(), 0, canFit);
         ShiftApplicationResult result = ShiftApplication.apply(
-                actor.combatantId(),
-                actor.position(),
-                choice.destination(),
-                legalDestinations,
-                actor.actionBudget()
+                actor.combatantId(), actor.position(), choice.destination(),
+                legalDestinations, actor.actionBudget()
         );
         actor.moveTo(result.position());
         return new AppliedActionResult(List.of(result.event()));
