@@ -15,20 +15,30 @@ public final class BattleRuntimeState {
     private final MovementGrid grid;
     private final LinkedHashMap<String, RuntimeCombatantState> combatants = new LinkedHashMap<>();
     private final LinkedHashMap<String, Set<String>> statusesByCombatant = new LinkedHashMap<>();
+    private final LinkedHashMap<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant = new LinkedHashMap<>();
 
     public BattleRuntimeState(MovementGrid grid, List<RuntimeCombatantState> combatants) {
-        this(grid, combatants, Map.of());
+        this(grid, combatants, Map.of(), Map.of());
     }
 
-    /**
-     * Materializes canonical status names alongside combatants. Minecraft/Cobblemon
-     * may project these statuses visually, but battle resolution reads this server-
-     * owned snapshot rather than client/entity claims.
-     */
     public BattleRuntimeState(
             MovementGrid grid,
             List<RuntimeCombatantState> combatants,
             Map<String, ? extends Collection<String>> statusesByCombatant
+    ) {
+        this(grid, combatants, statusesByCombatant, Map.of());
+    }
+
+    /**
+     * Materializes canonical status names and Trainer Feature state alongside combatants.
+     * Minecraft/Cobblemon may project this data visually, but battle resolution reads
+     * this server-owned snapshot rather than client/entity claims.
+     */
+    public BattleRuntimeState(
+            MovementGrid grid,
+            List<RuntimeCombatantState> combatants,
+            Map<String, ? extends Collection<String>> statusesByCombatant,
+            Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant
     ) {
         if (grid == null) {
             throw new IllegalArgumentException("grid is required");
@@ -46,12 +56,20 @@ public final class BattleRuntimeState {
         if (statusesByCombatant != null) {
             for (Map.Entry<String, ? extends Collection<String>> entry : statusesByCombatant.entrySet()) {
                 String combatantId = entry.getKey();
-                if (!this.combatants.containsKey(combatantId)) {
-                    throw new IllegalArgumentException("status state references unknown combatant: " + combatantId);
-                }
+                requireKnownCombatant(combatantId, "status state");
                 Set<String> normalized = normalizeStatuses(entry.getValue());
                 if (!normalized.isEmpty()) {
                     this.statusesByCombatant.put(combatantId, normalized);
+                }
+            }
+        }
+        if (statusSkipFeaturesByCombatant != null) {
+            for (Map.Entry<String, StatusSkipFeatureState> entry : statusSkipFeaturesByCombatant.entrySet()) {
+                String combatantId = entry.getKey();
+                requireKnownCombatant(combatantId, "status-skip feature state");
+                StatusSkipFeatureState featureState = entry.getValue();
+                if (featureState != null && !featureState.equals(StatusSkipFeatureState.NONE)) {
+                    this.statusSkipFeaturesByCombatant.put(combatantId, featureState);
                 }
             }
         }
@@ -83,6 +101,17 @@ public final class BattleRuntimeState {
             return false;
         }
         return statuses(combatantId).contains(status.strip().toLowerCase(Locale.ROOT));
+    }
+
+    public StatusSkipFeatureState statusSkipFeatures(String combatantId) {
+        requireCombatant(combatantId);
+        return statusSkipFeaturesByCombatant.getOrDefault(combatantId, StatusSkipFeatureState.NONE);
+    }
+
+    private void requireKnownCombatant(String combatantId, String source) {
+        if (!this.combatants.containsKey(combatantId)) {
+            throw new IllegalArgumentException(source + " references unknown combatant: " + combatantId);
+        }
     }
 
     private static Set<String> normalizeStatuses(Collection<String> statuses) {

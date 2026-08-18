@@ -4,7 +4,8 @@ package io.autoptu.core.event;
 public enum BattleEventKind {
     MOVE_RESOLVED("move_resolved"),
     SHIFT_RESOLVED("shift_resolved"),
-    STATUS_SKIP("status_skip");
+    STATUS_SKIP("status_skip"),
+    TRAINER_FEATURE("trainer_feature");
 
     private final String value;
 
