@@ -14,9 +14,9 @@ import java.util.Set;
  * Revalidates a combatant-target move against authoritative runtime state.
  *
  * Controllers and Minecraft adapters may hold a previously legal MoveChoice, but
- * positions, blockers, or action economy can change before execution. This gate
- * recomputes legality from current core state and rejects stale choices before HP
- * or action budget can mutate.
+ * positions, blockers, action economy, or move-frequency usage can change before
+ * execution. This gate recomputes legality from current core state and rejects stale
+ * choices before HP, frequency counters, or action budget can mutate.
  */
 public final class MoveChoiceRevalidation {
     private MoveChoiceRevalidation() {
@@ -50,6 +50,9 @@ public final class MoveChoiceRevalidation {
         }
 
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
+        if (!actor.moveFrequencyUsage().available(move)) {
+            throw new IllegalArgumentException("move frequency is exhausted in current runtime state");
+        }
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
         TargetCandidate currentTarget = new TargetCandidate(
                 target.combatantId(),
