@@ -7,10 +7,14 @@ import io.autoptu.core.model.MovementProfile;
 import io.autoptu.core.rules.ActionBudget;
 import io.autoptu.core.rules.Calculations;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Mutable server-authoritative state for one combatant.
  *
- * Minecraft entity position is a projection of this state, never its source of truth.
+ * Minecraft entity position and combat metadata are projections of this state,
+ * never sources of truth for battle resolution.
  */
 public final class RuntimeCombatantState {
     private final String combatantId;
@@ -25,6 +29,7 @@ public final class RuntimeCombatantState {
     private MovementProfile movementProfile;
     private int hp;
     private boolean probabilityControl;
+    private List<String> types = List.of();
 
     public RuntimeCombatantState(
             String combatantId,
@@ -160,6 +165,31 @@ public final class RuntimeCombatantState {
         this.probabilityControl = probabilityControl;
     }
 
+    /**
+     * Full authoritative constructor used by the Minecraft/Cobblemon adapter when
+     * materializing battle state from trusted content. Type names preserve Python
+     * oracle casing because PTU type lookup is intentionally case-sensitive.
+     */
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage,
+            boolean sniper,
+            boolean noGuard,
+            boolean blur,
+            boolean probabilityControl,
+            List<String> types
+    ) {
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile,
+                accuracyStage, sniper, noGuard, blur, probabilityControl);
+        this.types = normalizeTypes(types);
+    }
+
     public String combatantId() {
         return combatantId;
     }
@@ -226,6 +256,10 @@ public final class RuntimeCombatantState {
         return probabilityControl;
     }
 
+    public List<String> types() {
+        return types;
+    }
+
     boolean consumeProbabilityControl() {
         if (!probabilityControl) {
             return false;
@@ -240,5 +274,19 @@ public final class RuntimeCombatantState {
 
     void setHp(int nextHp) {
         hp = Math.max(0, Math.min(maxHp, nextHp));
+    }
+
+    private static List<String> normalizeTypes(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        List<String> normalized = new ArrayList<>(values.size());
+        for (String value : values) {
+            if (value == null || value.isBlank()) {
+                continue;
+            }
+            normalized.add(value.strip());
+        }
+        return List.copyOf(normalized);
     }
 }
