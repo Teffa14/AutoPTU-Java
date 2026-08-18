@@ -1,11 +1,10 @@
 package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.BattleChoice;
-import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.model.AccuracyResult;
-import io.autoptu.core.model.ActionType;
+import io.autoptu.core.model.DamageDice;
 import io.autoptu.core.model.DamageResult;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveSpec;
@@ -106,7 +105,7 @@ class RuntimeAuthoritativeMoveFrequencyTest {
                 Set.of(),
                 "test",
                 new AccuracyResult(true, false, 10, 2),
-                new DamageResult(3, 3, 0, 1.0)
+                new DamageResult(new DamageDice(1, 6, 0), 3, 0, 3, 3, 3, 3)
         );
 
         assertEquals(1, state.requireCombatant("actor").moveFrequencyUsage().battleUses(move.moveId()));
