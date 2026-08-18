@@ -265,7 +265,7 @@ class RuntimeAutobattlerActionSpaceTest {
         return choices.stream()
                 .filter(MoveChoice.class::isInstance)
                 .map(MoveChoice.class::cast)
-                .anyMatch(choice -> choice.moveId().equals(moveId) && choice.targetCombatantId().equals(targetId));
+                .anyMatch(choice -> choice.moveId().equals(moveId) && choice.targetId().equals(targetId));
     }
 
     private static BattleRuntimeState stateWithEnemy(
