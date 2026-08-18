@@ -100,7 +100,7 @@ class RuntimeAuthoritativeNoGuardTest {
 
     private static MoveResolutionInput input(boolean meleeNoGuard) {
         return new MoveResolutionInput(
-                99, -99, -6, 20, meleeNoGuard, false, false,
+                99, -99, 0, 20, meleeNoGuard, false, false,
                 1, 999, 999, false, 1.0, List.of()
         );
     }
