@@ -39,6 +39,7 @@ val oracleStab = providers.gradleProperty("oracleStab")
 val oracleBurnDamage = providers.gradleProperty("oracleBurnDamage")
 val oracleStatusSkip = providers.gradleProperty("oracleStatusSkip")
 val oracleStatusSkipExceptions = providers.gradleProperty("oracleStatusSkipExceptions")
+val oracleMoveFrequency = providers.gradleProperty("oracleMoveFrequency")
 
 tasks.test {
     useJUnitPlatform()
@@ -60,6 +61,7 @@ tasks.test {
     if (oracleBurnDamage.isPresent) systemProperty("autoptu.burn.damage.oracle", oracleBurnDamage.get())
     if (oracleStatusSkip.isPresent) systemProperty("autoptu.status.skip.oracle", oracleStatusSkip.get())
     if (oracleStatusSkipExceptions.isPresent) systemProperty("autoptu.status.skip.exception.oracle", oracleStatusSkipExceptions.get())
+    if (oracleMoveFrequency.isPresent) systemProperty("autoptu.move.frequency.oracle", oracleMoveFrequency.get())
 }
 
 tasks.withType<JavaCompile>().configureEach {
