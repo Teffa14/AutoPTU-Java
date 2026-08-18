@@ -1,6 +1,7 @@
 package io.autoptu.core.hook;
 
 import io.autoptu.core.action.MoveOption;
+import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.model.AttackModifier;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveCombatProfile;
@@ -24,14 +25,14 @@ class DamageModifierHookRegistryTest {
     void resolvesByExplicitOrderAndPreservesRegistrationOrderForTies() {
         DamageModifierHookRegistry registry = DamageModifierHookRegistry.builder()
                 .register("item-second", HookSource.ITEM, 20,
-                        context -> List.of(AttackModifier.flat("item-second", 2)))
+                        context -> DamageModifierHookResult.modifiersOnly(List.of(AttackModifier.flat("item-second", 2))))
                 .register("status-first", HookSource.STATUS, 10,
-                        context -> List.of(AttackModifier.flat("status-first", 1)))
+                        context -> DamageModifierHookResult.modifiersOnly(List.of(AttackModifier.flat("status-first", 1))))
                 .register("ability-third", HookSource.ABILITY, 20,
-                        context -> List.of(AttackModifier.flat("ability-third", 3)))
+                        context -> DamageModifierHookResult.modifiersOnly(List.of(AttackModifier.flat("ability-third", 3))))
                 .build();
 
-        List<String> slugs = registry.resolve(context()).stream()
+        List<String> slugs = registry.resolve(context()).modifiers().stream()
                 .map(AttackModifier::slug)
                 .toList();
 
@@ -39,10 +40,32 @@ class DamageModifierHookRegistryTest {
     }
 
     @Test
+    void semanticEventsFollowTheSameHookOrder() {
+        DamageModifierHookRegistry registry = DamageModifierHookRegistry.builder()
+                .register("late", HookSource.ITEM, 20,
+                        context -> DamageModifierHookResult.of(
+                                List.of(),
+                                List.of(event("late"))
+                        ))
+                .register("early", HookSource.STATUS, 10,
+                        context -> DamageModifierHookResult.of(
+                                List.of(),
+                                List.of(event("early"))
+                        ))
+                .build();
+
+        List<String> effects = registry.resolve(context()).events().stream()
+                .map(event -> ((RuleEffectEvent) event).effect())
+                .toList();
+
+        assertEquals(List.of("early", "late"), effects);
+    }
+
+    @Test
     void sourceCategoryIsMetadataNotAnOrderingRule() {
         DamageModifierHookRegistry registry = DamageModifierHookRegistry.builder()
-                .register("feature", HookSource.TRAINER_FEATURE, 5, context -> List.of())
-                .register("ability", HookSource.ABILITY, 5, context -> List.of())
+                .register("feature", HookSource.TRAINER_FEATURE, 5, context -> DamageModifierHookResult.empty())
+                .register("ability", HookSource.ABILITY, 5, context -> DamageModifierHookResult.empty())
                 .build();
 
         assertEquals(HookSource.TRAINER_FEATURE, registry.registrations().get(0).source());
@@ -52,10 +75,10 @@ class DamageModifierHookRegistryTest {
     @Test
     void rejectsDuplicateRegistrationWithinSameSource() {
         DamageModifierHookRegistry.Builder builder = DamageModifierHookRegistry.builder()
-                .register("same", HookSource.ABILITY, 10, context -> List.of());
+                .register("same", HookSource.ABILITY, 10, context -> DamageModifierHookResult.empty());
 
         assertThrows(IllegalArgumentException.class,
-                () -> builder.register("same", HookSource.ABILITY, 20, context -> List.of()));
+                () -> builder.register("same", HookSource.ABILITY, 20, context -> DamageModifierHookResult.empty()));
     }
 
     @Test
@@ -106,5 +129,9 @@ class DamageModifierHookRegistryTest {
                 move,
                 move.requireCombatProfile()
         );
+    }
+
+    private static RuleEffectEvent event(String effect) {
+        return new RuleEffectEvent("system", "test", "actor", "target", "tackle", effect, 0, 20);
     }
 }
