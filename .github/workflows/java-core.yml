@@ -50,6 +50,7 @@ jobs:
           python3 -m py_compile tools/python/export_status_skip_fixtures.py
           python3 -m py_compile tools/python/export_status_skip_exception_fixtures.py
           python3 -m py_compile tools/python/export_move_frequency_fixtures.py
+          python3 -m py_compile tools/python/export_round_lifecycle_fixtures.py
 
       - name: Export Python oracle fixtures
         run: |
@@ -72,6 +73,7 @@ jobs:
           python3 tools/python/export_status_skip_fixtures.py --source-root python-oracle --output build/oracle/status-skip.tsv
           python3 tools/python/export_status_skip_exception_fixtures.py --source-root python-oracle --output build/oracle/status-skip-exceptions.tsv
           python3 tools/python/export_move_frequency_fixtures.py --source-root python-oracle --output build/oracle/move-frequency.tsv
+          python3 tools/python/export_round_lifecycle_fixtures.py --source-root python-oracle --output build/oracle/round-lifecycle.tsv
 
       - name: Run Java core and Python-oracle parity tests
         run: >-
@@ -95,3 +97,4 @@ jobs:
           -PoracleStatusSkip="$GITHUB_WORKSPACE/build/oracle/status-skip.tsv"
           -PoracleStatusSkipExceptions="$GITHUB_WORKSPACE/build/oracle/status-skip-exceptions.tsv"
           -PoracleMoveFrequency="$GITHUB_WORKSPACE/build/oracle/move-frequency.tsv"
+          -PoracleRoundLifecycle="$GITHUB_WORKSPACE/build/oracle/round-lifecycle.tsv"
