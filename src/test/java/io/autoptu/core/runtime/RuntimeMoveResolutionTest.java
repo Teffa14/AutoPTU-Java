@@ -8,6 +8,7 @@ import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.model.CombatantStatProfile;
 import io.autoptu.core.model.GridCoord;
+import io.autoptu.core.model.MoveCombatProfile;
 import io.autoptu.core.model.MoveSpec;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
@@ -59,6 +60,78 @@ class RuntimeMoveResolutionTest {
 
         assertEquals(explicit.stableKey(), derived.stableKey());
         assertEquals(derived.targetHp(), derivedState.requireCombatant("enemy").hp());
+    }
+
+    @Test
+    void derivesIntrinsicCombatMetadataFromAuthoritativeMoveOption() {
+        BattleRuntimeState derivedState = stateWithStats();
+        BattleRuntimeState explicitState = stateWithStats();
+        MoveResolutionInput forgedMetadata = new MoveResolutionInput(
+                19,
+                0,
+                0,
+                1,
+                false,
+                false,
+                false,
+                1,
+                999,
+                999,
+                false,
+                1.0,
+                List.of()
+        );
+        MoveResolutionInput expected = input(20, 10);
+
+        MoveResolvedEvent derived = (MoveResolvedEvent) RuntimeMoveResolution.applyUsingStateStatsAndMoveMetadata(
+                derivedState,
+                choice(),
+                authoritativeMove(),
+                "Medium",
+                "Medium",
+                Set.of(),
+                "Player",
+                new PythonRandom(7),
+                forgedMetadata,
+                false,
+                false
+        ).events().getFirst();
+
+        MoveResolvedEvent explicit = (MoveResolvedEvent) BattleRuntime.applyAuthoritativeMove(
+                explicitState,
+                choice(),
+                authoritativeMove(),
+                "Medium",
+                "Medium",
+                Set.of(),
+                "Player",
+                new PythonRandom(7),
+                expected
+        ).events().getFirst();
+
+        assertEquals(explicit.stableKey(), derived.stableKey());
+        assertEquals(derived.targetHp(), derivedState.requireCombatant("enemy").hp());
+    }
+
+    @Test
+    void rejectsMissingAuthoritativeMoveMetadataBeforeMutation() {
+        BattleRuntimeState state = stateWithStats();
+
+        assertThrows(IllegalStateException.class, () -> RuntimeMoveResolution.applyUsingStateStatsAndMoveMetadata(
+                state,
+                choice(),
+                move(),
+                "Medium",
+                "Medium",
+                Set.of(),
+                "Player",
+                new PythonRandom(7),
+                input(20, 10),
+                false,
+                false
+        ));
+        assertEquals(100, state.requireCombatant("enemy").hp());
+        assertEquals(true, state.requireCombatant("actor").actionBudget().hasActionAvailable(ActionType.STANDARD));
     }
 
     @Test
@@ -161,6 +234,14 @@ class RuntimeMoveResolutionTest {
         return MoveOption.standard(
                 "tackle",
                 new MoveSpec("Melee", "Melee", 1, 1, null, null, "Melee")
+        );
+    }
+
+    private static MoveOption authoritativeMove() {
+        return MoveOption.standard(
+                "tackle",
+                new MoveSpec("Melee", "Melee", 1, 1, null, null, "Melee"),
+                new MoveCombatProfile(5, 10, 20, "physical")
         );
     }
 }
