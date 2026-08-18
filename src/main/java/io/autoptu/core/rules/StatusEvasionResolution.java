@@ -1,6 +1,8 @@
 package io.autoptu.core.rules;
 
+import io.autoptu.core.model.CombatantStatProfile;
 import io.autoptu.core.model.EvasionProfile;
+import io.autoptu.core.model.StatFlag;
 
 import java.util.Collection;
 import java.util.Locale;
@@ -8,7 +10,7 @@ import java.util.Locale;
 /**
  * Applies status-derived evasion semantics before the pure evasion formula runs.
  * Canonical battle status state, not Minecraft/Cobblemon entity data, decides
- * whether positive evasion bonuses are suppressed.
+ * sleep suppression and paralysis stage penalties.
  */
 public final class StatusEvasionResolution {
     private StatusEvasionResolution() {
@@ -18,16 +20,23 @@ public final class StatusEvasionResolution {
         if (profile == null) {
             throw new IllegalArgumentException("profile is required");
         }
+
         boolean sleeping = hasStatus(statuses, "sleep") || hasStatus(statuses, "asleep");
-        if (!sleeping || profile.suppressPositiveBonuses()) {
+        boolean paralyzed = hasStatus(statuses, "paralyzed") || hasStatus(statuses, "paralyze");
+        boolean suppressPositiveBonuses = profile.suppressPositiveBonuses() || sleeping;
+        CombatantStatProfile stats = paralyzed
+                ? profile.stats().withFlag(StatFlag.PARALYZED)
+                : profile.stats();
+
+        if (stats == profile.stats() && suppressPositiveBonuses == profile.suppressPositiveBonuses()) {
             return profile;
         }
         return new EvasionProfile(
-                profile.stats(),
+                stats,
                 profile.physicalBonus(),
                 profile.specialBonus(),
                 profile.statusBonus(),
-                true,
+                suppressPositiveBonuses,
                 profile.ignoreNonStatBonuses()
         );
     }
