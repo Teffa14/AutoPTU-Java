@@ -10,7 +10,7 @@ import java.util.Locale;
 /**
  * Applies status-derived evasion semantics before the pure evasion formula runs.
  * Canonical battle status state, not Minecraft/Cobblemon entity data, decides
- * sleep suppression and paralysis stage penalties.
+ * sleep/freeze suppression and paralysis stage penalties.
  */
 public final class StatusEvasionResolution {
     private StatusEvasionResolution() {
@@ -21,9 +21,12 @@ public final class StatusEvasionResolution {
             throw new IllegalArgumentException("profile is required");
         }
 
-        boolean sleeping = hasStatus(statuses, "sleep") || hasStatus(statuses, "asleep");
+        boolean suppressingStatus = hasStatus(statuses, "sleep")
+                || hasStatus(statuses, "asleep")
+                || hasStatus(statuses, "frozen")
+                || hasStatus(statuses, "freeze");
         boolean paralyzed = hasStatus(statuses, "paralyzed") || hasStatus(statuses, "paralyze");
-        boolean suppressPositiveBonuses = profile.suppressPositiveBonuses() || sleeping;
+        boolean suppressPositiveBonuses = profile.suppressPositiveBonuses() || suppressingStatus;
         CombatantStatProfile stats = profile.stats().withFlag(StatFlag.PARALYZED, paralyzed);
 
         if (stats == profile.stats() && suppressPositiveBonuses == profile.suppressPositiveBonuses()) {
