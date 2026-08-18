@@ -24,6 +24,7 @@ public final class RuntimeCombatantState {
     private final boolean blur;
     private MovementProfile movementProfile;
     private int hp;
+    private boolean probabilityControl;
 
     public RuntimeCombatantState(
             String combatantId,
@@ -32,7 +33,7 @@ public final class RuntimeCombatantState {
             int maxHp,
             ActionBudget actionBudget
     ) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, null, null, 0, false, false, false);
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, null, null, 0, false, false, false, false);
     }
 
     public RuntimeCombatantState(
@@ -43,7 +44,7 @@ public final class RuntimeCombatantState {
             ActionBudget actionBudget,
             CombatantStatProfile statProfile
     ) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, null, 0, false, false, false);
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, null, 0, false, false, false, false);
     }
 
     public RuntimeCombatantState(
@@ -55,7 +56,7 @@ public final class RuntimeCombatantState {
             CombatantStatProfile statProfile,
             EvasionProfile evasionProfile
     ) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, 0, false, false, false);
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, 0, false, false, false, false);
     }
 
     public RuntimeCombatantState(
@@ -68,7 +69,7 @@ public final class RuntimeCombatantState {
             EvasionProfile evasionProfile,
             int accuracyStage
     ) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, false, false, false);
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, false, false, false, false);
     }
 
     public RuntimeCombatantState(
@@ -82,7 +83,7 @@ public final class RuntimeCombatantState {
             int accuracyStage,
             boolean sniper
     ) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, sniper, false, false);
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, sniper, false, false, false);
     }
 
     public RuntimeCombatantState(
@@ -97,7 +98,7 @@ public final class RuntimeCombatantState {
             boolean sniper,
             boolean noGuard
     ) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, sniper, noGuard, false);
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, sniper, noGuard, false, false);
     }
 
     public RuntimeCombatantState(
@@ -112,6 +113,23 @@ public final class RuntimeCombatantState {
             boolean sniper,
             boolean noGuard,
             boolean blur
+    ) {
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, sniper, noGuard, blur, false);
+    }
+
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage,
+            boolean sniper,
+            boolean noGuard,
+            boolean blur,
+            boolean probabilityControl
     ) {
         if (combatantId == null || combatantId.isBlank()) {
             throw new IllegalArgumentException("combatantId is required");
@@ -139,6 +157,7 @@ public final class RuntimeCombatantState {
         this.sniper = sniper;
         this.noGuard = noGuard;
         this.blur = blur;
+        this.probabilityControl = probabilityControl;
     }
 
     public String combatantId() {
@@ -201,6 +220,18 @@ public final class RuntimeCombatantState {
 
     public boolean blur() {
         return blur;
+    }
+
+    public boolean probabilityControl() {
+        return probabilityControl;
+    }
+
+    boolean consumeProbabilityControl() {
+        if (!probabilityControl) {
+            return false;
+        }
+        probabilityControl = false;
+        return true;
     }
 
     void moveTo(GridCoord destination) {
