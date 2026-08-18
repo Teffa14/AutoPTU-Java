@@ -1,5 +1,6 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.model.AttackModifier;
 import io.autoptu.core.model.CombatantStatProfile;
 import io.autoptu.core.model.EvasionProfile;
 import io.autoptu.core.model.GridCoord;
@@ -30,6 +31,7 @@ public final class RuntimeCombatantState {
     private int hp;
     private boolean probabilityControl;
     private List<String> types = List.of();
+    private List<AttackModifier> damageModifiers = List.of();
 
     public RuntimeCombatantState(
             String combatantId,
@@ -190,6 +192,33 @@ public final class RuntimeCombatantState {
         this.types = normalizeTypes(types);
     }
 
+    /**
+     * Transitional authoritative constructor for pre-damage AttackContext modifiers.
+     * The list is server-owned and copied defensively. Future ability/item/feature
+     * hook registries can replace this resolved projection without changing the
+     * Minecraft-facing move boundary.
+     */
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage,
+            boolean sniper,
+            boolean noGuard,
+            boolean blur,
+            boolean probabilityControl,
+            List<String> types,
+            List<AttackModifier> damageModifiers
+    ) {
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile,
+                accuracyStage, sniper, noGuard, blur, probabilityControl, types);
+        this.damageModifiers = normalizeDamageModifiers(damageModifiers);
+    }
+
     public String combatantId() {
         return combatantId;
     }
@@ -260,6 +289,10 @@ public final class RuntimeCombatantState {
         return types;
     }
 
+    public List<AttackModifier> damageModifiers() {
+        return damageModifiers;
+    }
+
     boolean consumeProbabilityControl() {
         if (!probabilityControl) {
             return false;
@@ -286,6 +319,19 @@ public final class RuntimeCombatantState {
                 continue;
             }
             normalized.add(value.strip());
+        }
+        return List.copyOf(normalized);
+    }
+
+    private static List<AttackModifier> normalizeDamageModifiers(List<AttackModifier> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        List<AttackModifier> normalized = new ArrayList<>(values.size());
+        for (AttackModifier value : values) {
+            if (value != null) {
+                normalized.add(value);
+            }
         }
         return List.copyOf(normalized);
     }

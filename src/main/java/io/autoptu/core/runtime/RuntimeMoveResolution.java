@@ -15,8 +15,8 @@ import java.util.Set;
 /**
  * Minecraft-facing direct-move entrypoint that derives effective combat stats,
  * evasion, accuracy stage, Sniper, No Guard, Blur, Probability Control, STAB,
- * type effectiveness, and intrinsic move metadata from authoritative runtime
- * state before delegating to BattleRuntime.
+ * type effectiveness, damage modifiers, and intrinsic move metadata from
+ * authoritative runtime state before delegating to BattleRuntime.
  */
 public final class RuntimeMoveResolution {
     private RuntimeMoveResolution() {
@@ -103,9 +103,10 @@ public final class RuntimeMoveResolution {
 
     /**
      * Preferred direct-move boundary for Minecraft autobattles.
-     * Server-owned state supplies combatant stats, evasion and typings; move metadata
-     * supplies AC/category/base DB/type; attacker state supplies accuracy stage,
-     * Sniper, melee No Guard, STAB and the consumable Probability Control reroll.
+     * Server-owned state supplies combatant stats, evasion, typings, and resolved
+     * pre-damage AttackContext modifiers; move metadata supplies AC/category/base
+     * DB/type; attacker state supplies accuracy stage, Sniper, melee No Guard,
+     * STAB and the consumable Probability Control reroll.
      */
     public static AppliedActionResult applyUsingAuthoritativeCombatState(
             BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
@@ -127,7 +128,7 @@ public final class RuntimeMoveResolution {
         MoveResolutionInput stateBoundInput = new MoveResolutionInput(
                 metadata.ac(), evasion, actor.accuracyStage(), metadata.critRange(), meleeNoGuard,
                 target.blur(), actor.probabilityControl(), effectiveDb, input.attackValue(),
-                input.defenseValue(), actor.sniper(), typeMultiplier, input.modifiers()
+                input.defenseValue(), actor.sniper(), typeMultiplier, actor.damageModifiers()
         );
         return applyUsingStateStats(state, choice, move, actorSize, targetSize,
                 lineOfSightBlockers, source, rng, stateBoundInput, metadata.damageCategory(),
