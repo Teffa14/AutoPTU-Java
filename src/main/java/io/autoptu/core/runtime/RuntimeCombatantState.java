@@ -1,6 +1,7 @@
 package io.autoptu.core.runtime;
 
 import io.autoptu.core.model.CombatantStatProfile;
+import io.autoptu.core.model.EvasionProfile;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementProfile;
 import io.autoptu.core.rules.ActionBudget;
@@ -15,6 +16,7 @@ public final class RuntimeCombatantState {
     private final int maxHp;
     private final ActionBudget actionBudget;
     private final CombatantStatProfile statProfile;
+    private final EvasionProfile evasionProfile;
     private MovementProfile movementProfile;
     private int hp;
 
@@ -25,7 +27,7 @@ public final class RuntimeCombatantState {
             int maxHp,
             ActionBudget actionBudget
     ) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, null);
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, null, null);
     }
 
     public RuntimeCombatantState(
@@ -35,6 +37,18 @@ public final class RuntimeCombatantState {
             int maxHp,
             ActionBudget actionBudget,
             CombatantStatProfile statProfile
+    ) {
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, null);
+    }
+
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile
     ) {
         if (combatantId == null || combatantId.isBlank()) {
             throw new IllegalArgumentException("combatantId is required");
@@ -57,6 +71,7 @@ public final class RuntimeCombatantState {
         this.maxHp = maxHp;
         this.actionBudget = actionBudget;
         this.statProfile = statProfile;
+        this.evasionProfile = evasionProfile;
     }
 
     public String combatantId() {
@@ -92,6 +107,17 @@ public final class RuntimeCombatantState {
             throw new IllegalStateException("combatant " + combatantId + " has no stat profile");
         }
         return statProfile;
+    }
+
+    public boolean hasEvasionProfile() {
+        return evasionProfile != null;
+    }
+
+    public EvasionProfile requireEvasionProfile() {
+        if (evasionProfile == null) {
+            throw new IllegalStateException("combatant " + combatantId + " has no evasion profile");
+        }
+        return evasionProfile;
     }
 
     void moveTo(GridCoord destination) {
