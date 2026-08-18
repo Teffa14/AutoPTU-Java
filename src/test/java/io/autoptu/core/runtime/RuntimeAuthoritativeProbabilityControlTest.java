@@ -99,10 +99,10 @@ class RuntimeAuthoritativeProbabilityControlTest {
     }
 
     private static MoveOption hardMove() {
-        return MoveOption.standard("hard-hit", new MoveSpec("Ranged", "Ranged", 1, 1, 25, null, "Ranged"), new MoveCombatProfile(25, 5, 20, "physical"));
+        return MoveOption.standard("hard-hit", new MoveSpec("Ranged", "Ranged", 1, 1, null, null, "Ranged"), new MoveCombatProfile(25, 5, 20, "physical"));
     }
 
     private static MoveOption easyMove() {
-        return MoveOption.standard("easy-hit", new MoveSpec("Ranged", "Ranged", 1, 1, 2, null, "Ranged"), new MoveCombatProfile(2, 5, 20, "physical"));
+        return MoveOption.standard("easy-hit", new MoveSpec("Ranged", "Ranged", 1, 1, null, null, "Ranged"), new MoveCombatProfile(2, 5, 20, "physical"));
     }
 }
