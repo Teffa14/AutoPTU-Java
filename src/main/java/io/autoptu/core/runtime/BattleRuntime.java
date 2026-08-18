@@ -8,6 +8,7 @@ import io.autoptu.core.action.ShiftChoice;
 import io.autoptu.core.event.BattleEventFactory;
 import io.autoptu.core.event.MoveResolvedEvent;
 import io.autoptu.core.event.StatusSkipEvent;
+import io.autoptu.core.event.TrainerFeatureEvent;
 import io.autoptu.core.model.AccuracyResult;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.DamageResult;
@@ -20,6 +21,7 @@ import io.autoptu.core.rules.ActionBudget;
 import io.autoptu.core.rules.DamageResolution;
 import io.autoptu.core.rules.Movement;
 import io.autoptu.core.rules.ShiftApplication;
+import io.autoptu.core.rules.StatusSkipExceptionResolution;
 import io.autoptu.core.rules.StatusSkipResolution;
 
 import java.util.List;
@@ -39,12 +41,11 @@ public final class BattleRuntime {
     }
 
     /**
-     * Apply the base Python StatusController status-skip consequence.
+     * Resolve the Python StatusController pending status-skip path from canonical state.
      *
-     * Trainer Feature exceptions such as Supreme Concentration and Duelist's Manual
-     * remain future slices. Callers must invoke this only after those exceptions have
-     * been resolved. The core consumes the base STANDARD and SHIFT buckets and emits
-     * a semantic event for Minecraft playback.
+     * Trainer Feature bypasses are derived server-side before action buckets are consumed.
+     * Minecraft/Cobblemon receives only semantic playback events and cannot decide that a
+     * status skip is ignored.
      */
     public static AppliedActionResult applyStatusSkip(
             BattleRuntimeState state,
@@ -58,6 +59,18 @@ public final class BattleRuntime {
         if (phase == null) throw new IllegalArgumentException("phase is required");
 
         RuntimeCombatantState actor = state.requireCombatant(actorId);
+        StatusSkipFeatureState featureState = state.statusSkipFeatures(actorId);
+        StatusSkipExceptionResolution.Result exception = StatusSkipExceptionResolution.resolve(
+                status,
+                featureState.signatureModification(),
+                featureState.signatureMove(),
+                featureState.duelistsManualIgnoreStatus()
+        );
+        if (!exception.skipTurn()) {
+            TrainerFeatureEvent event = trainerFeatureEvent(actor, status, exception);
+            return new AppliedActionResult(List.of(event));
+        }
+
         StatusSkipResolution.apply(actor.actionBudget());
         StatusSkipEvent event = new StatusSkipEvent(actor.combatantId(), status, phase, reason);
         return new AppliedActionResult(List.of(event));
@@ -127,6 +140,24 @@ public final class BattleRuntime {
                 accuracy, accuracy.hit() ? damage : null, target.hp()
         );
         return new AppliedActionResult(List.of(event));
+    }
+
+    private static TrainerFeatureEvent trainerFeatureEvent(
+            RuntimeCombatantState actor,
+            String status,
+            StatusSkipExceptionResolution.Result exception
+    ) {
+        return switch (exception.exceptionKind()) {
+            case SUPREME_CONCENTRATION -> new TrainerFeatureEvent(
+                    actor.combatantId(), "Signature Technique", "supreme_concentration",
+                    exception.signatureMove(), status, actor.hp()
+            );
+            case DUELISTS_MANUAL -> new TrainerFeatureEvent(
+                    actor.combatantId(), "Duelist's Manual", "ignore_status_skip",
+                    "", status, actor.hp()
+            );
+            case NONE -> throw new IllegalStateException("status skip exception expected");
+        };
     }
 
     private static AppliedActionResult applyShift(
