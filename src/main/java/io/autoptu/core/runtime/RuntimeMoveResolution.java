@@ -5,14 +5,15 @@ import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveCombatProfile;
 import io.autoptu.core.random.PythonRandom;
+import io.autoptu.core.rules.EvasionResolution;
 import io.autoptu.core.rules.StatResolution;
 
 import java.util.Set;
 
 /**
- * Minecraft-facing direct-move entrypoint that derives effective combat stats
- * and intrinsic move metadata from authoritative runtime state before delegating
- * to BattleRuntime.
+ * Minecraft-facing direct-move entrypoint that derives effective combat stats,
+ * evasion, and intrinsic move metadata from authoritative runtime state before
+ * delegating to BattleRuntime.
  */
 public final class RuntimeMoveResolution {
     private RuntimeMoveResolution() {
@@ -84,14 +85,6 @@ public final class RuntimeMoveResolution {
         );
     }
 
-    /**
-     * Preferred Minecraft boundary for direct damaging moves.
-     *
-     * AC, DB, critical range, and category are loaded from the authoritative
-     * MoveOption. The remaining input contains stateful hook results that have not
-     * yet been migrated into runtime state. This method intentionally ignores any
-     * conflicting intrinsic move values present in that transitional input.
-     */
     public static AppliedActionResult applyUsingStateStatsAndMoveMetadata(
             BattleRuntimeState state,
             MoveChoice choice,
@@ -138,6 +131,74 @@ public final class RuntimeMoveResolution {
                 rng,
                 metadataBoundInput,
                 metadata.damageCategory(),
+                ignorePositiveAttackStage,
+                ignorePositiveDefenseStage
+        );
+    }
+
+    /**
+     * Preferred direct-move boundary for Minecraft autobattles.
+     *
+     * The target's evasion is derived from the authoritative runtime snapshot and
+     * the authoritative move category. Any evasion supplied by an adapter is
+     * ignored, preventing Fabric/Cobblemon presentation state from deciding hit
+     * legality.
+     */
+    public static AppliedActionResult applyUsingAuthoritativeEvasion(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            MoveOption move,
+            String actorSize,
+            String targetSize,
+            Set<GridCoord> lineOfSightBlockers,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput input,
+            boolean ignorePositiveAttackStage,
+            boolean ignorePositiveDefenseStage
+    ) {
+        if (state == null) {
+            throw new IllegalArgumentException("state is required");
+        }
+        if (choice == null) {
+            throw new IllegalArgumentException("choice is required");
+        }
+        if (move == null) {
+            throw new IllegalArgumentException("move is required");
+        }
+        if (input == null) {
+            throw new IllegalArgumentException("input is required");
+        }
+
+        MoveCombatProfile metadata = move.requireCombatProfile();
+        RuntimeCombatantState target = state.requireCombatant(choice.targetId());
+        int evasion = EvasionResolution.resolve(target.requireEvasionProfile(), metadata.damageCategory());
+        MoveResolutionInput stateBoundInput = new MoveResolutionInput(
+                input.moveAc(),
+                evasion,
+                input.accuracyStage(),
+                input.critRange(),
+                input.meleeNoGuard(),
+                input.blurApplies(),
+                input.rerollOnMiss(),
+                input.effectiveDb(),
+                input.attackValue(),
+                input.defenseValue(),
+                input.sniper(),
+                input.typeMultiplier(),
+                input.modifiers()
+        );
+
+        return applyUsingStateStatsAndMoveMetadata(
+                state,
+                choice,
+                move,
+                actorSize,
+                targetSize,
+                lineOfSightBlockers,
+                source,
+                rng,
+                stateBoundInput,
                 ignorePositiveAttackStage,
                 ignorePositiveDefenseStage
         );
