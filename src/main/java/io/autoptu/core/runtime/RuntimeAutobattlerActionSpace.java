@@ -19,8 +19,8 @@ import java.util.function.Predicate;
  *
  * External adapters provide rendering/environment projections only on the preferred
  * path. Current positions, PTU footprint sizes, battle affiliation, active/fainted
- * state, movesets, movement capabilities, and action economy are read from
- * {@link BattleRuntimeState}.
+ * state, movesets, move-frequency usage, movement capabilities, and action economy
+ * are read from {@link BattleRuntimeState}.
  */
 public final class RuntimeAutobattlerActionSpace {
     private RuntimeAutobattlerActionSpace() {
@@ -139,7 +139,7 @@ public final class RuntimeAutobattlerActionSpace {
 
         List<MoveOption> safeMoves = moves == null ? List.of() : moves;
         for (MoveOption move : safeMoves) {
-            if (move == null) {
+            if (move == null || !actor.moveFrequencyUsage().available(move)) {
                 continue;
             }
             choices.addAll(AutobattlerActionSpace.legalMoveChoices(
