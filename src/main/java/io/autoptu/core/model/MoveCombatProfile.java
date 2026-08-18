@@ -7,13 +7,14 @@ import java.util.Locale;
  *
  * These values come from authoritative AutoPTU move data. Minecraft adapters and
  * AI controllers may select a move id, but they must not supply or override its
- * AC, damage base, critical range, or damage category.
+ * AC, damage base, critical range, damage category, or elemental type.
  */
 public record MoveCombatProfile(
         Integer ac,
         int damageBase,
         int critRange,
-        String damageCategory
+        String damageCategory,
+        String moveType
 ) {
     public MoveCombatProfile {
         if (damageBase < 0) {
@@ -29,5 +30,16 @@ public record MoveCombatProfile(
         if (!damageCategory.equals("physical") && !damageCategory.equals("special")) {
             throw new IllegalArgumentException("damageCategory must be physical or special");
         }
+        if (moveType != null) {
+            moveType = moveType.strip();
+            if (moveType.isEmpty()) {
+                moveType = null;
+            }
+        }
+    }
+
+    /** Transitional constructor for already-ported callers that do not load move type yet. */
+    public MoveCombatProfile(Integer ac, int damageBase, int critRange, String damageCategory) {
+        this(ac, damageBase, critRange, damageCategory, null);
     }
 }

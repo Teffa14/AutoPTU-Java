@@ -6,15 +6,16 @@ import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveCombatProfile;
 import io.autoptu.core.random.PythonRandom;
 import io.autoptu.core.rules.EvasionResolution;
+import io.autoptu.core.rules.PtuTables;
 import io.autoptu.core.rules.StatResolution;
 
 import java.util.Set;
 
 /**
  * Minecraft-facing direct-move entrypoint that derives effective combat stats,
- * evasion, accuracy stage, Sniper, No Guard, Blur, Probability Control, and
- * intrinsic move metadata from authoritative runtime state before delegating to
- * BattleRuntime.
+ * evasion, accuracy stage, Sniper, No Guard, Blur, Probability Control, type
+ * effectiveness, and intrinsic move metadata from authoritative runtime state
+ * before delegating to BattleRuntime.
  */
 public final class RuntimeMoveResolution {
     private RuntimeMoveResolution() {
@@ -101,8 +102,9 @@ public final class RuntimeMoveResolution {
 
     /**
      * Preferred direct-move boundary for Minecraft autobattles.
-     * Server-owned state supplies target evasion, attacker accuracy stage, Sniper,
-     * melee No Guard, Blur, and the consumable Probability Control reroll.
+     * Server-owned state supplies target evasion and typings; move metadata supplies
+     * move type; attacker state supplies accuracy stage, Sniper, melee No Guard,
+     * Blur interaction, and the consumable Probability Control reroll.
      */
     public static AppliedActionResult applyUsingAuthoritativeCombatState(
             BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
@@ -119,14 +121,26 @@ public final class RuntimeMoveResolution {
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
         int evasion = EvasionResolution.resolve(target.requireEvasionProfile(), metadata.damageCategory());
         boolean meleeNoGuard = isMelee(move) && (actor.noGuard() || target.noGuard());
+        double typeMultiplier = authoritativeTypeMultiplier(metadata, target, input.typeMultiplier());
         MoveResolutionInput stateBoundInput = new MoveResolutionInput(
                 input.moveAc(), evasion, actor.accuracyStage(), input.critRange(), meleeNoGuard,
                 target.blur(), actor.probabilityControl(), input.effectiveDb(), input.attackValue(),
-                input.defenseValue(), actor.sniper(), input.typeMultiplier(), input.modifiers()
+                input.defenseValue(), actor.sniper(), typeMultiplier, input.modifiers()
         );
         return applyUsingStateStatsAndMoveMetadata(state, choice, move, actorSize, targetSize,
                 lineOfSightBlockers, source, rng, stateBoundInput,
                 ignorePositiveAttackStage, ignorePositiveDefenseStage);
+    }
+
+    private static double authoritativeTypeMultiplier(
+            MoveCombatProfile metadata,
+            RuntimeCombatantState target,
+            double legacyMultiplier
+    ) {
+        if (metadata.moveType() == null || target.types().isEmpty()) {
+            return legacyMultiplier;
+        }
+        return PtuTables.typeMultiplier(metadata.moveType(), target.types());
     }
 
     private static boolean isMelee(MoveOption move) {
