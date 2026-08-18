@@ -12,8 +12,8 @@ import java.util.Set;
 
 /**
  * Minecraft-facing direct-move entrypoint that derives effective combat stats,
- * evasion, and intrinsic move metadata from authoritative runtime state before
- * delegating to BattleRuntime.
+ * evasion, accuracy stage, and intrinsic move metadata from authoritative runtime
+ * state before delegating to BattleRuntime.
  */
 public final class RuntimeMoveResolution {
     private RuntimeMoveResolution() {
@@ -137,12 +137,7 @@ public final class RuntimeMoveResolution {
     }
 
     /**
-     * Preferred direct-move boundary for Minecraft autobattles.
-     *
-     * The target's evasion is derived from the authoritative runtime snapshot and
-     * the authoritative move category. Any evasion supplied by an adapter is
-     * ignored, preventing Fabric/Cobblemon presentation state from deciding hit
-     * legality.
+     * Transitional direct-move boundary that derives target evasion from state.
      */
     public static AppliedActionResult applyUsingAuthoritativeEvasion(
             BattleRuntimeState state,
@@ -177,6 +172,73 @@ public final class RuntimeMoveResolution {
                 input.moveAc(),
                 evasion,
                 input.accuracyStage(),
+                input.critRange(),
+                input.meleeNoGuard(),
+                input.blurApplies(),
+                input.rerollOnMiss(),
+                input.effectiveDb(),
+                input.attackValue(),
+                input.defenseValue(),
+                input.sniper(),
+                input.typeMultiplier(),
+                input.modifiers()
+        );
+
+        return applyUsingStateStatsAndMoveMetadata(
+                state,
+                choice,
+                move,
+                actorSize,
+                targetSize,
+                lineOfSightBlockers,
+                source,
+                rng,
+                stateBoundInput,
+                ignorePositiveAttackStage,
+                ignorePositiveDefenseStage
+        );
+    }
+
+    /**
+     * Preferred direct-move boundary for Minecraft autobattles.
+     *
+     * Target evasion and attacker accuracy stage are derived from the server-owned
+     * runtime snapshot. Adapter-supplied values for either field are ignored.
+     */
+    public static AppliedActionResult applyUsingAuthoritativeCombatState(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            MoveOption move,
+            String actorSize,
+            String targetSize,
+            Set<GridCoord> lineOfSightBlockers,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput input,
+            boolean ignorePositiveAttackStage,
+            boolean ignorePositiveDefenseStage
+    ) {
+        if (state == null) {
+            throw new IllegalArgumentException("state is required");
+        }
+        if (choice == null) {
+            throw new IllegalArgumentException("choice is required");
+        }
+        if (move == null) {
+            throw new IllegalArgumentException("move is required");
+        }
+        if (input == null) {
+            throw new IllegalArgumentException("input is required");
+        }
+
+        MoveCombatProfile metadata = move.requireCombatProfile();
+        RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
+        RuntimeCombatantState target = state.requireCombatant(choice.targetId());
+        int evasion = EvasionResolution.resolve(target.requireEvasionProfile(), metadata.damageCategory());
+        MoveResolutionInput stateBoundInput = new MoveResolutionInput(
+                input.moveAc(),
+                evasion,
+                actor.accuracyStage(),
                 input.critRange(),
                 input.meleeNoGuard(),
                 input.blurApplies(),
