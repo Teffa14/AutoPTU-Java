@@ -112,6 +112,122 @@ class RuntimeAutobattlerActionSpaceTest {
     }
 
     @Test
+    void canonicalTeamsActiveStateAndHpDeriveOffensiveTargets() {
+        RuntimeCombatantState actor = combatant("actor", new GridCoord(1, 1), new ActionBudget());
+        RuntimeCombatantState ally = combatant("ally", new GridCoord(1, 2), new ActionBudget());
+        RuntimeCombatantState enemy = combatant("enemy", new GridCoord(2, 1), new ActionBudget());
+        RuntimeCombatantState fainted = combatant("fainted", new GridCoord(2, 2), 0, new ActionBudget());
+        RuntimeCombatantState inactive = combatant("inactive", new GridCoord(3, 1), new ActionBudget());
+        BattleRuntimeState state = new BattleRuntimeState(
+                grid(6, 6),
+                List.of(actor, ally, enemy, fainted, inactive),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(
+                        "actor", CombatantAffiliationState.active("red"),
+                        "ally", CombatantAffiliationState.active("red"),
+                        "enemy", CombatantAffiliationState.active("blue"),
+                        "fainted", CombatantAffiliationState.active("blue"),
+                        "inactive", new CombatantAffiliationState("blue", false)
+                )
+        );
+
+        List<BattleChoice> result = RuntimeAutobattlerActionSpace.legalChoices(
+                state,
+                "actor",
+                List.of(MoveOption.standard("water-gun", move("Ranged", 5))),
+                Set.of(),
+                0,
+                ignored -> true
+        );
+
+        assertTrue(hasMoveTarget(result, "water-gun", "enemy"));
+        assertFalse(hasMoveTarget(result, "water-gun", "ally"));
+        assertFalse(hasMoveTarget(result, "water-gun", "fainted"));
+        assertFalse(hasMoveTarget(result, "water-gun", "inactive"));
+    }
+
+    @Test
+    void blessingUsesCanonicalActiveAlliesInsteadOfEnemyTargets() {
+        RuntimeCombatantState actor = combatant("actor", new GridCoord(1, 1), new ActionBudget());
+        RuntimeCombatantState ally = combatant("ally", new GridCoord(1, 2), new ActionBudget());
+        RuntimeCombatantState enemy = combatant("enemy", new GridCoord(2, 1), new ActionBudget());
+        BattleRuntimeState state = new BattleRuntimeState(
+                grid(5, 5),
+                List.of(actor, ally, enemy),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(
+                        "actor", CombatantAffiliationState.active("red"),
+                        "ally", CombatantAffiliationState.active("red"),
+                        "enemy", CombatantAffiliationState.active("blue")
+                )
+        );
+
+        List<BattleChoice> result = RuntimeAutobattlerActionSpace.legalChoices(
+                state,
+                "actor",
+                List.of(MoveOption.standard("helping-hand", move("Blessing", 5))),
+                Set.of(),
+                0,
+                ignored -> true
+        );
+
+        assertTrue(hasMoveTarget(result, "helping-hand", "actor"));
+        assertTrue(hasMoveTarget(result, "helping-hand", "ally"));
+        assertFalse(hasMoveTarget(result, "helping-hand", "enemy"));
+    }
+
+    @Test
+    void faintedOrInactiveActorHasNoAutobattlerDecisionWindow() {
+        RuntimeCombatantState fainted = combatant("actor", new GridCoord(1, 1), 0, new ActionBudget());
+        RuntimeCombatantState enemy = combatant("enemy", new GridCoord(2, 1), new ActionBudget());
+        BattleRuntimeState faintedState = new BattleRuntimeState(grid(4, 4), List.of(fainted, enemy));
+        assertTrue(choices(faintedState, List.of(MoveOption.standard("tackle", move("Melee", 1)))).isEmpty());
+
+        RuntimeCombatantState inactive = combatant("actor", new GridCoord(1, 1), new ActionBudget());
+        BattleRuntimeState inactiveState = new BattleRuntimeState(
+                grid(4, 4),
+                List.of(inactive, enemy),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of("actor", new CombatantAffiliationState("red", false))
+        );
+        assertTrue(choices(inactiveState, List.of(MoveOption.standard("tackle", move("Melee", 1)))).isEmpty());
+    }
+
+    @Test
+    void transitionalTargetListCannotSmuggleCanonicalAllyIntoOffensiveMove() {
+        RuntimeCombatantState actor = combatant("actor", new GridCoord(1, 1), new ActionBudget());
+        RuntimeCombatantState ally = combatant("ally", new GridCoord(2, 1), new ActionBudget());
+        BattleRuntimeState state = new BattleRuntimeState(
+                grid(4, 4),
+                List.of(actor, ally),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(
+                        "actor", CombatantAffiliationState.active("red"),
+                        "ally", CombatantAffiliationState.active("red")
+                )
+        );
+
+        List<BattleChoice> result = RuntimeAutobattlerActionSpace.legalChoices(
+                state,
+                "actor",
+                List.of(MoveOption.standard("tackle", move("Melee", 1))),
+                List.of("ally"),
+                Set.of(),
+                0,
+                ignored -> true
+        );
+        assertFalse(hasMove(result, "tackle"));
+    }
+
+    @Test
     void targetGeometryMustReferenceCanonicalCombatant() {
         RuntimeCombatantState actor = combatant("actor", new GridCoord(1, 1), new ActionBudget());
         BattleRuntimeState state = new BattleRuntimeState(grid(4, 4), List.of(actor));
@@ -132,7 +248,6 @@ class RuntimeAutobattlerActionSpaceTest {
                 state,
                 "actor",
                 moves,
-                List.of("enemy"),
                 Set.of(),
                 0,
                 ignored -> true
@@ -144,6 +259,13 @@ class RuntimeAutobattlerActionSpaceTest {
                 .filter(MoveChoice.class::isInstance)
                 .map(MoveChoice.class::cast)
                 .anyMatch(choice -> choice.moveId().equals(moveId));
+    }
+
+    private static boolean hasMoveTarget(List<BattleChoice> choices, String moveId, String targetId) {
+        return choices.stream()
+                .filter(MoveChoice.class::isInstance)
+                .map(MoveChoice.class::cast)
+                .anyMatch(choice -> choice.moveId().equals(moveId) && choice.targetId().equals(targetId));
     }
 
     private static BattleRuntimeState stateWithEnemy(
@@ -162,10 +284,14 @@ class RuntimeAutobattlerActionSpaceTest {
     }
 
     private static RuntimeCombatantState combatant(String id, GridCoord position, ActionBudget budget) {
+        return combatant(id, position, 30, budget);
+    }
+
+    private static RuntimeCombatantState combatant(String id, GridCoord position, int hp, ActionBudget budget) {
         return new RuntimeCombatantState(
                 id,
                 MovementProfile.walking(position, 1),
-                30,
+                hp,
                 30,
                 budget
         );

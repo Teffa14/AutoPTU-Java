@@ -17,9 +17,10 @@ public final class BattleRuntimeState {
     private final LinkedHashMap<String, Set<String>> statusesByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, CombatantGeometryState> geometryByCombatant = new LinkedHashMap<>();
+    private final LinkedHashMap<String, CombatantAffiliationState> affiliationByCombatant = new LinkedHashMap<>();
 
     public BattleRuntimeState(MovementGrid grid, List<RuntimeCombatantState> combatants) {
-        this(grid, combatants, Map.of(), Map.of(), Map.of());
+        this(grid, combatants, Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     public BattleRuntimeState(
@@ -27,7 +28,7 @@ public final class BattleRuntimeState {
             List<RuntimeCombatantState> combatants,
             Map<String, ? extends Collection<String>> statusesByCombatant
     ) {
-        this(grid, combatants, statusesByCombatant, Map.of(), Map.of());
+        this(grid, combatants, statusesByCombatant, Map.of(), Map.of(), Map.of());
     }
 
     /**
@@ -41,11 +42,11 @@ public final class BattleRuntimeState {
             Map<String, ? extends Collection<String>> statusesByCombatant,
             Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant
     ) {
-        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, Map.of());
+        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, Map.of(), Map.of());
     }
 
     /**
-     * Full authoritative battle snapshot for current runtime slices.
+     * Full authoritative battle snapshot for the geometry-aware runtime slices.
      *
      * Geometry is intentionally separate from Minecraft/Cobblemon entity scale. PTU
      * targeting and footprints read this map so a visual model, packet, or adapter
@@ -57,6 +58,24 @@ public final class BattleRuntimeState {
             Map<String, ? extends Collection<String>> statusesByCombatant,
             Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant,
             Map<String, CombatantGeometryState> geometryByCombatant
+    ) {
+        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, geometryByCombatant, Map.of());
+    }
+
+    /**
+     * Full authoritative battle snapshot for current runtime slices.
+     *
+     * Affiliation is battle state, not a Minecraft scoreboard/team claim. A missing
+     * affiliation intentionally falls back to a one-combatant team so legacy fixtures
+     * preserve the old behavior where every other combatant was a possible opponent.
+     */
+    public BattleRuntimeState(
+            MovementGrid grid,
+            List<RuntimeCombatantState> combatants,
+            Map<String, ? extends Collection<String>> statusesByCombatant,
+            Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant,
+            Map<String, CombatantGeometryState> geometryByCombatant,
+            Map<String, CombatantAffiliationState> affiliationByCombatant
     ) {
         if (grid == null) {
             throw new IllegalArgumentException("grid is required");
@@ -101,6 +120,16 @@ public final class BattleRuntimeState {
                 }
             }
         }
+        if (affiliationByCombatant != null) {
+            for (Map.Entry<String, CombatantAffiliationState> entry : affiliationByCombatant.entrySet()) {
+                String combatantId = entry.getKey();
+                requireKnownCombatant(combatantId, "combatant affiliation");
+                CombatantAffiliationState affiliation = entry.getValue();
+                if (affiliation != null) {
+                    this.affiliationByCombatant.put(combatantId, affiliation);
+                }
+            }
+        }
     }
 
     public MovementGrid grid() {
@@ -117,6 +146,11 @@ public final class BattleRuntimeState {
 
     public Map<String, RuntimeCombatantState> combatants() {
         return Map.copyOf(combatants);
+    }
+
+    /** Stable battle insertion order used by deterministic action-space generation. */
+    public List<String> combatantIds() {
+        return List.copyOf(combatants.keySet());
     }
 
     public Set<String> statuses(String combatantId) {
@@ -139,6 +173,28 @@ public final class BattleRuntimeState {
     public CombatantGeometryState geometry(String combatantId) {
         requireCombatant(combatantId);
         return geometryByCombatant.getOrDefault(combatantId, CombatantGeometryState.MEDIUM);
+    }
+
+    public CombatantAffiliationState affiliation(String combatantId) {
+        requireCombatant(combatantId);
+        return affiliationByCombatant.getOrDefault(
+                combatantId,
+                CombatantAffiliationState.active(combatantId)
+        );
+    }
+
+    public String teamId(String combatantId) {
+        return affiliation(combatantId).teamId();
+    }
+
+    public boolean isActive(String combatantId) {
+        return affiliation(combatantId).active();
+    }
+
+    /** Python AI candidate semantics: active, non-fainted combatants only. */
+    public boolean isTargetableCombatant(String combatantId) {
+        RuntimeCombatantState combatant = requireCombatant(combatantId);
+        return isActive(combatantId) && combatant.hp() > 0;
     }
 
     private void requireKnownCombatant(String combatantId, String source) {
