@@ -5,6 +5,7 @@ import io.autoptu.core.model.EvasionProfile;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementProfile;
 import io.autoptu.core.rules.ActionBudget;
+import io.autoptu.core.rules.Calculations;
 
 /**
  * Mutable server-authoritative state for one combatant.
@@ -17,6 +18,7 @@ public final class RuntimeCombatantState {
     private final ActionBudget actionBudget;
     private final CombatantStatProfile statProfile;
     private final EvasionProfile evasionProfile;
+    private final int accuracyStage;
     private MovementProfile movementProfile;
     private int hp;
 
@@ -27,7 +29,7 @@ public final class RuntimeCombatantState {
             int maxHp,
             ActionBudget actionBudget
     ) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, null, null);
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, null, null, 0);
     }
 
     public RuntimeCombatantState(
@@ -38,7 +40,7 @@ public final class RuntimeCombatantState {
             ActionBudget actionBudget,
             CombatantStatProfile statProfile
     ) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, null);
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, null, 0);
     }
 
     public RuntimeCombatantState(
@@ -49,6 +51,19 @@ public final class RuntimeCombatantState {
             ActionBudget actionBudget,
             CombatantStatProfile statProfile,
             EvasionProfile evasionProfile
+    ) {
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, 0);
+    }
+
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage
     ) {
         if (combatantId == null || combatantId.isBlank()) {
             throw new IllegalArgumentException("combatantId is required");
@@ -72,6 +87,7 @@ public final class RuntimeCombatantState {
         this.actionBudget = actionBudget;
         this.statProfile = statProfile;
         this.evasionProfile = evasionProfile;
+        this.accuracyStage = Calculations.accuracyStageValue(accuracyStage);
     }
 
     public String combatantId() {
@@ -118,6 +134,10 @@ public final class RuntimeCombatantState {
             throw new IllegalStateException("combatant " + combatantId + " has no evasion profile");
         }
         return evasionProfile;
+    }
+
+    public int accuracyStage() {
+        return accuracyStage;
     }
 
     void moveTo(GridCoord destination) {
