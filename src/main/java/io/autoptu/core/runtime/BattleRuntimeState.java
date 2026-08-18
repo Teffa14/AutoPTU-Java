@@ -16,9 +16,10 @@ public final class BattleRuntimeState {
     private final LinkedHashMap<String, RuntimeCombatantState> combatants = new LinkedHashMap<>();
     private final LinkedHashMap<String, Set<String>> statusesByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant = new LinkedHashMap<>();
+    private final LinkedHashMap<String, CombatantGeometryState> geometryByCombatant = new LinkedHashMap<>();
 
     public BattleRuntimeState(MovementGrid grid, List<RuntimeCombatantState> combatants) {
-        this(grid, combatants, Map.of(), Map.of());
+        this(grid, combatants, Map.of(), Map.of(), Map.of());
     }
 
     public BattleRuntimeState(
@@ -26,7 +27,7 @@ public final class BattleRuntimeState {
             List<RuntimeCombatantState> combatants,
             Map<String, ? extends Collection<String>> statusesByCombatant
     ) {
-        this(grid, combatants, statusesByCombatant, Map.of());
+        this(grid, combatants, statusesByCombatant, Map.of(), Map.of());
     }
 
     /**
@@ -39,6 +40,23 @@ public final class BattleRuntimeState {
             List<RuntimeCombatantState> combatants,
             Map<String, ? extends Collection<String>> statusesByCombatant,
             Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant
+    ) {
+        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, Map.of());
+    }
+
+    /**
+     * Full authoritative battle snapshot for current runtime slices.
+     *
+     * Geometry is intentionally separate from Minecraft/Cobblemon entity scale. PTU
+     * targeting and footprints read this map so a visual model, packet, or adapter
+     * cannot change melee reach by claiming a different size.
+     */
+    public BattleRuntimeState(
+            MovementGrid grid,
+            List<RuntimeCombatantState> combatants,
+            Map<String, ? extends Collection<String>> statusesByCombatant,
+            Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant,
+            Map<String, CombatantGeometryState> geometryByCombatant
     ) {
         if (grid == null) {
             throw new IllegalArgumentException("grid is required");
@@ -70,6 +88,16 @@ public final class BattleRuntimeState {
                 StatusSkipFeatureState featureState = entry.getValue();
                 if (featureState != null && !featureState.equals(StatusSkipFeatureState.NONE)) {
                     this.statusSkipFeaturesByCombatant.put(combatantId, featureState);
+                }
+            }
+        }
+        if (geometryByCombatant != null) {
+            for (Map.Entry<String, CombatantGeometryState> entry : geometryByCombatant.entrySet()) {
+                String combatantId = entry.getKey();
+                requireKnownCombatant(combatantId, "combatant geometry");
+                CombatantGeometryState geometry = entry.getValue();
+                if (geometry != null && !geometry.equals(CombatantGeometryState.MEDIUM)) {
+                    this.geometryByCombatant.put(combatantId, geometry);
                 }
             }
         }
@@ -106,6 +134,11 @@ public final class BattleRuntimeState {
     public StatusSkipFeatureState statusSkipFeatures(String combatantId) {
         requireCombatant(combatantId);
         return statusSkipFeaturesByCombatant.getOrDefault(combatantId, StatusSkipFeatureState.NONE);
+    }
+
+    public CombatantGeometryState geometry(String combatantId) {
+        requireCombatant(combatantId);
+        return geometryByCombatant.getOrDefault(combatantId, CombatantGeometryState.MEDIUM);
     }
 
     private void requireKnownCombatant(String combatantId, String source) {
