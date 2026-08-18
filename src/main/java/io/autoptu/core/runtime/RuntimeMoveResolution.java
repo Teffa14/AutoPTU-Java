@@ -3,6 +3,7 @@ package io.autoptu.core.runtime;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.model.AttackModifier;
+import io.autoptu.core.model.CombatantStatProfile;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveCombatProfile;
 import io.autoptu.core.model.EvasionProfile;
@@ -13,6 +14,7 @@ import io.autoptu.core.rules.PtuTables;
 import io.autoptu.core.rules.StabResolution;
 import io.autoptu.core.rules.StatResolution;
 import io.autoptu.core.rules.StatusEvasionResolution;
+import io.autoptu.core.rules.StatusStatResolution;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -111,21 +113,26 @@ public final class RuntimeMoveResolution {
         MoveCombatProfile metadata = move.requireCombatProfile();
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
+        CombatantStatProfile actorStats = StatusStatResolution.apply(
+                actor.requireStatProfile(), state.statuses(choice.actorId()));
+        CombatantStatProfile targetStats = StatusStatResolution.apply(
+                target.requireStatProfile(), state.statuses(choice.targetId()));
         EvasionProfile authoritativeEvasion = StatusEvasionResolution.apply(
                 target.requireEvasionProfile(), state.statuses(choice.targetId()));
         int evasion = EvasionResolution.resolve(authoritativeEvasion, metadata.damageCategory());
+        int attackValue = StatResolution.offensive(actorStats, metadata.damageCategory(), ignorePositiveAttackStage);
+        int defenseValue = StatResolution.defensive(targetStats, metadata.damageCategory(), ignorePositiveDefenseStage);
         boolean meleeNoGuard = isMelee(move) && (actor.noGuard() || target.noGuard());
         int effectiveDb = authoritativeStabDamageBase(move, metadata, actor);
         double typeMultiplier = authoritativeTypeMultiplier(metadata, target, input.typeMultiplier());
         List<AttackModifier> damageModifiers = authoritativeDamageModifiers(state, choice.actorId(), actor, metadata);
         MoveResolutionInput stateBoundInput = new MoveResolutionInput(
                 metadata.ac(), evasion, actor.accuracyStage(), metadata.critRange(), meleeNoGuard,
-                target.blur(), actor.probabilityControl(), effectiveDb, input.attackValue(),
-                input.defenseValue(), actor.sniper(), typeMultiplier, damageModifiers
+                target.blur(), actor.probabilityControl(), effectiveDb, attackValue,
+                defenseValue, actor.sniper(), typeMultiplier, damageModifiers
         );
-        return applyUsingStateStats(state, choice, move, actorSize, targetSize,
-                lineOfSightBlockers, source, rng, stateBoundInput, metadata.damageCategory(),
-                ignorePositiveAttackStage, ignorePositiveDefenseStage);
+        return BattleRuntime.applyAuthoritativeMove(state, choice, move, actorSize, targetSize,
+                lineOfSightBlockers, source, rng, stateBoundInput);
     }
 
     private static int authoritativeStabDamageBase(MoveOption move, MoveCombatProfile metadata, RuntimeCombatantState actor) {
