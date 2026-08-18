@@ -2,13 +2,15 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
+import io.autoptu.core.hook.BuiltinDamageModifierHooks;
+import io.autoptu.core.hook.DamageModifierHookContext;
+import io.autoptu.core.hook.DamageModifierHookRegistry;
 import io.autoptu.core.model.AttackModifier;
 import io.autoptu.core.model.CombatantStatProfile;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveCombatProfile;
 import io.autoptu.core.model.EvasionProfile;
 import io.autoptu.core.random.PythonRandom;
-import io.autoptu.core.rules.BuiltinDamageModifierResolution;
 import io.autoptu.core.rules.EvasionResolution;
 import io.autoptu.core.rules.PtuTables;
 import io.autoptu.core.rules.StabResolution;
@@ -27,6 +29,9 @@ import java.util.Set;
  * authoritative runtime state before delegating to BattleRuntime.
  */
 public final class RuntimeMoveResolution {
+    private static final DamageModifierHookRegistry DAMAGE_MODIFIER_HOOKS =
+            BuiltinDamageModifierHooks.standardRegistry();
+
     private RuntimeMoveResolution() {
     }
 
@@ -125,7 +130,8 @@ public final class RuntimeMoveResolution {
         boolean meleeNoGuard = isMelee(move) && (actor.noGuard() || target.noGuard());
         int effectiveDb = authoritativeStabDamageBase(move, metadata, actor);
         double typeMultiplier = authoritativeTypeMultiplier(metadata, target, input.typeMultiplier());
-        List<AttackModifier> damageModifiers = authoritativeDamageModifiers(state, choice.actorId(), actor, metadata);
+        List<AttackModifier> damageModifiers = authoritativeDamageModifiers(
+                state, choice, move, actor, target, metadata);
         MoveResolutionInput stateBoundInput = new MoveResolutionInput(
                 metadata.ac(), evasion, actor.accuracyStage(), metadata.critRange(), meleeNoGuard,
                 target.blur(), actor.probabilityControl(), effectiveDb, attackValue,
@@ -146,13 +152,27 @@ public final class RuntimeMoveResolution {
     }
 
     private static List<AttackModifier> authoritativeDamageModifiers(
-            BattleRuntimeState state, String actorId, RuntimeCombatantState actor, MoveCombatProfile metadata
+            BattleRuntimeState state,
+            MoveChoice choice,
+            MoveOption move,
+            RuntimeCombatantState actor,
+            RuntimeCombatantState target,
+            MoveCombatProfile metadata
     ) {
         ArrayList<AttackModifier> resolved = new ArrayList<>();
         for (AttackModifier modifier : actor.damageModifiers()) {
             if (modifier != null && !"burned".equalsIgnoreCase(modifier.slug())) resolved.add(modifier);
         }
-        resolved.addAll(BuiltinDamageModifierResolution.resolve(metadata.damageCategory(), state.statuses(actorId)));
+        DamageModifierHookContext hookContext = new DamageModifierHookContext(
+                state,
+                choice.actorId(),
+                choice.targetId(),
+                actor,
+                target,
+                move,
+                metadata
+        );
+        resolved.addAll(DAMAGE_MODIFIER_HOOKS.resolve(hookContext));
         return List.copyOf(resolved);
     }
 
