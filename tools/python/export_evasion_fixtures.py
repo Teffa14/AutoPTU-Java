@@ -79,6 +79,8 @@ def main() -> int:
         ("status_paralyzed", FakePokemon(spd=19, evasion_spd=1, speed_stage=2, statuses=("Paralyzed",)), "Status", False),
         ("sleep_suppresses_positive", FakePokemon(defense=17, evasion_phys=3, statuses=("Sleep",)), "Physical", False),
         ("sleep_keeps_negative", FakePokemon(defense=17, evasion_phys=-2, statuses=("Asleep",)), "Physical", False),
+        ("freeze_suppresses_positive", FakePokemon(defense=17, evasion_phys=4, statuses=("Frozen",)), "Physical", False),
+        ("freeze_keeps_negative", FakePokemon(defense=17, evasion_phys=-1, statuses=("Freeze",)), "Physical", False),
         ("heavy_metal_physical", FakePokemon(defense=19, abilities=("Heavy Metal [Errata]",)), "Physical", False),
         ("light_metal_physical", FakePokemon(defense=21, abilities=("Light Metal [Errata]",)), "Physical", False),
         ("heavy_metal_status", FakePokemon(spd=20, abilities=("Heavy Metal [Errata]",)), "Status", False),

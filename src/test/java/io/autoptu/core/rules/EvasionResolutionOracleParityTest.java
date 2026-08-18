@@ -40,6 +40,8 @@ class EvasionResolutionOracleParityTest {
         rows.put("status_paralyzed", value(profile(10, 10, 19, 2, Set.of(StatFlag.PARALYZED)), 0, 0, 1, false, false, "Status"));
         rows.put("sleep_suppresses_positive", value(profile(17, 10, 10, 0, Set.of()), 3, 0, 0, true, false, "Physical"));
         rows.put("sleep_keeps_negative", value(profile(17, 10, 10, 0, Set.of()), -2, 0, 0, true, false, "Physical"));
+        rows.put("freeze_suppresses_positive", value(profile(17, 10, 10, 0, Set.of()), 4, 0, 0, true, false, "Physical"));
+        rows.put("freeze_keeps_negative", value(profile(17, 10, 10, 0, Set.of()), -1, 0, 0, true, false, "Physical"));
         rows.put("heavy_metal_physical", value(profile(19, 10, 10, 0, Set.of(StatFlag.HEAVY_METAL_ERRATA)), 0, 0, 0, false, false, "Physical"));
         rows.put("light_metal_physical", value(profile(21, 10, 10, 0, Set.of(StatFlag.LIGHT_METAL_ERRATA)), 0, 0, 0, false, false, "Physical"));
         rows.put("heavy_metal_status", value(profile(10, 10, 20, 0, Set.of(StatFlag.HEAVY_METAL_ERRATA)), 0, 0, 0, false, false, "Status"));
