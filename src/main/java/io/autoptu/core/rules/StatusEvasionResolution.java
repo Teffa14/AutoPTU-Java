@@ -24,9 +24,7 @@ public final class StatusEvasionResolution {
         boolean sleeping = hasStatus(statuses, "sleep") || hasStatus(statuses, "asleep");
         boolean paralyzed = hasStatus(statuses, "paralyzed") || hasStatus(statuses, "paralyze");
         boolean suppressPositiveBonuses = profile.suppressPositiveBonuses() || sleeping;
-        CombatantStatProfile stats = paralyzed
-                ? profile.stats().withFlag(StatFlag.PARALYZED)
-                : profile.stats();
+        CombatantStatProfile stats = profile.stats().withFlag(StatFlag.PARALYZED, paralyzed);
 
         if (stats == profile.stats() && suppressPositiveBonuses == profile.suppressPositiveBonuses()) {
             return profile;
