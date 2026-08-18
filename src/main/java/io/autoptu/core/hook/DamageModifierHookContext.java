@@ -3,15 +3,17 @@ package io.autoptu.core.hook;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.model.MoveCombatProfile;
 import io.autoptu.core.runtime.BattleRuntimeState;
+import io.autoptu.core.runtime.HeldItemState;
 import io.autoptu.core.runtime.RuntimeCombatantState;
 
+import java.util.List;
 import java.util.Set;
 
 /**
  * Authoritative inputs exposed to damage-modifier hooks.
  *
  * The context contains server-owned battle state only. Minecraft adapters must
- * not inject trusted damage modifiers through this boundary.
+ * not inject trusted damage modifiers or rule-source identities through this boundary.
  */
 public record DamageModifierHookContext(
         BattleRuntimeState state,
@@ -44,5 +46,13 @@ public record DamageModifierHookContext(
 
     public Set<String> targetStatuses() {
         return state.statuses(targetId);
+    }
+
+    public List<HeldItemState> actorHeldItems() {
+        return state.heldItems(actorId);
+    }
+
+    public List<HeldItemState> targetHeldItems() {
+        return state.heldItems(targetId);
     }
 }
