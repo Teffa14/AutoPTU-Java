@@ -2,14 +2,18 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
+import io.autoptu.core.model.AttackModifier;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveCombatProfile;
 import io.autoptu.core.random.PythonRandom;
+import io.autoptu.core.rules.BuiltinDamageModifierResolution;
 import io.autoptu.core.rules.EvasionResolution;
 import io.autoptu.core.rules.PtuTables;
 import io.autoptu.core.rules.StabResolution;
 import io.autoptu.core.rules.StatResolution;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -103,10 +107,12 @@ public final class RuntimeMoveResolution {
 
     /**
      * Preferred direct-move boundary for Minecraft autobattles.
-     * Server-owned state supplies combatant stats, evasion, typings, and resolved
-     * pre-damage AttackContext modifiers; move metadata supplies AC/category/base
-     * DB/type; attacker state supplies accuracy stage, Sniper, melee No Guard,
-     * STAB and the consumable Probability Control reroll.
+     * Server-owned state supplies combatant stats, evasion, typings, statuses,
+     * and the still-transitional pre-resolved modifier projection; move metadata
+     * supplies AC/category/base DB/type; attacker state supplies accuracy stage,
+     * Sniper, melee No Guard, STAB and the consumable Probability Control reroll.
+     * Built-in status modifiers such as Burn are derived here and cannot be
+     * supplied or cleared by the Minecraft adapter.
      */
     public static AppliedActionResult applyUsingAuthoritativeCombatState(
             BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
@@ -125,10 +131,11 @@ public final class RuntimeMoveResolution {
         boolean meleeNoGuard = isMelee(move) && (actor.noGuard() || target.noGuard());
         int effectiveDb = authoritativeStabDamageBase(move, metadata, actor);
         double typeMultiplier = authoritativeTypeMultiplier(metadata, target, input.typeMultiplier());
+        List<AttackModifier> damageModifiers = authoritativeDamageModifiers(state, choice.actorId(), actor, metadata);
         MoveResolutionInput stateBoundInput = new MoveResolutionInput(
                 metadata.ac(), evasion, actor.accuracyStage(), metadata.critRange(), meleeNoGuard,
                 target.blur(), actor.probabilityControl(), effectiveDb, input.attackValue(),
-                input.defenseValue(), actor.sniper(), typeMultiplier, actor.damageModifiers()
+                input.defenseValue(), actor.sniper(), typeMultiplier, damageModifiers
         );
         return applyUsingStateStats(state, choice, move, actorSize, targetSize,
                 lineOfSightBlockers, source, rng, stateBoundInput, metadata.damageCategory(),
@@ -155,6 +162,22 @@ public final class RuntimeMoveResolution {
             return legacyMultiplier;
         }
         return PtuTables.typeMultiplier(metadata.moveType(), target.types());
+    }
+
+    private static List<AttackModifier> authoritativeDamageModifiers(
+            BattleRuntimeState state,
+            String actorId,
+            RuntimeCombatantState actor,
+            MoveCombatProfile metadata
+    ) {
+        ArrayList<AttackModifier> resolved = new ArrayList<>();
+        for (AttackModifier modifier : actor.damageModifiers()) {
+            if (modifier != null && !"burned".equalsIgnoreCase(modifier.slug())) {
+                resolved.add(modifier);
+            }
+        }
+        resolved.addAll(BuiltinDamageModifierResolution.resolve(metadata.damageCategory(), state.statuses(actorId)));
+        return List.copyOf(resolved);
     }
 
     private static boolean isMelee(MoveOption move) {
