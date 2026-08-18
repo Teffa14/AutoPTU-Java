@@ -1,6 +1,7 @@
 package io.autoptu.core.model;
 
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -48,5 +49,18 @@ public final class CombatantStatProfile {
 
     public boolean has(StatFlag flag) {
         return flags.contains(flag);
+    }
+
+    public CombatantStatProfile withFlag(StatFlag flag, boolean enabled) {
+        if (flag == null || flags.contains(flag) == enabled) {
+            return this;
+        }
+        Set<StatFlag> nextFlags = new HashSet<>(flags);
+        if (enabled) {
+            nextFlags.add(flag);
+        } else {
+            nextFlags.remove(flag);
+        }
+        return new CombatantStatProfile(baseStats, stages, modifiers, nextFlags);
     }
 }
