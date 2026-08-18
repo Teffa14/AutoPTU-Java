@@ -30,6 +30,20 @@ class StatusEvasionResolutionTest {
     }
 
     @Test
+    void freezeSuppressesOnlyPositiveNonStatEvasion() {
+        EvasionProfile positive = profile(4);
+        EvasionProfile negative = profile(-1);
+
+        EvasionProfile frozenPositive = StatusEvasionResolution.apply(positive, Set.of("Frozen"));
+        EvasionProfile freezeAliasNegative = StatusEvasionResolution.apply(negative, Set.of("freeze"));
+
+        assertTrue(frozenPositive.suppressPositiveBonuses());
+        assertTrue(freezeAliasNegative.suppressPositiveBonuses());
+        assertEquals(0, EvasionResolution.resolve(frozenPositive, "Physical"));
+        assertEquals(-1, EvasionResolution.resolve(freezeAliasNegative, "Physical"));
+    }
+
+    @Test
     void paralysisStatusDrivesStatusEvasionPenalty() {
         EvasionProfile clean = statusProfile(Set.of());
         EvasionProfile paralyzed = StatusEvasionResolution.apply(clean, Set.of("Paralyzed"));
