@@ -1,7 +1,9 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.model.MovementGrid;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -18,9 +20,10 @@ public final class BattleRuntimeState {
     private final LinkedHashMap<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, CombatantGeometryState> geometryByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, CombatantAffiliationState> affiliationByCombatant = new LinkedHashMap<>();
+    private final LinkedHashMap<String, List<MoveOption>> movesByCombatant = new LinkedHashMap<>();
 
     public BattleRuntimeState(MovementGrid grid, List<RuntimeCombatantState> combatants) {
-        this(grid, combatants, Map.of(), Map.of(), Map.of(), Map.of());
+        this(grid, combatants, Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     public BattleRuntimeState(
@@ -28,7 +31,7 @@ public final class BattleRuntimeState {
             List<RuntimeCombatantState> combatants,
             Map<String, ? extends Collection<String>> statusesByCombatant
     ) {
-        this(grid, combatants, statusesByCombatant, Map.of(), Map.of(), Map.of());
+        this(grid, combatants, statusesByCombatant, Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     /**
@@ -42,7 +45,7 @@ public final class BattleRuntimeState {
             Map<String, ? extends Collection<String>> statusesByCombatant,
             Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant
     ) {
-        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, Map.of(), Map.of());
+        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, Map.of(), Map.of(), Map.of());
     }
 
     /**
@@ -59,7 +62,7 @@ public final class BattleRuntimeState {
             Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant,
             Map<String, CombatantGeometryState> geometryByCombatant
     ) {
-        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, geometryByCombatant, Map.of());
+        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, geometryByCombatant, Map.of(), Map.of());
     }
 
     /**
@@ -76,6 +79,33 @@ public final class BattleRuntimeState {
             Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant,
             Map<String, CombatantGeometryState> geometryByCombatant,
             Map<String, CombatantAffiliationState> affiliationByCombatant
+    ) {
+        this(
+                grid,
+                combatants,
+                statusesByCombatant,
+                statusSkipFeaturesByCombatant,
+                geometryByCombatant,
+                affiliationByCombatant,
+                Map.of()
+        );
+    }
+
+    /**
+     * Full authoritative battle snapshot including combatant movesets.
+     *
+     * Move ownership belongs to the battle snapshot. Minecraft/Cobblemon adapters may
+     * display move buttons or AI options, but they cannot grant a combatant a move that
+     * was not materialized here from canonical PTU state.
+     */
+    public BattleRuntimeState(
+            MovementGrid grid,
+            List<RuntimeCombatantState> combatants,
+            Map<String, ? extends Collection<String>> statusesByCombatant,
+            Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant,
+            Map<String, CombatantGeometryState> geometryByCombatant,
+            Map<String, CombatantAffiliationState> affiliationByCombatant,
+            Map<String, ? extends Collection<MoveOption>> movesByCombatant
     ) {
         if (grid == null) {
             throw new IllegalArgumentException("grid is required");
@@ -128,6 +158,13 @@ public final class BattleRuntimeState {
                 if (affiliation != null) {
                     this.affiliationByCombatant.put(combatantId, affiliation);
                 }
+            }
+        }
+        if (movesByCombatant != null) {
+            for (Map.Entry<String, ? extends Collection<MoveOption>> entry : movesByCombatant.entrySet()) {
+                String combatantId = entry.getKey();
+                requireKnownCombatant(combatantId, "combatant moveset");
+                this.movesByCombatant.put(combatantId, copyMoveOptions(entry.getValue()));
             }
         }
     }
@@ -191,6 +228,18 @@ public final class BattleRuntimeState {
         return affiliation(combatantId).active();
     }
 
+    /** True when this snapshot explicitly owns the combatant's moveset, including an empty moveset. */
+    public boolean hasCanonicalMoves(String combatantId) {
+        requireCombatant(combatantId);
+        return movesByCombatant.containsKey(combatantId);
+    }
+
+    /** Canonical move definitions for the combatant, defensively copied at snapshot construction. */
+    public List<MoveOption> moveOptions(String combatantId) {
+        requireCombatant(combatantId);
+        return movesByCombatant.getOrDefault(combatantId, List.of());
+    }
+
     /** Python AI candidate semantics: active, non-fainted combatants only. */
     public boolean isTargetableCombatant(String combatantId) {
         RuntimeCombatantState combatant = requireCombatant(combatantId);
@@ -215,5 +264,23 @@ public final class BattleRuntimeState {
             normalized.add(status.strip().toLowerCase(Locale.ROOT));
         }
         return Set.copyOf(normalized);
+    }
+
+    private static List<MoveOption> copyMoveOptions(Collection<MoveOption> moves) {
+        if (moves == null || moves.isEmpty()) {
+            return List.of();
+        }
+        ArrayList<MoveOption> copied = new ArrayList<>();
+        LinkedHashSet<String> moveIds = new LinkedHashSet<>();
+        for (MoveOption move : moves) {
+            if (move == null) {
+                continue;
+            }
+            if (!moveIds.add(move.moveId())) {
+                throw new IllegalArgumentException("duplicate moveId in combatant moveset: " + move.moveId());
+            }
+            copied.add(move);
+        }
+        return List.copyOf(copied);
     }
 }

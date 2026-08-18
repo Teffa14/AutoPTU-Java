@@ -17,9 +17,10 @@ import java.util.function.Predicate;
 /**
  * Minecraft-facing action-space boundary backed by authoritative runtime state.
  *
- * External adapters provide move options and rendering/environment projections only.
- * Current positions, PTU footprint sizes, battle affiliation, active/fainted state,
- * movement capabilities, and action economy are read from {@link BattleRuntimeState}.
+ * External adapters provide rendering/environment projections only on the preferred
+ * path. Current positions, PTU footprint sizes, battle affiliation, active/fainted
+ * state, movesets, movement capabilities, and action economy are read from
+ * {@link BattleRuntimeState}.
  */
 public final class RuntimeAutobattlerActionSpace {
     private RuntimeAutobattlerActionSpace() {
@@ -28,9 +29,36 @@ public final class RuntimeAutobattlerActionSpace {
     /**
      * Preferred server-authoritative decision boundary.
      *
-     * Python AI semantics are preserved here: Blessing targets active allies; other
-     * combatant-targeting moves use active opponents. Fainted/inactive combatants are
-     * removed before the AI sees a choice.
+     * The actor's moveset is read from the canonical battle snapshot. Python AI also
+     * iterates actor.spec.moves rather than accepting a move list from a UI/controller.
+     */
+    public static List<BattleChoice> legalChoices(
+            BattleRuntimeState state,
+            String actorId,
+            Set<GridCoord> lineOfSightBlockers,
+            int movementPenalty,
+            Predicate<GridCoord> canFit
+    ) {
+        if (state == null) {
+            throw new IllegalArgumentException("state is required");
+        }
+        return legalChoicesInternal(
+                state,
+                actorId,
+                state.moveOptions(actorId),
+                null,
+                lineOfSightBlockers,
+                movementPenalty,
+                canFit
+        );
+    }
+
+    /**
+     * Transitional compatibility overload for callers that still supply move options.
+     *
+     * Once a combatant has a canonical moveset in the runtime snapshot, supplied moves
+     * are ignored. This prevents Fabric/Cobblemon, an AI, or a client from granting an
+     * unowned move while older fixtures can migrate incrementally.
      */
     public static List<BattleChoice> legalChoices(
             BattleRuntimeState state,
@@ -43,7 +71,7 @@ public final class RuntimeAutobattlerActionSpace {
         return legalChoicesInternal(
                 state,
                 actorId,
-                moves,
+                effectiveMoves(state, actorId, moves),
                 null,
                 lineOfSightBlockers,
                 movementPenalty,
@@ -54,7 +82,8 @@ public final class RuntimeAutobattlerActionSpace {
     /**
      * Transitional compatibility overload for older callers that already prefiltered
      * target IDs. Supplied IDs can only restrict the server-derived set; they cannot
-     * add an ally, inactive combatant, fainted combatant, or unknown combatant.
+     * add an ally, inactive combatant, fainted combatant, or unknown combatant. Move
+     * options are likewise ignored when the runtime owns a canonical moveset.
      */
     public static List<BattleChoice> legalChoices(
             BattleRuntimeState state,
@@ -69,7 +98,7 @@ public final class RuntimeAutobattlerActionSpace {
         return legalChoicesInternal(
                 state,
                 actorId,
-                moves,
+                effectiveMoves(state, actorId, moves),
                 permittedIds,
                 lineOfSightBlockers,
                 movementPenalty,
@@ -127,6 +156,23 @@ public final class RuntimeAutobattlerActionSpace {
 
         choices.sort(Comparator.comparing(BattleChoice::stableKey));
         return List.copyOf(choices);
+    }
+
+    private static List<MoveOption> effectiveMoves(
+            BattleRuntimeState state,
+            String actorId,
+            List<MoveOption> suppliedMoves
+    ) {
+        if (state == null) {
+            throw new IllegalArgumentException("state is required");
+        }
+        if (actorId == null || actorId.isBlank()) {
+            throw new IllegalArgumentException("actorId is required");
+        }
+        if (state.hasCanonicalMoves(actorId)) {
+            return state.moveOptions(actorId);
+        }
+        return suppliedMoves == null ? List.of() : suppliedMoves;
     }
 
     private static List<TargetCandidate> authoritativeTargets(
