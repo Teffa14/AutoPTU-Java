@@ -7,15 +7,16 @@ import io.autoptu.core.model.MoveCombatProfile;
 import io.autoptu.core.random.PythonRandom;
 import io.autoptu.core.rules.EvasionResolution;
 import io.autoptu.core.rules.PtuTables;
+import io.autoptu.core.rules.StabResolution;
 import io.autoptu.core.rules.StatResolution;
 
 import java.util.Set;
 
 /**
  * Minecraft-facing direct-move entrypoint that derives effective combat stats,
- * evasion, accuracy stage, Sniper, No Guard, Blur, Probability Control, type
- * effectiveness, and intrinsic move metadata from authoritative runtime state
- * before delegating to BattleRuntime.
+ * evasion, accuracy stage, Sniper, No Guard, Blur, Probability Control, STAB,
+ * type effectiveness, and intrinsic move metadata from authoritative runtime
+ * state before delegating to BattleRuntime.
  */
 public final class RuntimeMoveResolution {
     private RuntimeMoveResolution() {
@@ -102,9 +103,9 @@ public final class RuntimeMoveResolution {
 
     /**
      * Preferred direct-move boundary for Minecraft autobattles.
-     * Server-owned state supplies target evasion and typings; move metadata supplies
-     * move type; attacker state supplies accuracy stage, Sniper, melee No Guard,
-     * Blur interaction, and the consumable Probability Control reroll.
+     * Server-owned state supplies combatant stats, evasion and typings; move metadata
+     * supplies AC/category/base DB/type; attacker state supplies accuracy stage,
+     * Sniper, melee No Guard, STAB and the consumable Probability Control reroll.
      */
     public static AppliedActionResult applyUsingAuthoritativeCombatState(
             BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
@@ -121,15 +122,27 @@ public final class RuntimeMoveResolution {
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
         int evasion = EvasionResolution.resolve(target.requireEvasionProfile(), metadata.damageCategory());
         boolean meleeNoGuard = isMelee(move) && (actor.noGuard() || target.noGuard());
+        int effectiveDb = authoritativeStabDamageBase(move, metadata, actor);
         double typeMultiplier = authoritativeTypeMultiplier(metadata, target, input.typeMultiplier());
         MoveResolutionInput stateBoundInput = new MoveResolutionInput(
-                input.moveAc(), evasion, actor.accuracyStage(), input.critRange(), meleeNoGuard,
-                target.blur(), actor.probabilityControl(), input.effectiveDb(), input.attackValue(),
+                metadata.ac(), evasion, actor.accuracyStage(), metadata.critRange(), meleeNoGuard,
+                target.blur(), actor.probabilityControl(), effectiveDb, input.attackValue(),
                 input.defenseValue(), actor.sniper(), typeMultiplier, input.modifiers()
         );
-        return applyUsingStateStatsAndMoveMetadata(state, choice, move, actorSize, targetSize,
-                lineOfSightBlockers, source, rng, stateBoundInput,
+        return applyUsingStateStats(state, choice, move, actorSize, targetSize,
+                lineOfSightBlockers, source, rng, stateBoundInput, metadata.damageCategory(),
                 ignorePositiveAttackStage, ignorePositiveDefenseStage);
+    }
+
+    private static int authoritativeStabDamageBase(
+            MoveOption move,
+            MoveCombatProfile metadata,
+            RuntimeCombatantState actor
+    ) {
+        if (metadata.moveType() == null || actor.types().isEmpty()) {
+            return metadata.damageBase();
+        }
+        return StabResolution.resolve(metadata.damageBase(), move.moveId(), metadata.moveType(), actor.types());
     }
 
     private static double authoritativeTypeMultiplier(
