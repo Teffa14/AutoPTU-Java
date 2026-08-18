@@ -12,8 +12,8 @@ import java.util.Set;
 
 /**
  * Minecraft-facing direct-move entrypoint that derives effective combat stats,
- * evasion, accuracy stage, Sniper, and intrinsic move metadata from authoritative
- * runtime state before delegating to BattleRuntime.
+ * evasion, accuracy stage, Sniper, No Guard, and intrinsic move metadata from
+ * authoritative runtime state before delegating to BattleRuntime.
  */
 public final class RuntimeMoveResolution {
     private RuntimeMoveResolution() {
@@ -136,9 +136,7 @@ public final class RuntimeMoveResolution {
         );
     }
 
-    /**
-     * Transitional direct-move boundary that derives target evasion from state.
-     */
+    /** Transitional direct-move boundary that derives target evasion from state. */
     public static AppliedActionResult applyUsingAuthoritativeEvasion(
             BattleRuntimeState state,
             MoveChoice choice,
@@ -202,9 +200,9 @@ public final class RuntimeMoveResolution {
     /**
      * Preferred direct-move boundary for Minecraft autobattles.
      *
-     * Target evasion, attacker accuracy stage, and Sniper are derived from the
-     * server-owned runtime snapshot. Adapter-supplied values for those fields are
-     * ignored.
+     * Target evasion, attacker accuracy stage, Sniper, and melee No Guard are
+     * derived from the server-owned runtime snapshot. Adapter-supplied values for
+     * those fields are ignored.
      */
     public static AppliedActionResult applyUsingAuthoritativeCombatState(
             BattleRuntimeState state,
@@ -236,12 +234,13 @@ public final class RuntimeMoveResolution {
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
         int evasion = EvasionResolution.resolve(target.requireEvasionProfile(), metadata.damageCategory());
+        boolean meleeNoGuard = isMelee(move) && (actor.noGuard() || target.noGuard());
         MoveResolutionInput stateBoundInput = new MoveResolutionInput(
                 input.moveAc(),
                 evasion,
                 actor.accuracyStage(),
                 input.critRange(),
-                input.meleeNoGuard(),
+                meleeNoGuard,
                 input.blurApplies(),
                 input.rerollOnMiss(),
                 input.effectiveDb(),
@@ -265,5 +264,10 @@ public final class RuntimeMoveResolution {
                 ignorePositiveAttackStage,
                 ignorePositiveDefenseStage
         );
+    }
+
+    private static boolean isMelee(MoveOption move) {
+        String targetKind = move.spec().targetKind();
+        return targetKind != null && targetKind.trim().equalsIgnoreCase("melee");
     }
 }
