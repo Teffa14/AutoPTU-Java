@@ -51,12 +51,16 @@ public final class CombatantStatProfile {
         return flags.contains(flag);
     }
 
-    public CombatantStatProfile withFlag(StatFlag flag) {
-        if (flag == null || flags.contains(flag)) {
+    public CombatantStatProfile withFlag(StatFlag flag, boolean enabled) {
+        if (flag == null || flags.contains(flag) == enabled) {
             return this;
         }
         Set<StatFlag> nextFlags = new HashSet<>(flags);
-        nextFlags.add(flag);
+        if (enabled) {
+            nextFlags.add(flag);
+        } else {
+            nextFlags.remove(flag);
+        }
         return new CombatantStatProfile(baseStats, stages, modifiers, nextFlags);
     }
 }
