@@ -28,45 +28,45 @@ class RuntimeAuthoritativeTypeEffectivenessTest {
     @Test
     void ignoresAdapterMultiplierAndDerivesDualTypeEffectiveness() {
         BattleRuntimeState derivedState = state(List.of("Grass", "Steel"));
-        BattleRuntimeState explicitState = state(List.of());
+        BattleRuntimeState legacyState = state(List.of());
 
         MoveResolutionInput forged = input(0.25);
-        MoveResolutionInput expected = input(2.0);
+        MoveResolutionInput expectedLegacyFallback = input(2.0);
 
         MoveResolvedEvent derived = (MoveResolvedEvent) RuntimeMoveResolution.applyUsingAuthoritativeCombatState(
                 derivedState, choice(), fireMove(), "Medium", "Medium", Set.of(), "AI",
                 new PythonRandom(19), forged, false, false
         ).events().getFirst();
 
-        MoveResolvedEvent explicit = (MoveResolvedEvent) RuntimeMoveResolution.applyUsingAuthoritativeEvasion(
-                explicitState, choice(), fireMove(), "Medium", "Medium", Set.of(), "AI",
-                new PythonRandom(19), expected, false, false
+        MoveResolvedEvent expected = (MoveResolvedEvent) RuntimeMoveResolution.applyUsingAuthoritativeCombatState(
+                legacyState, choice(), fireMove(), "Medium", "Medium", Set.of(), "AI",
+                new PythonRandom(19), expectedLegacyFallback, false, false
         ).events().getFirst();
 
         assertEquals(List.of("Grass", "Steel"), derivedState.requireCombatant("enemy").types());
-        assertEquals(explicit.stableKey(), derived.stableKey());
+        assertEquals(expected.stableKey(), derived.stableKey());
         assertEquals(derived.targetHp(), derivedState.requireCombatant("enemy").hp());
     }
 
     @Test
     void authoritativeTypingCanForceImmunityDespiteForgedDamageMultiplier() {
         BattleRuntimeState derivedState = state(List.of("Ground"));
-        BattleRuntimeState explicitState = state(List.of());
+        BattleRuntimeState legacyState = state(List.of());
 
         MoveResolutionInput forged = input(2.0);
-        MoveResolutionInput expected = input(0.0);
+        MoveResolutionInput expectedLegacyFallback = input(0.0);
 
         MoveResolvedEvent derived = (MoveResolvedEvent) RuntimeMoveResolution.applyUsingAuthoritativeCombatState(
                 derivedState, choice(), electricMove(), "Medium", "Medium", Set.of(), "AI",
                 new PythonRandom(23), forged, false, false
         ).events().getFirst();
 
-        MoveResolvedEvent explicit = (MoveResolvedEvent) RuntimeMoveResolution.applyUsingAuthoritativeEvasion(
-                explicitState, choice(), electricMove(), "Medium", "Medium", Set.of(), "AI",
-                new PythonRandom(23), expected, false, false
+        MoveResolvedEvent expected = (MoveResolvedEvent) RuntimeMoveResolution.applyUsingAuthoritativeCombatState(
+                legacyState, choice(), electricMove(), "Medium", "Medium", Set.of(), "AI",
+                new PythonRandom(23), expectedLegacyFallback, false, false
         ).events().getFirst();
 
-        assertEquals(explicit.stableKey(), derived.stableKey());
+        assertEquals(expected.stableKey(), derived.stableKey());
         assertEquals(100, derivedState.requireCombatant("enemy").hp());
     }
 
