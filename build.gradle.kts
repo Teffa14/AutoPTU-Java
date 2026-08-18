@@ -36,6 +36,7 @@ val oracleShiftApplication = providers.gradleProperty("oracleShiftApplication")
 val oracleMoveCombatProfile = providers.gradleProperty("oracleMoveCombatProfile")
 val oracleEvasion = providers.gradleProperty("oracleEvasion")
 val oracleStab = providers.gradleProperty("oracleStab")
+val oracleBurnDamage = providers.gradleProperty("oracleBurnDamage")
 
 tasks.test {
     useJUnitPlatform()
@@ -54,6 +55,7 @@ tasks.test {
     if (oracleMoveCombatProfile.isPresent) systemProperty("autoptu.move.combat.profile.oracle", oracleMoveCombatProfile.get())
     if (oracleEvasion.isPresent) systemProperty("autoptu.evasion.oracle", oracleEvasion.get())
     if (oracleStab.isPresent) systemProperty("autoptu.stab.oracle", oracleStab.get())
+    if (oracleBurnDamage.isPresent) systemProperty("autoptu.burn.damage.oracle", oracleBurnDamage.get())
 }
 
 tasks.withType<JavaCompile>().configureEach {
