@@ -1,14 +1,14 @@
 package io.autoptu.core.rules;
 
+import java.util.Collection;
 import java.util.Locale;
-import java.util.Set;
 
 /** Core PTU same-type attack bonus (STAB) damage-base resolution. */
 public final class StabResolution {
     private StabResolution() {
     }
 
-    public static int resolve(int baseDamageBase, String moveId, String moveType, Set<String> attackerTypes) {
+    public static int resolve(int baseDamageBase, String moveId, String moveType, Collection<String> attackerTypes) {
         if (baseDamageBase < 0) {
             throw new IllegalArgumentException("baseDamageBase cannot be negative");
         }
