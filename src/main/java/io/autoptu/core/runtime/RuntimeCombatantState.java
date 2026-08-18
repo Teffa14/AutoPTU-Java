@@ -27,6 +27,7 @@ public final class RuntimeCombatantState {
     private final boolean sniper;
     private final boolean noGuard;
     private final boolean blur;
+    private final MoveFrequencyUsage moveFrequencyUsage = new MoveFrequencyUsage();
     private MovementProfile movementProfile;
     private int hp;
     private boolean probabilityControl;
@@ -241,6 +242,10 @@ public final class RuntimeCombatantState {
 
     public ActionBudget actionBudget() {
         return actionBudget;
+    }
+
+    public MoveFrequencyUsage moveFrequencyUsage() {
+        return moveFrequencyUsage;
     }
 
     public boolean hasStatProfile() {

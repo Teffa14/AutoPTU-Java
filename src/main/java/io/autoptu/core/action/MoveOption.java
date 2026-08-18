@@ -10,7 +10,8 @@ public record MoveOption(
         MoveSpec spec,
         ActionType actionType,
         boolean requiresLineOfSight,
-        MoveCombatProfile combatProfile
+        MoveCombatProfile combatProfile,
+        String frequency
 ) {
     public MoveOption {
         if (moveId == null || moveId.isBlank()) {
@@ -26,17 +27,31 @@ public record MoveOption(
             String moveId,
             MoveSpec spec,
             ActionType actionType,
+            boolean requiresLineOfSight,
+            MoveCombatProfile combatProfile
+    ) {
+        this(moveId, spec, actionType, requiresLineOfSight, combatProfile, null);
+    }
+
+    public MoveOption(
+            String moveId,
+            MoveSpec spec,
+            ActionType actionType,
             boolean requiresLineOfSight
     ) {
-        this(moveId, spec, actionType, requiresLineOfSight, null);
+        this(moveId, spec, actionType, requiresLineOfSight, null, null);
     }
 
     public static MoveOption standard(String moveId, MoveSpec spec) {
-        return new MoveOption(moveId, spec, ActionType.STANDARD, true, null);
+        return new MoveOption(moveId, spec, ActionType.STANDARD, true, null, null);
     }
 
     public static MoveOption standard(String moveId, MoveSpec spec, MoveCombatProfile combatProfile) {
-        return new MoveOption(moveId, spec, ActionType.STANDARD, true, combatProfile);
+        return new MoveOption(moveId, spec, ActionType.STANDARD, true, combatProfile, null);
+    }
+
+    public static MoveOption standardWithFrequency(String moveId, MoveSpec spec, String frequency) {
+        return new MoveOption(moveId, spec, ActionType.STANDARD, true, null, frequency);
     }
 
     public MoveCombatProfile requireCombatProfile() {

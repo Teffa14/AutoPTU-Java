@@ -96,7 +96,9 @@ public final class BattleRuntime {
         }
 
         DamageResult damage = accuracy.hit() ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit())) : null;
-        return applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
+        AppliedActionResult result = applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
+        actor.moveFrequencyUsage().recordUse(move);
+        return result;
     }
 
     public static AppliedActionResult applyRevalidatedResolvedMoveOutcome(
@@ -105,7 +107,9 @@ public final class BattleRuntime {
             AccuracyResult accuracy, DamageResult damage
     ) {
         MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
-        return applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
+        AppliedActionResult result = applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
+        state.requireCombatant(choice.actorId()).moveFrequencyUsage().recordUse(move);
+        return result;
     }
 
     public static AppliedActionResult applyResolvedMoveOutcome(
@@ -140,6 +144,14 @@ public final class BattleRuntime {
                 accuracy, accuracy.hit() ? damage : null, target.hp()
         );
         return new AppliedActionResult(List.of(event));
+    }
+
+    /** Clear round-scoped EOT usage when the outer turn controller advances the round. */
+    public static void resetRoundMoveFrequency(BattleRuntimeState state) {
+        if (state == null) throw new IllegalArgumentException("state is required");
+        for (String combatantId : state.combatantIds()) {
+            state.requireCombatant(combatantId).moveFrequencyUsage().resetRound();
+        }
     }
 
     private static TrainerFeatureEvent trainerFeatureEvent(
