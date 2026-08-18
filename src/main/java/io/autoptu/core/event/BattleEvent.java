@@ -5,7 +5,7 @@ package io.autoptu.core.event;
  *
  * Minecraft must render these events without recalculating PTU rules.
  */
-public sealed interface BattleEvent permits MoveResolvedEvent, ShiftResolvedEvent {
+public sealed interface BattleEvent permits MoveResolvedEvent, ShiftResolvedEvent, StatusSkipEvent {
     BattleEventKind kind();
 
     String stableKey();
