@@ -19,6 +19,7 @@ public final class RuntimeCombatantState {
     private final CombatantStatProfile statProfile;
     private final EvasionProfile evasionProfile;
     private final int accuracyStage;
+    private final boolean sniper;
     private MovementProfile movementProfile;
     private int hp;
 
@@ -29,7 +30,7 @@ public final class RuntimeCombatantState {
             int maxHp,
             ActionBudget actionBudget
     ) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, null, null, 0);
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, null, null, 0, false);
     }
 
     public RuntimeCombatantState(
@@ -40,7 +41,7 @@ public final class RuntimeCombatantState {
             ActionBudget actionBudget,
             CombatantStatProfile statProfile
     ) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, null, 0);
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, null, 0, false);
     }
 
     public RuntimeCombatantState(
@@ -52,7 +53,7 @@ public final class RuntimeCombatantState {
             CombatantStatProfile statProfile,
             EvasionProfile evasionProfile
     ) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, 0);
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, 0, false);
     }
 
     public RuntimeCombatantState(
@@ -64,6 +65,20 @@ public final class RuntimeCombatantState {
             CombatantStatProfile statProfile,
             EvasionProfile evasionProfile,
             int accuracyStage
+    ) {
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, false);
+    }
+
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage,
+            boolean sniper
     ) {
         if (combatantId == null || combatantId.isBlank()) {
             throw new IllegalArgumentException("combatantId is required");
@@ -88,6 +103,7 @@ public final class RuntimeCombatantState {
         this.statProfile = statProfile;
         this.evasionProfile = evasionProfile;
         this.accuracyStage = Calculations.accuracyStageValue(accuracyStage);
+        this.sniper = sniper;
     }
 
     public String combatantId() {
@@ -138,6 +154,10 @@ public final class RuntimeCombatantState {
 
     public int accuracyStage() {
         return accuracyStage;
+    }
+
+    public boolean sniper() {
+        return sniper;
     }
 
     void moveTo(GridCoord destination) {
