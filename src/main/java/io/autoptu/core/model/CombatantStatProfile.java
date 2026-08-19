@@ -43,12 +43,22 @@ public final class CombatantStatProfile {
         return stages.get(stat);
     }
 
+    /** Immutable combat-stage snapshot for authoritative runtime materialization. */
+    public Map<CombatStat, Integer> stages() {
+        return Map.copyOf(stages);
+    }
+
     public StatModifier modifier(CombatStat stat) {
         return modifiers.get(stat);
     }
 
     public boolean has(StatFlag flag) {
         return flags.contains(flag);
+    }
+
+    /** Rebind this pure profile to the current server-owned combat stages. */
+    public CombatantStatProfile withStages(Map<CombatStat, Integer> nextStages) {
+        return new CombatantStatProfile(baseStats, nextStages, modifiers, flags);
     }
 
     public CombatantStatProfile withFlag(StatFlag flag, boolean enabled) {
