@@ -118,6 +118,20 @@ def calls_method_with_string(node: ast.AST, method: str, value: str) -> bool:
     return False
 
 
+def reads_payload_key(node: ast.AST, key_name: str) -> bool:
+    """Detect dictionary-style access to one metadata key without assuming container names."""
+    for child in ast.walk(node):
+        if isinstance(child, ast.Call) and isinstance(child.func, ast.Attribute) and child.func.attr == "get" and child.args:
+            first = child.args[0]
+            if isinstance(first, ast.Constant) and first.value == key_name:
+                return True
+        if isinstance(child, ast.Subscript):
+            key = child.slice
+            if isinstance(key, ast.Constant) and key.value == key_name:
+                return True
+    return False
+
+
 def flinch_payload_contract(node: ast.AST) -> tuple[bool, bool]:
     emits_flinch = False
     sets_skip = False
@@ -134,8 +148,8 @@ def flinch_payload_contract(node: ast.AST) -> tuple[bool, bool]:
     return emits_flinch, sets_skip
 
 
-def flinch_start_contract(pokemon_state: ast.ClassDef) -> tuple[bool, bool]:
-    """Freeze the concrete PokemonState Flinch START branch."""
+def flinch_start_contract(pokemon_state: ast.ClassDef) -> tuple[bool, bool, bool]:
+    """Freeze the concrete PokemonState Flinch START branch and its round metadata dependency."""
     for method in pokemon_state.body:
         if not isinstance(method, ast.FunctionDef):
             continue
@@ -148,9 +162,10 @@ def flinch_start_contract(pokemon_state: ast.ClassDef) -> tuple[bool, bool]:
                 continue
             emits_flinch, sets_skip = flinch_payload_contract(node)
             if emits_flinch or sets_skip:
+                applied_round = reads_payload_key(method, "applied_round")
                 print(f"Flinch START contract owner: PokemonState.{method.name}")
-                return emits_flinch, sets_skip
-    return False, False
+                return emits_flinch, sets_skip, applied_round
+    return False, False, False
 
 
 def strange_tempo_confusion_contract(pokemon_state: ast.ClassDef) -> tuple[bool, bool, bool]:
@@ -219,7 +234,7 @@ def main() -> int:
     battle_state_path = source_root / "auto_ptu" / "rules" / "battle_state.py"
     battle_state_tree = ast.parse(battle_state_path.read_text(encoding="utf-8"), filename=str(battle_state_path))
     pokemon_state = find_class(battle_state_tree, "PokemonState")
-    flinch_emits_event, flinch_sets_skip = flinch_start_contract(pokemon_state)
+    flinch_emits_event, flinch_sets_skip, flinch_reads_applied_round = flinch_start_contract(pokemon_state)
     strange_tempo_sleep_guard, strange_tempo_event, strange_tempo_no_skip = strange_tempo_confusion_contract(pokemon_state)
 
     fixtures = [
@@ -232,6 +247,7 @@ def main() -> int:
         ("pending_status_skip_last_event_wins", int(pending_status_skip_last_event_wins(status_method))),
         ("flinch_start_emits_flinch_event", int(flinch_emits_event)),
         ("flinch_start_sets_skip_turn", int(flinch_sets_skip)),
+        ("flinch_phase_reads_applied_round_metadata", int(flinch_reads_applied_round)),
         ("strange_tempo_confusion_checks_sleep_block", int(strange_tempo_sleep_guard)),
         ("strange_tempo_confusion_emits_control_event", int(strange_tempo_event)),
         ("strange_tempo_confusion_does_not_skip", int(strange_tempo_no_skip)),
