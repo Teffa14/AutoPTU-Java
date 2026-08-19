@@ -84,13 +84,46 @@ def pending_status_skip_last_event_wins(method: ast.FunctionDef) -> bool:
     return False
 
 
+def flinch_start_contract(method: ast.FunctionDef) -> tuple[bool, bool]:
+    """Freeze the concrete PokemonState Flinch START event/skip contract."""
+    for node in ast.walk(method):
+        if not isinstance(node, ast.If):
+            continue
+        test_names = {
+            child.id for child in ast.walk(node.test) if isinstance(child, ast.Name)
+        }
+        test_attrs = {
+            child.attr for child in ast.walk(node.test) if isinstance(child, ast.Attribute)
+        }
+        if "_FLINCH_STATUS_NAMES" not in test_names or "START" not in test_attrs:
+            continue
+        emits_flinch = False
+        sets_skip = False
+        for child in ast.walk(node):
+            if not isinstance(child, ast.Dict):
+                continue
+            values = {}
+            for key, value in zip(child.keys, child.values):
+                if isinstance(key, ast.Constant) and isinstance(key.value, str):
+                    values[key.value] = value
+            effect = values.get("effect")
+            skip = values.get("skip_turn")
+            if isinstance(effect, ast.Constant) and effect.value == "flinch":
+                emits_flinch = True
+                if isinstance(skip, ast.Constant) and skip.value is True:
+                    sets_skip = True
+        return emits_flinch, sets_skip
+    return False, False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
 
-    controllers = args.source_root.resolve() / "auto_ptu" / "rules" / "controllers"
+    source_root = args.source_root.resolve()
+    controllers = source_root / "auto_ptu" / "rules" / "controllers"
     phase_path = controllers / "phase_controller.py"
     phase_tree = ast.parse(phase_path.read_text(encoding="utf-8"), filename=str(phase_path))
     phase_method = find_method(phase_tree, "PhaseController", "advance_phase")
@@ -98,6 +131,11 @@ def main() -> int:
     status_path = controllers / "status_controller.py"
     status_tree = ast.parse(status_path.read_text(encoding="utf-8"), filename=str(status_path))
     status_method = find_method(status_tree, "StatusController", "run_phase_effects")
+
+    battle_state_path = source_root / "auto_ptu" / "rules" / "battle_state.py"
+    battle_state_tree = ast.parse(battle_state_path.read_text(encoding="utf-8"), filename=str(battle_state_path))
+    pokemon_phase_method = find_method(battle_state_tree, "PokemonState", "handle_phase_effects")
+    flinch_emits_event, flinch_sets_skip = flinch_start_contract(pokemon_phase_method)
 
     fixtures = [
         ("requires_current_actor", int(requires_current_actor(phase_method))),
@@ -107,6 +145,8 @@ def main() -> int:
         ("consumes_pending_status_skip", int(calls_attr(phase_method, "consume_pending_status_skip"))),
         ("end_phase_is_terminal", int(terminal_end_return(phase_method))),
         ("pending_status_skip_last_event_wins", int(pending_status_skip_last_event_wins(status_method))),
+        ("flinch_start_emits_flinch_event", int(flinch_emits_event)),
+        ("flinch_start_sets_skip_turn", int(flinch_sets_skip)),
     ]
 
     output = args.output.resolve()
