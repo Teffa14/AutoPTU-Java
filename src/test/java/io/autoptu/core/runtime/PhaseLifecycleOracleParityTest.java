@@ -109,6 +109,51 @@ class PhaseLifecycleOracleParityTest {
         assertFalse(budget.hasActionAvailable(ActionType.SHIFT));
     }
 
+    @Test
+    void laterPendingStatusSkipReplacesEarlierLikePython() throws IOException {
+        String fixturePath = System.getProperty("autoptu.phase.lifecycle.oracle");
+        Assumptions.assumeTrue(fixturePath != null && !fixturePath.isBlank());
+        Map<String, Integer> fixture = readFixture(Path.of(fixturePath));
+        assertEquals(1, fixture.get("pending_status_skip_last_event_wins"));
+
+        BattleRuntimeState state = state();
+        LifecycleHookRegistry hooks = LifecycleHookRegistry.builder()
+                .register("first-skip", HookSource.STATUS, LifecycleHookPoint.PHASE_CHANGE, 100, context ->
+                        LifecycleHookResult.eventsAndPendingStatusSkip(
+                                List.of(new RuleEffectEvent(
+                                        "status", "first", context.actorId(), "", "", context.phase().value(), 0, 20
+                                )),
+                                new PendingStatusSkipRequest("Paralyzed", context.phase(), "first")
+                        )
+                )
+                .register("second-skip", HookSource.STATUS, LifecycleHookPoint.PHASE_CHANGE, 200, context ->
+                        LifecycleHookResult.eventsAndPendingStatusSkip(
+                                List.of(new RuleEffectEvent(
+                                        "status", "second", context.actorId(), "", "", context.phase().value(), 0, 20
+                                )),
+                                new PendingStatusSkipRequest("Flinch", context.phase(), "second")
+                        )
+                )
+                .build();
+        BattleRoundController controller = new BattleRoundController(
+                state, 2, hooks, state.damageHistory(), new RoundInjuryHistoryState(), new BattleTurnState()
+        );
+        controller.beginTurn("actor");
+
+        List<BattleEvent> events = controller.advancePhase();
+
+        assertEquals(4, events.size());
+        assertInstanceOf(PhaseChangedEvent.class, events.get(0));
+        assertInstanceOf(RuleEffectEvent.class, events.get(1));
+        assertInstanceOf(RuleEffectEvent.class, events.get(2));
+        StatusSkipEvent skip = assertInstanceOf(StatusSkipEvent.class, events.get(3));
+        assertEquals("Flinch", skip.status());
+        assertEquals("second", skip.reason());
+        ActionBudget budget = state.requireCombatant("actor").actionBudget();
+        assertFalse(budget.hasActionAvailable(ActionType.STANDARD));
+        assertFalse(budget.hasActionAvailable(ActionType.SHIFT));
+    }
+
     private static void assertTransition(
             BattleRoundController controller,
             TurnPhase expected,

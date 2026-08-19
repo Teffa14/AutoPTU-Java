@@ -51,11 +51,11 @@ public final class LifecycleHookRegistry {
             }
             events.addAll(result.events());
             if (result.pendingStatusSkip() != null) {
-                if (pendingStatusSkip != null) {
-                    throw new IllegalStateException(
-                            "multiple pending status skips emitted at " + point.name().toLowerCase(Locale.ROOT)
-                    );
-                }
+                // Python StatusController.run_phase_effects stores each skip_turn payload
+                // into one _pending_status_skip slot while iterating ordered events, so a
+                // later result replaces an earlier one. Preserve that last-wins contract
+                // across generic Java lifecycle hooks as more status/item/ability sources
+                // move behind this registry.
                 pendingStatusSkip = result.pendingStatusSkip();
             }
         }
