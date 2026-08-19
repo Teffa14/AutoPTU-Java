@@ -1,11 +1,16 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.event.BattleEvent;
+import io.autoptu.core.event.TurnEndedEvent;
 import io.autoptu.core.hook.BuiltinLifecycleHooks;
 import io.autoptu.core.hook.LifecycleHookContext;
 import io.autoptu.core.hook.LifecycleHookPoint;
 import io.autoptu.core.hook.LifecycleHookRegistry;
 import io.autoptu.core.hook.LifecycleHookResult;
+import io.autoptu.core.model.TurnPhase;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -114,6 +119,36 @@ public final class BattleRoundController {
                 )
         );
         return new RoundStartResult(round, result.events());
+    }
+
+    /**
+     * Close one combatant turn through the same authoritative lifecycle registry.
+     *
+     * Python clears actor-scoped temporary state before logging turn_end. Future
+     * Trainer Feature/ability registrations can attach to TURN_END without giving
+     * Minecraft control over cleanup or phase-scoped rule execution.
+     */
+    public List<BattleEvent> endTurn(String actorId, TurnPhase phase) {
+        if (actorId == null || actorId.isBlank()) throw new IllegalArgumentException("actorId is required");
+        if (phase == null) throw new IllegalArgumentException("phase is required");
+        state.requireCombatant(actorId);
+
+        LifecycleHookResult result = lifecycleHooks.resolve(
+                LifecycleHookPoint.TURN_END,
+                new LifecycleHookContext(
+                        state,
+                        damageHistory,
+                        injuryHistory,
+                        LifecycleHookPoint.TURN_END,
+                        round,
+                        round,
+                        actorId
+                )
+        );
+        ArrayList<BattleEvent> events = new ArrayList<>(result.events().size() + 1);
+        events.addAll(result.events());
+        events.add(new TurnEndedEvent(actorId, round, phase));
+        return List.copyOf(events);
     }
 
     private static RoundDamageHistoryState canonicalDamageHistory(BattleRuntimeState state) {
