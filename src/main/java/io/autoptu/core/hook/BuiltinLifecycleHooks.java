@@ -4,6 +4,7 @@ import io.autoptu.core.runtime.BattleRuntime;
 import io.autoptu.core.runtime.RuntimeCombatantState;
 
 import java.util.List;
+import java.util.Map;
 
 /** Built-in lifecycle registrations already backed by parity-safe Java behavior. */
 public final class BuiltinLifecycleHooks {
@@ -60,6 +61,19 @@ public final class BuiltinLifecycleHooks {
                         710,
                         context -> {
                             context.injuryHistory().rotateForNewRound();
+                            return LifecycleHookResult.empty();
+                        }
+                )
+                .register(
+                        "turn-temporary-effect-cleanup",
+                        HookSource.TEMPORARY_EFFECT,
+                        LifecycleHookPoint.TURN_END,
+                        500,
+                        context -> {
+                            RuntimeCombatantState actor = context.state().requireCombatant(context.actorId());
+                            actor.temporaryEffects().removeAll("extra_action");
+                            actor.temporaryEffects().removeAll("last_turn_round");
+                            actor.temporaryEffects().add("last_turn_round", Map.of("round", context.round()));
                             return LifecycleHookResult.empty();
                         }
                 )
