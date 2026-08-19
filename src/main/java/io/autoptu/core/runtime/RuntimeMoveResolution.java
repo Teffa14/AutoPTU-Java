@@ -62,8 +62,8 @@ public final class RuntimeMoveResolution {
         if (input == null) throw new IllegalArgumentException("input is required");
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
-        int attackValue = StatResolution.offensive(actor.requireStatProfile(), damageCategory, ignorePositiveAttackStage);
-        int defenseValue = StatResolution.defensive(target.requireStatProfile(), damageCategory, ignorePositiveDefenseStage);
+        int attackValue = StatResolution.offensive(actor.effectiveStatProfile(), damageCategory, ignorePositiveAttackStage);
+        int defenseValue = StatResolution.defensive(target.effectiveStatProfile(), damageCategory, ignorePositiveDefenseStage);
         MoveResolutionInput resolvedInput = new MoveResolutionInput(
                 input.moveAc(), input.evasion(), input.accuracyStage(), input.critRange(),
                 input.meleeNoGuard(), input.blurApplies(), input.rerollOnMiss(), input.effectiveDb(),
@@ -132,9 +132,9 @@ public final class RuntimeMoveResolution {
         MoveCombatProfile effectiveMetadata = effectiveMoveHooks.profile();
 
         CombatantStatProfile actorStats = StatusStatResolution.apply(
-                actor.requireStatProfile(), state.statuses(choice.actorId()));
+                actor.effectiveStatProfile(), state.statuses(choice.actorId()));
         CombatantStatProfile targetStats = StatusStatResolution.apply(
-                target.requireStatProfile(), state.statuses(choice.targetId()));
+                target.effectiveStatProfile(), state.statuses(choice.targetId()));
         EvasionProfile authoritativeEvasion = StatusEvasionResolution.apply(
                 target.requireEvasionProfile(), state.statuses(choice.targetId()));
         int evasion = EvasionResolution.resolve(authoritativeEvasion, effectiveMetadata.damageCategory());

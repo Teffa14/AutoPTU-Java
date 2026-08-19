@@ -35,6 +35,40 @@ def main() -> int:
         "links_spend_trainer_ap": int(
             'trainer.ap = int(getattr(trainer, "ap", 0) or 0) - 1' in passive
         ),
+        "links_read_combat_stage": int(
+            'getattr(actor, "combat_stages", {}).get(stat, 0)' in passive
+        ),
+        "links_require_nonpositive_stage": int(
+            'if current > 0:' in passive
+        ),
+        "links_raise_stage_by_one_with_cap": int(
+            'actor.combat_stages[stat] = min(6, current + 1)' in passive
+        ),
+        "links_emit_raise_cs_event": int(
+            '"effect": "raise_cs"' in passive
+        ),
+        "links_event_reports_stat": int(
+            '"stat": stat' in passive
+        ),
+        "links_event_reports_amount": int(
+            '"amount": 1' in passive
+        ),
+        "links_event_reports_ap_spent": int(
+            '"ap_spent": 1' in passive
+        ),
+        "links_event_reports_phase": int(
+            '"phase": ctx.phase' in passive
+        ),
+        "fixed_links_are_end_scoped": int(all(
+            f'@register_perk_hook("end", "{feature}")' in passive
+            for feature in (
+                "Attack Link",
+                "Defense Link",
+                "Special Attack Link",
+                "Special Defense Link",
+                "Speed Link",
+            )
+        )),
         "perk_filter_is_actor_feature_owned": int(
             'ctx.actor.has_trainer_feature(perk)' in hooks
         ),
