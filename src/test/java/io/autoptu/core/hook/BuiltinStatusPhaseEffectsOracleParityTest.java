@@ -10,6 +10,7 @@ import io.autoptu.core.runtime.BattleRuntimeState;
 import io.autoptu.core.runtime.RoundDamageHistoryState;
 import io.autoptu.core.runtime.RoundInjuryHistoryState;
 import io.autoptu.core.runtime.RuntimeCombatantState;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -25,31 +26,33 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class BuiltinStatusPhaseEffectsOracleParityTest {
     @Test
-    void flinchAndAliasMatchPythonPhaseEventAndPendingSkip() throws IOException {
-        String oraclePath = System.getProperty("autoptu.status.phase.effect.oracle");
-        if (oraclePath == null || oraclePath.isBlank()) return;
+    void flinchStartEffectMatchesPythonContractForCanonicalAliases() throws IOException {
+        String oraclePath = System.getProperty("autoptu.phase.lifecycle.oracle");
+        Assumptions.assumeTrue(oraclePath != null && !oraclePath.isBlank());
+        Map<String, Integer> fixture = readFixture(Path.of(oraclePath));
+        assertEquals(1, fixture.get("flinch_start_emits_flinch_event"));
+        assertEquals(1, fixture.get("flinch_start_sets_skip_turn"));
 
-        Map<String, String> fixtures = readFixtures(Path.of(oraclePath));
-        assertEquals(fixtures.get("flinch"), resolve("flinch"));
-        assertEquals(fixtures.get("flinched_alias"), resolve("flinched"));
+        assertFlinch("flinch");
+        assertFlinch("flinched");
     }
 
-    private static String resolve(String status) {
+    private static void assertFlinch(String status) {
         StatusPhaseEffectRegistry registry = BuiltinStatusPhaseEffects.flinchRegistry();
         LifecycleHookResult result = registry.resolve(context(state(status)));
         assertEquals(1, result.events().size());
         assertNotNull(result.pendingStatusSkip());
 
         RuleEffectEvent event = (RuleEffectEvent) result.events().getFirst();
+        assertEquals("status", event.sourceKind());
+        assertEquals(status, event.sourceName());
+        assertEquals("actor", event.actorId());
+        assertEquals("flinch", event.effect());
+
         PendingStatusSkipRequest pending = result.pendingStatusSkip();
-        return String.join("|",
-                event.sourceKind(),
-                event.actorId(),
-                event.sourceName(),
-                pending.phase().value(),
-                event.effect(),
-                "true"
-        );
+        assertEquals(status, pending.status());
+        assertEquals(TurnPhase.START, pending.phase());
+        assertEquals("flinch", pending.reason());
     }
 
     private static LifecycleHookContext context(BattleRuntimeState state) {
@@ -80,13 +83,13 @@ class BuiltinStatusPhaseEffectsOracleParityTest {
         );
     }
 
-    private static Map<String, String> readFixtures(Path path) throws IOException {
-        LinkedHashMap<String, String> rows = new LinkedHashMap<>();
+    private static Map<String, Integer> readFixture(Path path) throws IOException {
+        LinkedHashMap<String, Integer> values = new LinkedHashMap<>();
         for (String line : Files.readAllLines(path)) {
-            if (line.isBlank()) continue;
+            if (line == null || line.isBlank()) continue;
             String[] parts = line.split("\\t", 2);
-            rows.put(parts[0], parts[1]);
+            values.put(parts[0], Integer.parseInt(parts[1]));
         }
-        return rows;
+        return values;
     }
 }
