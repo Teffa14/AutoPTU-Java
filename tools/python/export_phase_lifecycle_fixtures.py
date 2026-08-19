@@ -175,6 +175,35 @@ def strange_tempo_confusion_contract(pokemon_state: ast.ClassDef) -> tuple[bool,
     return False, False, False
 
 
+def combatant_phase_family_order(pokemon_state: ast.ClassDef) -> tuple[bool, bool, bool]:
+    method = next((node for node in pokemon_state.body if isinstance(node, ast.FunctionDef) and node.name == "handle_phase_effects"), None)
+    if method is None:
+        raise RuntimeError("PokemonState.handle_phase_effects not found")
+
+    first_line: dict[str, int] = {}
+    for call in (node for node in ast.walk(method) if isinstance(node, ast.Call)):
+        text = ast.unparse(call.func).lower()
+        family = None
+        if "status" in text and "phase" in text:
+            family = "status"
+        elif "ability" in text and "phase" in text:
+            family = "ability"
+        elif "perk" in text and "phase" in text:
+            family = "perk"
+        if family is not None:
+            first_line[family] = min(first_line.get(family, call.lineno), call.lineno)
+
+    print(f"PokemonState.handle_phase_effects family lines: {first_line}")
+    required = {"status", "ability", "perk"}
+    if not required.issubset(first_line):
+        return False, False, False
+    return (
+        first_line["status"] < first_line["ability"],
+        first_line["ability"] < first_line["perk"],
+        first_line["status"] < first_line["perk"],
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
@@ -191,6 +220,7 @@ def main() -> int:
     pokemon_state = find_class(battle_state_tree, "PokemonState")
     flinch_emits, flinch_skip, flinch_reads, flinch_expires, flinch_removes, flinch_ends = flinch_start_contract(pokemon_state)
     strange_guard, strange_event, strange_no_skip = strange_tempo_confusion_contract(pokemon_state)
+    status_before_ability, ability_before_perk, status_before_perk = combatant_phase_family_order(pokemon_state)
     fixtures = [
         ("requires_current_actor", int(requires_current_actor(phase_method))),
         ("logs_phase_event", int(logs_event_type(phase_method, "phase"))),
@@ -208,6 +238,9 @@ def main() -> int:
         ("strange_tempo_confusion_checks_sleep_block", int(strange_guard)),
         ("strange_tempo_confusion_emits_control_event", int(strange_event)),
         ("strange_tempo_confusion_does_not_skip", int(strange_no_skip)),
+        ("phase_family_status_before_ability", int(status_before_ability)),
+        ("phase_family_ability_before_perk", int(ability_before_perk)),
+        ("phase_family_status_before_perk", int(status_before_perk)),
     ]
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
