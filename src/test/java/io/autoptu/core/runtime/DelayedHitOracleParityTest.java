@@ -38,8 +38,16 @@ class DelayedHitOracleParityTest {
             String outcome = parts[8];
             int outcomeIndex = Integer.parseInt(parts[9]);
 
-            queue.schedule(attackerId, moveId, targetId, targetPosition, triggerRound, effect);
-            expectedByMove.put(moveId, new Expected(scenario, outcome, outcomeIndex));
+            DelayedHitEntry entry = new DelayedHitEntry(
+                    attackerId,
+                    moveId,
+                    targetId,
+                    targetPosition,
+                    triggerRound,
+                    effect
+            );
+            queue.schedule(entry);
+            expectedByMove.put(moveId, new Expected(scenario, entry, outcome, outcomeIndex));
         }
 
         DelayedHitBatch batch = queue.takeDue(3);
@@ -75,10 +83,11 @@ class DelayedHitOracleParityTest {
         for (int index = 0; index < actual.size(); index++) {
             DelayedHitEntry entry = actual.get(index);
             Expected expected = expectedByMove.get(entry.moveId());
+            assertEquals(expected.entry(), entry, expected.scenario() + " metadata");
             assertEquals(outcome, expected.outcome(), expected.scenario());
             assertEquals(index, expected.index(), expected.scenario());
         }
     }
 
-    private record Expected(String scenario, String outcome, int index) {}
+    private record Expected(String scenario, DelayedHitEntry entry, String outcome, int index) {}
 }
