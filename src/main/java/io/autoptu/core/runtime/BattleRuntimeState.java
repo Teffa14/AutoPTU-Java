@@ -22,6 +22,7 @@ public final class BattleRuntimeState {
     private final LinkedHashMap<String, CombatantAffiliationState> affiliationByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, List<MoveOption>> movesByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, List<HeldItemState>> heldItemsByCombatant = new LinkedHashMap<>();
+    private final RoundDamageHistoryState damageHistory = new RoundDamageHistoryState();
 
     public BattleRuntimeState(MovementGrid grid, List<RuntimeCombatantState> combatants) {
         this(grid, combatants, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
@@ -208,6 +209,11 @@ public final class BattleRuntimeState {
 
     public MovementGrid grid() {
         return grid;
+    }
+
+    /** Server-owned damage history shared by move resolution and round lifecycle. */
+    public RoundDamageHistoryState damageHistory() {
+        return damageHistory;
     }
 
     public RuntimeCombatantState requireCombatant(String combatantId) {

@@ -8,31 +8,65 @@ import java.util.Set;
 /**
  * Server-owned round-scoped damage history used by abilities, Features and reactions.
  *
- * Python rotates damage_this_round and damage_taken_from into previous-round snapshots
- * during PhaseController.start_round(), then clears the current-round collections.
- * Keeping this state in the headless runtime prevents Minecraft/Cobblemon from becoming
- * the authority for rules that ask who dealt or received damage in the previous round.
+ * Python records the damaged target in damage_this_round, tracks attacker ids per target
+ * in damage_taken_from, and accumulates the target's actual HP loss in
+ * damage_received_this_round. PhaseController.start_round() rotates the first two
+ * collections into previous-round snapshots and clears all current-round observations.
  */
 public final class RoundDamageHistoryState {
     private final LinkedHashSet<String> damageThisRound = new LinkedHashSet<>();
     private final LinkedHashMap<String, LinkedHashSet<String>> damageTakenFromThisRound = new LinkedHashMap<>();
-    private final LinkedHashSet<String> damageReceivedThisRound = new LinkedHashSet<>();
+    private final LinkedHashMap<String, Integer> damageReceivedThisRound = new LinkedHashMap<>();
 
     private Set<String> damageLastRound = Set.of();
     private Map<String, Set<String>> damageTakenFromLastRound = Map.of();
 
+    /** Record a target in Python's damage_this_round set. */
     public void recordDamageThisRound(String combatantId) {
         damageThisRound.add(requireId(combatantId));
     }
 
+    /** Record one source in Python's damage_taken_from[target] set. */
     public void recordDamageTakenFrom(String targetId, String sourceId) {
         String target = requireId(targetId);
         String source = requireId(sourceId);
         damageTakenFromThisRound.computeIfAbsent(target, ignored -> new LinkedHashSet<>()).add(source);
     }
 
+    /**
+     * Accumulate actual HP loss for a target. Zero is meaningful for a move that hit but
+     * dealt no HP loss, so the target key is still materialized just like Python.
+     */
+    public void recordDamageReceivedThisRound(String combatantId, int amount) {
+        String target = requireId(combatantId);
+        if (amount < 0) {
+            throw new IllegalArgumentException("damage amount cannot be negative");
+        }
+        damageReceivedThisRound.merge(target, amount, Integer::sum);
+    }
+
+    /** Compatibility helper representing a zero-damage hit. */
     public void recordDamageReceivedThisRound(String combatantId) {
-        damageReceivedThisRound.add(requireId(combatantId));
+        recordDamageReceivedThisRound(combatantId, 0);
+    }
+
+    /**
+     * Python BattleState._record_damage_exchange(attacker_id, target_id): the target is
+     * marked as damaged this round and the attacker is stored as one of that target's
+     * damage sources.
+     */
+    public void recordDamageExchange(String attackerId, String targetId) {
+        String target = requireId(targetId);
+        damageThisRound.add(target);
+        if (attackerId != null && !attackerId.isBlank()) {
+            recordDamageTakenFrom(target, attackerId);
+        }
+    }
+
+    /** Record the complete ordinary-hit history update used by the authoritative move path. */
+    public void recordMoveHit(String attackerId, String targetId, int actualDamage) {
+        recordDamageReceivedThisRound(targetId, actualDamage);
+        recordDamageExchange(attackerId, targetId);
     }
 
     public Set<String> damageThisRound() {
@@ -43,8 +77,8 @@ public final class RoundDamageHistoryState {
         return immutableDeepCopy(damageTakenFromThisRound);
     }
 
-    public Set<String> damageReceivedThisRound() {
-        return Set.copyOf(damageReceivedThisRound);
+    public Map<String, Integer> damageReceivedThisRound() {
+        return Map.copyOf(damageReceivedThisRound);
     }
 
     public Set<String> damageLastRound() {

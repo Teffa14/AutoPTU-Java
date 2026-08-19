@@ -55,6 +55,7 @@ jobs:
           python3 -m py_compile tools/python/export_mega_launcher_fixtures.py
           python3 -m py_compile tools/python/export_temporary_effect_payload_fixtures.py
           python3 -m py_compile tools/python/export_delayed_hit_fixtures.py
+          python3 -m py_compile tools/python/export_damage_history_fixtures.py
 
       - name: Export Python oracle fixtures
         run: |
@@ -82,6 +83,7 @@ jobs:
           python3 tools/python/export_mega_launcher_fixtures.py --source-root python-oracle --output build/oracle/mega-launcher.tsv
           python3 tools/python/export_temporary_effect_payload_fixtures.py --source-root python-oracle --output build/oracle/temporary-effect-payload.tsv
           python3 tools/python/export_delayed_hit_fixtures.py --source-root python-oracle --output build/oracle/delayed-hit.tsv
+          python3 tools/python/export_damage_history_fixtures.py --source-root python-oracle --output build/oracle/damage-history.tsv
 
       - name: Run Java core and Python-oracle parity tests
         run: >-
@@ -110,3 +112,4 @@ jobs:
           -PoracleMegaLauncher="$GITHUB_WORKSPACE/build/oracle/mega-launcher.tsv"
           -PoracleTemporaryEffectPayload="$GITHUB_WORKSPACE/build/oracle/temporary-effect-payload.tsv"
           -PoracleDelayedHit="$GITHUB_WORKSPACE/build/oracle/delayed-hit.tsv"
+          -PoracleDamageHistory="$GITHUB_WORKSPACE/build/oracle/damage-history.tsv"
