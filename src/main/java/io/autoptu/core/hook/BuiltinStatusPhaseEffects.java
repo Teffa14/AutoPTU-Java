@@ -15,9 +15,11 @@ public final class BuiltinStatusPhaseEffects {
     /**
      * Registers the base Flinch/Flinched START effect.
      *
-     * Python emits a semantic status event with effect=flinch and skip_turn=true;
-     * StatusController later consumes that pending skip after all phase effects run.
-     * Status expiry/immunity/Steadfast branches remain separate bounded slices.
+     * Python expires a metadata-bearing Flinch once battle.round advances past
+     * applied_round, emitting status_ends without a pending skip. Otherwise it
+     * emits effect=flinch and skip_turn=true; StatusController later consumes
+     * that pending skip after all phase effects run. Immunity/Steadfast branches
+     * remain separate bounded slices.
      */
     public static StatusPhaseEffectRegistry flinchRegistry() {
         return StatusPhaseEffectRegistry.builder()
@@ -29,6 +31,25 @@ public final class BuiltinStatusPhaseEffects {
                         (context, status) -> {
                             String actorId = context.actorId();
                             int hp = context.state().requireCombatant(actorId).hp();
+                            var entry = context.state().statusEntry(actorId, status);
+                            if (entry.isPresent()) {
+                                var appliedRound = entry.get().intPayload("applied_round");
+                                if (appliedRound.isPresent() && context.round() > appliedRound.getAsInt()) {
+                                    context.state().removeStatus(actorId, status);
+                                    RuleEffectEvent event = new RuleEffectEvent(
+                                            "status",
+                                            status,
+                                            actorId,
+                                            "",
+                                            "",
+                                            "status_ends",
+                                            0.0,
+                                            hp
+                                    );
+                                    return new LifecycleHookResult(List.of(event), null);
+                                }
+                            }
+
                             RuleEffectEvent event = new RuleEffectEvent(
                                     "status",
                                     status,
