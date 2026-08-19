@@ -6,7 +6,8 @@ public enum BattleEventKind {
     SHIFT_RESOLVED("shift_resolved"),
     STATUS_SKIP("status_skip"),
     TRAINER_FEATURE("trainer_feature"),
-    RULE_EFFECT("rule_effect");
+    RULE_EFFECT("rule_effect"),
+    TURN_END("turn_end");
 
     private final String value;
 
