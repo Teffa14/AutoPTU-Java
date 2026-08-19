@@ -65,6 +65,12 @@ class PhaseLifecycleOracleParityTest {
         assertEquals(List.of(), controller.advancePhase());
         assertEquals(TurnPhase.END, controller.turnState().phase());
 
+        // The broad Pokemon phase families are a stable Python contract. The
+        // generic CombatantPhaseEffectDispatcher owns this cross-family order.
+        assertEquals(1, fixture.get("phase_family_status_before_ability"));
+        assertEquals(1, fixture.get("phase_family_ability_before_perk"));
+        assertEquals(1, fixture.get("phase_family_status_before_perk"));
+
         // Trainer Feature dispatch and StatusController.run_phase_effects remain
         // separate bounded slices on top of the generic PHASE_CHANGE registry.
         assertEquals(1, fixture.get("dispatches_phase_change"));
