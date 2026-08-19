@@ -22,6 +22,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoundLifecycleOracleParityTest {
@@ -132,7 +133,9 @@ class RoundLifecycleOracleParityTest {
         actor.temporaryEffects().add("last_turn_round", Map.of("round", 1));
         actor.temporaryEffects().add("last_turn_round", Map.of("round", 2));
 
-        List<BattleEvent> events = rounds.endTurn("actor", TurnPhase.END);
+        rounds.beginTurn("actor");
+        rounds.setPhase(TurnPhase.END);
+        List<BattleEvent> events = rounds.endTurn();
 
         assertEquals(1, fixture.get("turn_end_remove_extra_action"));
         assertEquals(0, actor.temporaryEffects().count("extra_action"));
@@ -149,12 +152,15 @@ class RoundLifecycleOracleParityTest {
         assertEquals(rounds.round(), event.round());
         assertEquals(TurnPhase.END, event.phase());
 
-        // These Python responsibilities are deliberately frozen here but remain
-        // separate future slices because Java does not yet own a global actor/phase
-        // pointer or the full Trainer Feature dispatcher lifecycle.
-        assertEquals(1, fixture.get("turn_end_dispatches_trainer_features"));
         assertEquals(1, fixture.get("turn_end_clears_current_actor"));
+        assertNull(rounds.turnState().currentActorId());
         assertEquals(1, fixture.get("turn_end_resets_phase_start"));
+        assertEquals(TurnPhase.START, rounds.turnState().phase());
+
+        // Trainer Feature dispatch remains a separate future slice because the
+        // generic lifecycle hook exists but the full authoritative Feature state
+        // and dispatcher have not been ported yet.
+        assertEquals(1, fixture.get("turn_end_dispatches_trainer_features"));
         assertTrue(actor.temporaryEffects().has("persistent_marker"));
     }
 
