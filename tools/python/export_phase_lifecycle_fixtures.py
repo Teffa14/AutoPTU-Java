@@ -106,6 +106,18 @@ def test_contains_attr(test: ast.AST, attr: str) -> bool:
     return any(isinstance(node, ast.Attribute) and node.attr == attr for node in ast.walk(test))
 
 
+def calls_method_with_string(node: ast.AST, method: str, value: str) -> bool:
+    for child in ast.walk(node):
+        if not isinstance(child, ast.Call) or not isinstance(child.func, ast.Attribute):
+            continue
+        if child.func.attr != method or not child.args:
+            continue
+        first = child.args[0]
+        if isinstance(first, ast.Constant) and first.value == value:
+            return True
+    return False
+
+
 def flinch_payload_contract(node: ast.AST) -> tuple[bool, bool]:
     emits_flinch = False
     sets_skip = False
@@ -123,14 +135,7 @@ def flinch_payload_contract(node: ast.AST) -> tuple[bool, bool]:
 
 
 def flinch_start_contract(pokemon_state: ast.ClassDef) -> tuple[bool, bool]:
-    """Freeze the concrete PokemonState Flinch START branch.
-
-    The pinned Python file is very large and the Flinch logic has moved during
-    extraction work. Search each top-level PokemonState method independently,
-    requiring the START guard and the effect=flinch payload to occur within the
-    same method. This avoids both hard-coding a stale method name and matching
-    unrelated battle-controller code elsewhere in the file.
-    """
+    """Freeze the concrete PokemonState Flinch START branch."""
     for method in pokemon_state.body:
         if not isinstance(method, ast.FunctionDef):
             continue
@@ -146,6 +151,53 @@ def flinch_start_contract(pokemon_state: ast.ClassDef) -> tuple[bool, bool]:
                 print(f"Flinch START contract owner: PokemonState.{method.name}")
                 return emits_flinch, sets_skip
     return False, False
+
+
+def strange_tempo_confusion_contract(pokemon_state: ast.ClassDef) -> tuple[bool, bool, bool]:
+    """Freeze the Strange Tempo short-circuit inside Confusion START handling."""
+    for method in pokemon_state.body:
+        if not isinstance(method, ast.FunctionDef):
+            continue
+        for node in ast.walk(method):
+            if not isinstance(node, ast.If):
+                continue
+            if not test_contains_name(node.test, "_CONFUSION_STATUS_NAMES"):
+                continue
+            if not test_contains_attr(node.test, "START"):
+                continue
+
+            sleeping_guard = (
+                calls_method_with_string(node, "has_status", "Sleep")
+                and calls_method_with_string(node, "has_status", "Asleep")
+                and calls_method_with_string(node, "has_temporary_effect", "sleep_blocked")
+            )
+            for branch in ast.walk(node):
+                if not isinstance(branch, ast.If):
+                    continue
+                if not calls_method_with_string(branch.test, "has_ability", "Strange Tempo"):
+                    continue
+                emits_control = False
+                sets_skip = False
+                for child in ast.walk(branch):
+                    if not isinstance(child, ast.Dict):
+                        continue
+                    ability = dict_value(child, "ability")
+                    effect = dict_value(child, "effect")
+                    if not (
+                        isinstance(ability, ast.Constant)
+                        and ability.value == "Strange Tempo"
+                        and isinstance(effect, ast.Constant)
+                        and effect.value == "confusion_control"
+                    ):
+                        continue
+                    emits_control = True
+                    skip = dict_value(child, "skip_turn")
+                    if isinstance(skip, ast.Constant) and skip.value is True:
+                        sets_skip = True
+                if emits_control:
+                    print(f"Strange Tempo Confusion contract owner: PokemonState.{method.name}")
+                    return sleeping_guard, emits_control, not sets_skip
+    return False, False, False
 
 
 def main() -> int:
@@ -168,6 +220,7 @@ def main() -> int:
     battle_state_tree = ast.parse(battle_state_path.read_text(encoding="utf-8"), filename=str(battle_state_path))
     pokemon_state = find_class(battle_state_tree, "PokemonState")
     flinch_emits_event, flinch_sets_skip = flinch_start_contract(pokemon_state)
+    strange_tempo_sleep_guard, strange_tempo_event, strange_tempo_no_skip = strange_tempo_confusion_contract(pokemon_state)
 
     fixtures = [
         ("requires_current_actor", int(requires_current_actor(phase_method))),
@@ -179,6 +232,9 @@ def main() -> int:
         ("pending_status_skip_last_event_wins", int(pending_status_skip_last_event_wins(status_method))),
         ("flinch_start_emits_flinch_event", int(flinch_emits_event)),
         ("flinch_start_sets_skip_turn", int(flinch_sets_skip)),
+        ("strange_tempo_confusion_checks_sleep_block", int(strange_tempo_sleep_guard)),
+        ("strange_tempo_confusion_emits_control_event", int(strange_tempo_event)),
+        ("strange_tempo_confusion_does_not_skip", int(strange_tempo_no_skip)),
     ]
 
     output = args.output.resolve()
