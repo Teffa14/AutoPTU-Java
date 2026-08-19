@@ -5,6 +5,7 @@ import io.autoptu.core.model.TurnPhase;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -43,7 +44,7 @@ public final class StatusPhaseEffectRegistry {
         if (context.point() != LifecycleHookPoint.PHASE_CHANGE) {
             throw new IllegalArgumentException("status phase effects require PHASE_CHANGE context");
         }
-        if (context.actorId() == null || context.actorId().isBlank()) {
+        if (context.actorId().isBlank()) {
             return LifecycleHookResult.empty();
         }
         TurnPhase phase = Objects.requireNonNull(context.phase(), "phase");
@@ -131,6 +132,6 @@ public final class StatusPhaseEffectRegistry {
             if (status == null || status.isBlank()) continue;
             normalized.add(status.strip().toLowerCase(Locale.ROOT));
         }
-        return Set.copyOf(normalized);
+        return Collections.unmodifiableSet(normalized);
     }
 }
