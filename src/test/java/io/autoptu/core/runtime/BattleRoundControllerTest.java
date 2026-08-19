@@ -15,6 +15,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class BattleRoundControllerTest {
     @Test
@@ -53,6 +54,30 @@ class BattleRoundControllerTest {
         BattleRoundController rounds = new BattleRoundController(state(combatant("actor")), 4);
         assertEquals(5, rounds.startRound());
         assertEquals(6, rounds.startRound());
+    }
+
+    @Test
+    void injuryHistoryRotatesWithoutChangingCurrentInjuries() {
+        BattleRoundController rounds = new BattleRoundController(state(combatant("actor")));
+        rounds.injuryHistory().setCurrentInjuries("actor", 1);
+
+        rounds.startRound();
+        assertEquals(Map.of("actor", 1), rounds.injuryHistory().injuriesLastRound());
+        assertEquals(1, rounds.injuryHistory().currentInjuries("actor"));
+
+        rounds.injuryHistory().setCurrentInjuries("actor", 2);
+        rounds.startRound();
+
+        assertEquals(Map.of("actor", 1), rounds.injuryHistory().injuriesPreviousRound());
+        assertEquals(Map.of("actor", 2), rounds.injuryHistory().injuriesLastRound());
+        assertEquals(2, rounds.injuryHistory().currentInjuries("actor"));
+    }
+
+    @Test
+    void injuryStateRejectsInvalidValues() {
+        RoundInjuryHistoryState history = new RoundInjuryHistoryState();
+        assertThrows(IllegalArgumentException.class, () -> history.setCurrentInjuries("", 1));
+        assertThrows(IllegalArgumentException.class, () -> history.setCurrentInjuries("actor", -1));
     }
 
     private static BattleRuntimeState state(RuntimeCombatantState actor) {
