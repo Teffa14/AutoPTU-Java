@@ -8,6 +8,7 @@ import io.autoptu.core.hook.LifecycleHookContext;
 import io.autoptu.core.hook.LifecycleHookPoint;
 import io.autoptu.core.hook.LifecycleHookRegistry;
 import io.autoptu.core.hook.LifecycleHookResult;
+import io.autoptu.core.hook.PendingStatusSkipRequest;
 import io.autoptu.core.model.TurnPhase;
 import io.autoptu.core.rules.PhaseSequence;
 
@@ -63,7 +64,9 @@ public final class BattleRoundController {
     /**
      * Advance START -> COMMAND -> ACTION -> END using the server-owned actor and phase.
      * END is terminal until endTurn() clears the turn. The semantic phase event is
-     * emitted before PHASE_CHANGE hook events, matching Python PhaseController order.
+     * emitted before PHASE_CHANGE hook events. A hook may also emit one pending status
+     * skip request; it is resolved only after every phase hook has run, matching Python
+     * PhaseController's run_phase_effects() -> consume_pending_status_skip() order.
      */
     public List<BattleEvent> advancePhase() {
         String actorId = turnState.currentActorId();
@@ -90,6 +93,16 @@ public final class BattleRoundController {
                 )
         );
         events.addAll(hookResult.events());
+        PendingStatusSkipRequest pending = hookResult.pendingStatusSkip();
+        if (pending != null) {
+            events.addAll(BattleRuntime.applyStatusSkip(
+                    state,
+                    actorId,
+                    pending.status(),
+                    pending.phase(),
+                    pending.reason()
+            ).events());
+        }
         return List.copyOf(events);
     }
 

@@ -3,10 +3,13 @@ package io.autoptu.core.runtime;
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.event.PhaseChangedEvent;
 import io.autoptu.core.event.RuleEffectEvent;
+import io.autoptu.core.event.StatusSkipEvent;
 import io.autoptu.core.hook.HookSource;
 import io.autoptu.core.hook.LifecycleHookPoint;
 import io.autoptu.core.hook.LifecycleHookRegistry;
 import io.autoptu.core.hook.LifecycleHookResult;
+import io.autoptu.core.hook.PendingStatusSkipRequest;
+import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
@@ -25,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -61,11 +65,48 @@ class PhaseLifecycleOracleParityTest {
         assertEquals(List.of(), controller.advancePhase());
         assertEquals(TurnPhase.END, controller.turnState().phase());
 
-        // These Python responsibilities are intentionally frozen but remain later
-        // bounded slices on top of the generic PHASE_CHANGE registry.
+        // Trainer Feature dispatch and StatusController.run_phase_effects remain
+        // separate bounded slices on top of the generic PHASE_CHANGE registry.
         assertEquals(1, fixture.get("dispatches_phase_change"));
         assertEquals(1, fixture.get("runs_status_phase_effects"));
         assertEquals(1, fixture.get("consumes_pending_status_skip"));
+    }
+
+    @Test
+    void pendingStatusSkipIsConsumedAfterPhaseHookEvents() throws IOException {
+        String fixturePath = System.getProperty("autoptu.phase.lifecycle.oracle");
+        Assumptions.assumeTrue(fixturePath != null && !fixturePath.isBlank());
+        Map<String, Integer> fixture = readFixture(Path.of(fixturePath));
+        assertEquals(1, fixture.get("consumes_pending_status_skip"));
+
+        BattleRuntimeState state = state();
+        LifecycleHookRegistry hooks = LifecycleHookRegistry.builder()
+                .register("status-phase-probe", HookSource.STATUS, LifecycleHookPoint.PHASE_CHANGE, 100, context ->
+                        LifecycleHookResult.eventsAndPendingStatusSkip(
+                                List.of(new RuleEffectEvent(
+                                        "status", "flinch", context.actorId(), "", "", context.phase().value(), 0, 20
+                                )),
+                                new PendingStatusSkipRequest("Flinch", context.phase(), "flinch")
+                        )
+                )
+                .build();
+        BattleRoundController controller = new BattleRoundController(
+                state, 2, hooks, state.damageHistory(), new RoundInjuryHistoryState(), new BattleTurnState()
+        );
+        controller.beginTurn("actor");
+
+        List<BattleEvent> events = controller.advancePhase();
+
+        assertEquals(3, events.size());
+        assertInstanceOf(PhaseChangedEvent.class, events.get(0));
+        assertInstanceOf(RuleEffectEvent.class, events.get(1));
+        StatusSkipEvent skip = assertInstanceOf(StatusSkipEvent.class, events.get(2));
+        assertEquals("actor", skip.actorId());
+        assertEquals("Flinch", skip.status());
+        assertEquals(TurnPhase.COMMAND, skip.phase());
+        ActionBudget budget = state.requireCombatant("actor").actionBudget();
+        assertFalse(budget.hasActionAvailable(ActionType.STANDARD));
+        assertFalse(budget.hasActionAvailable(ActionType.SHIFT));
     }
 
     private static void assertTransition(
