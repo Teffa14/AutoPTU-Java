@@ -41,7 +41,7 @@ public final class BattleRoundController {
                 state,
                 initialRound,
                 lifecycleHooks,
-                new RoundDamageHistoryState(),
+                canonicalDamageHistory(state),
                 new RoundInjuryHistoryState()
         );
     }
@@ -75,7 +75,7 @@ public final class BattleRoundController {
         return round;
     }
 
-    /** Server-owned damage history shared by lifecycle hooks and downstream rule families. */
+    /** Server-owned damage history shared by move resolution and lifecycle hooks. */
     public RoundDamageHistoryState damageHistory() {
         return damageHistory;
     }
@@ -114,5 +114,10 @@ public final class BattleRoundController {
                 )
         );
         return new RoundStartResult(round, result.events());
+    }
+
+    private static RoundDamageHistoryState canonicalDamageHistory(BattleRuntimeState state) {
+        if (state == null) throw new IllegalArgumentException("state is required");
+        return state.damageHistory();
     }
 }

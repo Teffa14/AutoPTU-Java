@@ -151,12 +151,17 @@ public final class BattleRuntime {
             throw new IllegalStateException(actionType.value() + " action is already consumed");
         }
 
+        int previousHp = target.hp();
         int resolvedDamage = accuracy.hit() ? Math.max(0, damage.damage()) : 0;
-        int nextHp = Math.max(0, target.hp() - resolvedDamage);
+        int nextHp = Math.max(0, previousHp - resolvedDamage);
         if (!budget.consume(actionType, choice.moveId())) {
             throw new IllegalStateException(actionType.value() + " action is already consumed");
         }
         target.setHp(nextHp);
+        if (accuracy.hit()) {
+            int actualDamage = Math.max(0, previousHp - target.hp());
+            state.damageHistory().recordMoveHit(actor.combatantId(), target.combatantId(), actualDamage);
+        }
 
         MoveResolvedEvent event = BattleEventFactory.moveResolved(
                 source, actor.combatantId(), target.combatantId(), choice.moveId(),
