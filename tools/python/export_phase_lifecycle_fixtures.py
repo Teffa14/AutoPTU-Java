@@ -91,31 +91,49 @@ def dict_value(node: ast.Dict, key_name: str):
     return None
 
 
-def flinch_start_contract(method: ast.FunctionDef) -> tuple[bool, bool]:
-    """Freeze the concrete PokemonState Flinch START event/skip contract."""
-    has_flinch_start_guard = False
-    for node in ast.walk(method):
-        if not isinstance(node, ast.If):
-            continue
-        dumped = ast.dump(node.test, include_attributes=False)
-        if "_FLINCH_STATUS_NAMES" in dumped and "START" in dumped:
-            has_flinch_start_guard = True
-            break
+def test_contains_name(test: ast.AST, name: str) -> bool:
+    return any(isinstance(node, ast.Name) and node.id == name for node in ast.walk(test))
 
+
+def test_contains_attr(test: ast.AST, attr: str) -> bool:
+    return any(isinstance(node, ast.Attribute) and node.attr == attr for node in ast.walk(test))
+
+
+def flinch_event_contract(node: ast.AST) -> tuple[bool, bool]:
     emits_flinch = False
     sets_skip = False
-    for node in ast.walk(method):
-        if not isinstance(node, ast.Dict):
+    for child in ast.walk(node):
+        if not isinstance(child, ast.Dict):
             continue
-        effect = dict_value(node, "effect")
+        effect = dict_value(child, "effect")
         if not (isinstance(effect, ast.Constant) and effect.value == "flinch"):
             continue
         emits_flinch = True
-        skip = dict_value(node, "skip_turn")
+        skip = dict_value(child, "skip_turn")
         if isinstance(skip, ast.Constant) and skip.value is True:
             sets_skip = True
+    return emits_flinch, sets_skip
 
-    return has_flinch_start_guard and emits_flinch, has_flinch_start_guard and sets_skip
+
+def flinch_start_contract(method: ast.FunctionDef) -> tuple[bool, bool]:
+    """Freeze the concrete PokemonState Flinch START event/skip branch.
+
+    Search each Flinch+START guard together with its own body. This avoids
+    correlating unrelated status dictionaries elsewhere in the very large
+    PokemonState.handle_phase_effects method while remaining independent of
+    formatting and ast.dump string representation.
+    """
+    for node in ast.walk(method):
+        if not isinstance(node, ast.If):
+            continue
+        if not test_contains_name(node.test, "_FLINCH_STATUS_NAMES"):
+            continue
+        if not test_contains_attr(node.test, "START"):
+            continue
+        emits_flinch, sets_skip = flinch_event_contract(node)
+        if emits_flinch or sets_skip:
+            return emits_flinch, sets_skip
+    return False, False
 
 
 def main() -> int:
