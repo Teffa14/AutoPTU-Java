@@ -1,11 +1,13 @@
 package io.autoptu.core.hook;
 
+import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.model.AttackModifier;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
@@ -33,22 +35,19 @@ public final class DamageModifierHookRegistry {
         return registrations;
     }
 
-    public List<AttackModifier> resolve(DamageModifierHookContext context) {
+    public DamageModifierHookResult resolve(DamageModifierHookContext context) {
         Objects.requireNonNull(context, "context");
-        ArrayList<AttackModifier> resolved = new ArrayList<>();
+        ArrayList<AttackModifier> modifiers = new ArrayList<>();
+        ArrayList<BattleEvent> events = new ArrayList<>();
         for (Registration registration : registrations) {
-            List<AttackModifier> modifiers = registration.hook().resolve(context);
-            if (modifiers == null) {
+            DamageModifierHookResult result = registration.hook().resolve(context);
+            if (result == null) {
                 throw new IllegalStateException("damage hook returned null: " + registration.key());
             }
-            for (AttackModifier modifier : modifiers) {
-                if (modifier == null) {
-                    throw new IllegalStateException("damage hook returned null modifier: " + registration.key());
-                }
-                resolved.add(modifier);
-            }
+            modifiers.addAll(result.modifiers());
+            events.addAll(result.events());
         }
-        return List.copyOf(resolved);
+        return DamageModifierHookResult.of(modifiers, events);
     }
 
     public record Registration(
@@ -65,7 +64,7 @@ public final class DamageModifierHookRegistry {
         }
 
         public String key() {
-            return source.name().toLowerCase() + ":" + id;
+            return source.name().toLowerCase(Locale.ROOT) + ":" + id;
         }
     }
 

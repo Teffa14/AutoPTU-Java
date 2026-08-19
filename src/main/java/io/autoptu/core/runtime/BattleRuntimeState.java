@@ -21,9 +21,10 @@ public final class BattleRuntimeState {
     private final LinkedHashMap<String, CombatantGeometryState> geometryByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, CombatantAffiliationState> affiliationByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, List<MoveOption>> movesByCombatant = new LinkedHashMap<>();
+    private final LinkedHashMap<String, List<HeldItemState>> heldItemsByCombatant = new LinkedHashMap<>();
 
     public BattleRuntimeState(MovementGrid grid, List<RuntimeCombatantState> combatants) {
-        this(grid, combatants, Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
+        this(grid, combatants, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     public BattleRuntimeState(
@@ -31,7 +32,7 @@ public final class BattleRuntimeState {
             List<RuntimeCombatantState> combatants,
             Map<String, ? extends Collection<String>> statusesByCombatant
     ) {
-        this(grid, combatants, statusesByCombatant, Map.of(), Map.of(), Map.of(), Map.of());
+        this(grid, combatants, statusesByCombatant, Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     /**
@@ -45,7 +46,7 @@ public final class BattleRuntimeState {
             Map<String, ? extends Collection<String>> statusesByCombatant,
             Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant
     ) {
-        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, Map.of(), Map.of(), Map.of());
+        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     /**
@@ -62,7 +63,7 @@ public final class BattleRuntimeState {
             Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant,
             Map<String, CombatantGeometryState> geometryByCombatant
     ) {
-        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, geometryByCombatant, Map.of(), Map.of());
+        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, geometryByCombatant, Map.of(), Map.of(), Map.of());
     }
 
     /**
@@ -87,6 +88,7 @@ public final class BattleRuntimeState {
                 statusSkipFeaturesByCombatant,
                 geometryByCombatant,
                 affiliationByCombatant,
+                Map.of(),
                 Map.of()
         );
     }
@@ -106,6 +108,34 @@ public final class BattleRuntimeState {
             Map<String, CombatantGeometryState> geometryByCombatant,
             Map<String, CombatantAffiliationState> affiliationByCombatant,
             Map<String, ? extends Collection<MoveOption>> movesByCombatant
+    ) {
+        this(
+                grid,
+                combatants,
+                statusesByCombatant,
+                statusSkipFeaturesByCombatant,
+                geometryByCombatant,
+                affiliationByCombatant,
+                movesByCombatant,
+                Map.of()
+        );
+    }
+
+    /**
+     * Full authoritative battle snapshot including canonical held-item identities.
+     *
+     * Held items are server-owned rule sources. Minecraft/Cobblemon may display them,
+     * but battle hooks must not trust client/entity claims about equipped items.
+     */
+    public BattleRuntimeState(
+            MovementGrid grid,
+            List<RuntimeCombatantState> combatants,
+            Map<String, ? extends Collection<String>> statusesByCombatant,
+            Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant,
+            Map<String, CombatantGeometryState> geometryByCombatant,
+            Map<String, CombatantAffiliationState> affiliationByCombatant,
+            Map<String, ? extends Collection<MoveOption>> movesByCombatant,
+            Map<String, ? extends Collection<HeldItemState>> heldItemsByCombatant
     ) {
         if (grid == null) {
             throw new IllegalArgumentException("grid is required");
@@ -165,6 +195,13 @@ public final class BattleRuntimeState {
                 String combatantId = entry.getKey();
                 requireKnownCombatant(combatantId, "combatant moveset");
                 this.movesByCombatant.put(combatantId, copyMoveOptions(entry.getValue()));
+            }
+        }
+        if (heldItemsByCombatant != null) {
+            for (Map.Entry<String, ? extends Collection<HeldItemState>> entry : heldItemsByCombatant.entrySet()) {
+                String combatantId = entry.getKey();
+                requireKnownCombatant(combatantId, "held-item state");
+                this.heldItemsByCombatant.put(combatantId, copyHeldItems(entry.getValue()));
             }
         }
     }
@@ -240,6 +277,18 @@ public final class BattleRuntimeState {
         return movesByCombatant.getOrDefault(combatantId, List.of());
     }
 
+    /** True when this snapshot explicitly owns the combatant's held-item state, including an empty list. */
+    public boolean hasCanonicalHeldItems(String combatantId) {
+        requireCombatant(combatantId);
+        return heldItemsByCombatant.containsKey(combatantId);
+    }
+
+    /** Canonical held-item identities, defensively copied at snapshot construction. */
+    public List<HeldItemState> heldItems(String combatantId) {
+        requireCombatant(combatantId);
+        return heldItemsByCombatant.getOrDefault(combatantId, List.of());
+    }
+
     /** Python AI candidate semantics: active, non-fainted combatants only. */
     public boolean isTargetableCombatant(String combatantId) {
         RuntimeCombatantState combatant = requireCombatant(combatantId);
@@ -280,6 +329,24 @@ public final class BattleRuntimeState {
                 throw new IllegalArgumentException("duplicate moveId in combatant moveset: " + move.moveId());
             }
             copied.add(move);
+        }
+        return List.copyOf(copied);
+    }
+
+    private static List<HeldItemState> copyHeldItems(Collection<HeldItemState> heldItems) {
+        if (heldItems == null || heldItems.isEmpty()) {
+            return List.of();
+        }
+        ArrayList<HeldItemState> copied = new ArrayList<>();
+        LinkedHashSet<String> itemIds = new LinkedHashSet<>();
+        for (HeldItemState heldItem : heldItems) {
+            if (heldItem == null) {
+                continue;
+            }
+            if (!itemIds.add(heldItem.itemId())) {
+                throw new IllegalArgumentException("duplicate itemId in combatant held items: " + heldItem.itemId());
+            }
+            copied.add(heldItem);
         }
         return List.copyOf(copied);
     }
