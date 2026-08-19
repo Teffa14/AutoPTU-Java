@@ -12,6 +12,26 @@ import java.util.Set;
 public final class BuiltinStatusPhaseEffects {
     private BuiltinStatusPhaseEffects() {}
 
+    /** Combined built-in status registry used by the default combatant phase dispatcher. */
+    public static StatusPhaseEffectRegistry registry() {
+        StatusPhaseEffectRegistry.Builder builder = StatusPhaseEffectRegistry.builder();
+        copyInto(builder, flinchRegistry());
+        copyInto(builder, strangeTempoRegistry());
+        return builder.build();
+    }
+
+    private static void copyInto(StatusPhaseEffectRegistry.Builder builder, StatusPhaseEffectRegistry registry) {
+        for (StatusPhaseEffectRegistry.Registration registration : registry.registrations()) {
+            builder.register(
+                    registration.id(),
+                    registration.statusNames(),
+                    registration.phase(),
+                    registration.order(),
+                    registration.effect()
+            );
+        }
+    }
+
     /**
      * Registers the base Flinch/Flinched START effect.
      *
