@@ -20,6 +20,7 @@ import java.util.Objects;
 public final class BattleRoundController {
     private final BattleRuntimeState state;
     private final LifecycleHookRegistry lifecycleHooks;
+    private final RoundDamageHistoryState damageHistory;
     private int round;
 
     public BattleRoundController(BattleRuntimeState state) {
@@ -35,15 +36,30 @@ public final class BattleRoundController {
             int initialRound,
             LifecycleHookRegistry lifecycleHooks
     ) {
+        this(state, initialRound, lifecycleHooks, new RoundDamageHistoryState());
+    }
+
+    public BattleRoundController(
+            BattleRuntimeState state,
+            int initialRound,
+            LifecycleHookRegistry lifecycleHooks,
+            RoundDamageHistoryState damageHistory
+    ) {
         if (state == null) throw new IllegalArgumentException("state is required");
         if (initialRound < 0) throw new IllegalArgumentException("initialRound cannot be negative");
         this.state = state;
         this.round = initialRound;
         this.lifecycleHooks = Objects.requireNonNull(lifecycleHooks, "lifecycleHooks");
+        this.damageHistory = Objects.requireNonNull(damageHistory, "damageHistory");
     }
 
     public int round() {
         return round;
+    }
+
+    /** Server-owned damage history shared by lifecycle hooks and downstream rule families. */
+    public RoundDamageHistoryState damageHistory() {
+        return damageHistory;
     }
 
     /** Backwards-compatible round transition for callers that do not consume events yet. */
@@ -55,9 +71,9 @@ public final class BattleRoundController {
      * Begin the next authoritative round and return ordered semantic playback events.
      *
      * Python does not globally reset Pokemon action buckets at round start. That
-     * remains a per-combatant turn responsibility. The current built-in lifecycle
-     * hook clears only round-scoped move frequency; later parity slices can add
-     * terrain, room, delayed-hit, temporary-effect and trigger families in Python order.
+     * remains a per-combatant turn responsibility. Ordered lifecycle hooks own
+     * round-scoped resets, temporary expiry, history rotation and later terrain,
+     * delayed-hit and trigger families in Python order.
      */
     public RoundStartResult startRoundWithEvents() {
         int previousRound = round;
@@ -66,6 +82,7 @@ public final class BattleRoundController {
                 LifecycleHookPoint.ROUND_START,
                 new LifecycleHookContext(
                         state,
+                        damageHistory,
                         LifecycleHookPoint.ROUND_START,
                         previousRound,
                         round,

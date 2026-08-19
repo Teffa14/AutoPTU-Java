@@ -43,6 +43,16 @@ public final class BuiltinLifecycleHooks {
                             return LifecycleHookResult.empty();
                         }
                 )
+                .register(
+                        "round-damage-history-rotation",
+                        HookSource.SYSTEM,
+                        LifecycleHookPoint.ROUND_START,
+                        700,
+                        context -> {
+                            context.damageHistory().rotateForNewRound();
+                            return LifecycleHookResult.empty();
+                        }
+                )
                 .build();
     }
 }

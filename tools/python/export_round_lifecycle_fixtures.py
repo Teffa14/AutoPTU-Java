@@ -52,6 +52,41 @@ def removed_temporary_effect_names(method: ast.FunctionDef) -> set[str]:
     return names
 
 
+def clears_battle_attribute(method: ast.FunctionDef, attribute: str) -> bool:
+    for node in ast.walk(method):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        if node.func.attr != "clear" or not isinstance(node.func.value, ast.Attribute):
+            continue
+        target = node.func.value
+        if isinstance(target.value, ast.Name) and target.value.id == "battle" and target.attr == attribute:
+            return True
+    return False
+
+
+def assignment_uses_attribute(method: ast.FunctionDef, target_attr: str, source_attr: str) -> bool:
+    for node in ast.walk(method):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(
+            isinstance(target, ast.Attribute)
+            and isinstance(target.value, ast.Name)
+            and target.value.id == "battle"
+            and target.attr == target_attr
+            for target in node.targets
+        ):
+            continue
+        if any(
+            isinstance(child, ast.Attribute)
+            and isinstance(child.value, ast.Name)
+            and child.value.id == "battle"
+            and child.attr == source_attr
+            for child in ast.walk(node.value)
+        ):
+            return True
+    return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
@@ -72,6 +107,11 @@ def main() -> int:
         ("remove_extra_action", "1" if "extra_action" in removed_effects else "0"),
         ("remove_delayed", "1" if "delayed" in removed_effects else "0"),
         ("remove_riposte_ready", "1" if "riposte_ready" in removed_effects else "0"),
+        ("rotate_damage_last_round", "1" if assignment_uses_attribute(method, "damage_last_round", "damage_this_round") else "0"),
+        ("rotate_damage_taken_from_last_round", "1" if assignment_uses_attribute(method, "damage_taken_from_last_round", "damage_taken_from") else "0"),
+        ("clear_damage_this_round", "1" if clears_battle_attribute(method, "damage_this_round") else "0"),
+        ("clear_damage_taken_from", "1" if clears_battle_attribute(method, "damage_taken_from") else "0"),
+        ("clear_damage_received_this_round", "1" if clears_battle_attribute(method, "damage_received_this_round") else "0"),
     ]
 
     output = args.output.resolve()
