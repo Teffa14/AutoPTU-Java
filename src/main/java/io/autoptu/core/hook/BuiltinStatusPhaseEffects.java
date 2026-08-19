@@ -34,7 +34,7 @@ public final class BuiltinStatusPhaseEffects {
                             var entry = context.state().statusEntry(actorId, status);
                             if (entry.isPresent()) {
                                 var appliedRound = entry.get().intPayload("applied_round");
-                                if (appliedRound.isPresent() && context.round() > appliedRound.getAsInt()) {
+                                if (appliedRound.isPresent() && context.round() > appliedRound.get()) {
                                     context.state().removeStatus(actorId, status);
                                     RuleEffectEvent event = new RuleEffectEvent(
                                             "status",
