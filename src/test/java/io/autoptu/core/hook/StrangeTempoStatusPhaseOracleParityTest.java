@@ -74,7 +74,7 @@ class StrangeTempoStatusPhaseOracleParityTest {
         assertEquals("Strange Tempo", event.sourceName());
         assertEquals("actor", event.actorId());
         assertEquals("confusion_control", event.effect());
-        assertEquals(20, event.targetHp());
+        assertEquals(20, event.actorHp());
     }
 
     private static RuntimeCombatantState actor(List<String> abilities) {
