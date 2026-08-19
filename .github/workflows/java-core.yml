@@ -51,6 +51,7 @@ jobs:
           python3 -m py_compile tools/python/export_status_skip_exception_fixtures.py
           python3 -m py_compile tools/python/export_move_frequency_fixtures.py
           python3 -m py_compile tools/python/export_round_lifecycle_fixtures.py
+          python3 -m py_compile tools/python/export_phase_lifecycle_fixtures.py
           python3 -m py_compile tools/python/export_pink_pearl_fixtures.py
           python3 -m py_compile tools/python/export_mega_launcher_fixtures.py
           python3 -m py_compile tools/python/export_temporary_effect_payload_fixtures.py
@@ -79,6 +80,7 @@ jobs:
           python3 tools/python/export_status_skip_exception_fixtures.py --source-root python-oracle --output build/oracle/status-skip-exceptions.tsv
           python3 tools/python/export_move_frequency_fixtures.py --source-root python-oracle --output build/oracle/move-frequency.tsv
           python3 tools/python/export_round_lifecycle_fixtures.py --source-root python-oracle --output build/oracle/round-lifecycle.tsv
+          python3 tools/python/export_phase_lifecycle_fixtures.py --source-root python-oracle --output build/oracle/phase-lifecycle.tsv
           python3 tools/python/export_pink_pearl_fixtures.py --source-root python-oracle --output build/oracle/pink-pearl.tsv
           python3 tools/python/export_mega_launcher_fixtures.py --source-root python-oracle --output build/oracle/mega-launcher.tsv
           python3 tools/python/export_temporary_effect_payload_fixtures.py --source-root python-oracle --output build/oracle/temporary-effect-payload.tsv
@@ -108,6 +110,7 @@ jobs:
           -PoracleStatusSkipExceptions="$GITHUB_WORKSPACE/build/oracle/status-skip-exceptions.tsv"
           -PoracleMoveFrequency="$GITHUB_WORKSPACE/build/oracle/move-frequency.tsv"
           -PoracleRoundLifecycle="$GITHUB_WORKSPACE/build/oracle/round-lifecycle.tsv"
+          -PoraclePhaseLifecycle="$GITHUB_WORKSPACE/build/oracle/phase-lifecycle.tsv"
           -PoraclePinkPearl="$GITHUB_WORKSPACE/build/oracle/pink-pearl.tsv"
           -PoracleMegaLauncher="$GITHUB_WORKSPACE/build/oracle/mega-launcher.tsv"
           -PoracleTemporaryEffectPayload="$GITHUB_WORKSPACE/build/oracle/temporary-effect-payload.tsv"
