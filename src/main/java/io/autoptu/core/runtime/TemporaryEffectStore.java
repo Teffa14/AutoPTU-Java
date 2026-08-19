@@ -21,7 +21,13 @@ public final class TemporaryEffectStore {
     }
 
     public void add(String effectName, Map<String, ?> payload) {
-        entries.add(new TemporaryEffectEntry(effectName, payload));
+        LinkedHashMap<String, Object> copiedPayload = new LinkedHashMap<>();
+        if (payload != null) {
+            for (Map.Entry<String, ?> entry : payload.entrySet()) {
+                copiedPayload.put(entry.getKey(), entry.getValue());
+            }
+        }
+        entries.add(new TemporaryEffectEntry(effectName, copiedPayload));
     }
 
     public boolean has(String effectName) {
