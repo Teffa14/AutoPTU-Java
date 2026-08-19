@@ -44,6 +44,8 @@ class RoundLifecycleOracleParityTest {
         );
         BattleRoundController rounds = new BattleRoundController(state, 3);
         seedDamageHistory(rounds.damageHistory());
+        rounds.injuryHistory().setCurrentInjuries("actor", 2);
+        rounds.injuryHistory().setCurrentInjuries("target", 1);
 
         int before = rounds.round();
         int after = rounds.startRound();
@@ -61,6 +63,7 @@ class RoundLifecycleOracleParityTest {
         assertEquals(99, actor.temporaryEffects().getAll("persistent_marker").get(0).payload().get("round"));
 
         assertDamageHistoryMatchesOracle(rounds.damageHistory(), fixture);
+        assertInjuryHistoryMatchesOracle(rounds, fixture);
     }
 
     private static void seedRoundScopedTemporaryEffects(RuntimeCombatantState actor) {
@@ -94,6 +97,24 @@ class RoundLifecycleOracleParityTest {
         assertTrue(history.damageTakenFromThisRound().isEmpty());
         assertEquals(1, fixture.get("clear_damage_received_this_round"));
         assertTrue(history.damageReceivedThisRound().isEmpty());
+    }
+
+    private static void assertInjuryHistoryMatchesOracle(
+            BattleRoundController rounds,
+            Map<String, Integer> fixture
+    ) {
+        RoundInjuryHistoryState history = rounds.injuryHistory();
+        assertEquals(1, fixture.get("snapshot_injuries_last_round"));
+        assertEquals(Map.of("actor", 2, "target", 1), history.injuriesLastRound());
+        assertTrue(history.injuriesPreviousRound().isEmpty());
+
+        history.setCurrentInjuries("actor", 3);
+        history.setCurrentInjuries("target", 1);
+        rounds.startRound();
+
+        assertEquals(1, fixture.get("rotate_injuries_previous_round"));
+        assertEquals(Map.of("actor", 2, "target", 1), history.injuriesPreviousRound());
+        assertEquals(Map.of("actor", 3, "target", 1), history.injuriesLastRound());
     }
 
     private static void assertCleanupMatchesOracle(
