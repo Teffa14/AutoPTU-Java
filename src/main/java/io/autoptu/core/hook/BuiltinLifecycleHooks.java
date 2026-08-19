@@ -27,6 +27,10 @@ public final class BuiltinLifecycleHooks {
                         CombatantPhaseEffectFamily.ABILITY,
                         new AbilityPhaseLifecycleHook(BuiltinAbilityPhaseEffects.lancerRegistry())
                 )
+                .family(
+                        CombatantPhaseEffectFamily.PERK,
+                        new PerkPhaseLifecycleHook(BuiltinPerkPhaseEffects.registry())
+                )
                 .build();
 
         return LifecycleHookRegistry.builder()
