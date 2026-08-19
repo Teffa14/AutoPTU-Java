@@ -2,6 +2,7 @@ package io.autoptu.core.hook;
 
 import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.model.MoveCombatProfile;
+import io.autoptu.core.rules.AbilityIdentityResolution;
 
 import java.util.List;
 import java.util.Locale;
@@ -43,7 +44,7 @@ public final class BuiltinEffectiveMoveHooks {
             String abilityName,
             int bonus
     ) {
-        if (!context.actor().hasAbilityExact(abilityName)) {
+        if (!AbilityIdentityResolution.matchesRegistration(context.actor().abilities(), abilityName)) {
             return EffectiveMoveHookResult.unchanged(context.effectiveProfile());
         }
         if (!MEGA_LAUNCHER_MOVES.contains(normalizeMoveName(context.move().moveId()))) {
