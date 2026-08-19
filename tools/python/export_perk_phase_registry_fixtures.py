@@ -38,6 +38,33 @@ def main() -> int:
         "perk_filter_is_actor_feature_owned": int(
             'ctx.actor.has_trainer_feature(perk)' in hooks
         ),
+        "defense_mastery_skips_fainted_actor": int(
+            'if getattr(actor, "fainted", False):' in passive
+        ),
+        "defense_mastery_reads_shifted_this_turn": int(
+            'actor.get_temporary_effects("shifted_this_turn")' in passive
+        ),
+        "defense_mastery_requires_current_round_shift": int(
+            '== round_no' in passive and 'for entry in actor.get_temporary_effects("shifted_this_turn")' in passive
+        ),
+        "defense_mastery_grants_five_damage_reduction": int(
+            '"damage_reduction",\n        amount=5,' in passive
+        ),
+        "defense_mastery_expires_next_round": int(
+            'expires_round=round_no + 1' in passive
+        ),
+        "defense_mastery_is_non_consuming": int(
+            'consume=False' in passive
+        ),
+        "defense_mastery_event_keeps_trainer": int(
+            '"trainer": actor.controller_id' in passive
+        ),
+        "defense_mastery_event_reports_amount": int(
+            '"effect": "damage_reduction"' in passive and '"amount": 5' in passive
+        ),
+        "defense_mastery_event_reports_phase": int(
+            '"phase": ctx.phase' in passive
+        ),
     }
     if not all(rows.values()):
         raise RuntimeError(f"pinned oracle perk phase registry contract changed: {rows}")
