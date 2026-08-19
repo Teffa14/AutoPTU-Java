@@ -26,6 +26,18 @@ public record LifecycleHookContext(
         actorId = actorId == null ? "" : actorId.strip();
     }
 
+    /** Compatibility constructor for existing callers that seed damage history only. */
+    public LifecycleHookContext(
+            BattleRuntimeState state,
+            RoundDamageHistoryState damageHistory,
+            LifecycleHookPoint point,
+            int previousRound,
+            int round,
+            String actorId
+    ) {
+        this(state, damageHistory, new RoundInjuryHistoryState(), point, previousRound, round, actorId);
+    }
+
     /** Compatibility constructor for existing hook tests/callers without seeded history. */
     public LifecycleHookContext(
             BattleRuntimeState state,
