@@ -10,6 +10,7 @@ import io.autoptu.core.rules.Calculations;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Mutable server-authoritative state for one combatant.
@@ -33,6 +34,7 @@ public final class RuntimeCombatantState {
     private boolean probabilityControl;
     private List<String> types = List.of();
     private List<AttackModifier> damageModifiers = List.of();
+    private List<String> abilities = List.of();
 
     public RuntimeCombatantState(
             String combatantId,
@@ -190,14 +192,13 @@ public final class RuntimeCombatantState {
     ) {
         this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile,
                 accuracyStage, sniper, noGuard, blur, probabilityControl);
-        this.types = normalizeTypes(types);
+        this.types = normalizeNames(types);
     }
 
     /**
      * Transitional authoritative constructor for pre-damage AttackContext modifiers.
-     * The list is server-owned and copied defensively. Future ability/item/feature
-     * hook registries can replace this resolved projection without changing the
-     * Minecraft-facing move boundary.
+     * The list is server-owned and copied defensively. Hook registries can replace
+     * this resolved projection without changing the Minecraft-facing move boundary.
      */
     public RuntimeCombatantState(
             String combatantId,
@@ -216,8 +217,36 @@ public final class RuntimeCombatantState {
             List<AttackModifier> damageModifiers
     ) {
         this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile,
+                accuracyStage, sniper, noGuard, blur, probabilityControl, types,
+                damageModifiers, List.of());
+    }
+
+    /**
+     * Full current combatant snapshot including canonical ability identities.
+     * Ability hooks read this server-owned list; clients may render abilities but
+     * cannot grant one by naming it in an action request.
+     */
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage,
+            boolean sniper,
+            boolean noGuard,
+            boolean blur,
+            boolean probabilityControl,
+            List<String> types,
+            List<AttackModifier> damageModifiers,
+            List<String> abilities
+    ) {
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile,
                 accuracyStage, sniper, noGuard, blur, probabilityControl, types);
         this.damageModifiers = normalizeDamageModifiers(damageModifiers);
+        this.abilities = normalizeNames(abilities);
     }
 
     public String combatantId() {
@@ -298,6 +327,19 @@ public final class RuntimeCombatantState {
         return damageModifiers;
     }
 
+    public List<String> abilities() {
+        return abilities;
+    }
+
+    public boolean hasAbilityExact(String abilityName) {
+        if (abilityName == null || abilityName.isBlank()) return false;
+        String target = abilityName.strip().toLowerCase(Locale.ROOT);
+        for (String ability : abilities) {
+            if (ability.toLowerCase(Locale.ROOT).equals(target)) return true;
+        }
+        return false;
+    }
+
     boolean consumeProbabilityControl() {
         if (!probabilityControl) {
             return false;
@@ -314,7 +356,7 @@ public final class RuntimeCombatantState {
         hp = Math.max(0, Math.min(maxHp, nextHp));
     }
 
-    private static List<String> normalizeTypes(List<String> values) {
+    private static List<String> normalizeNames(List<String> values) {
         if (values == null || values.isEmpty()) {
             return List.of();
         }

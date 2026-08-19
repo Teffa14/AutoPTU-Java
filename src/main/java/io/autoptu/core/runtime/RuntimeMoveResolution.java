@@ -2,10 +2,15 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
+import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.hook.BuiltinDamageModifierHooks;
+import io.autoptu.core.hook.BuiltinEffectiveMoveHooks;
 import io.autoptu.core.hook.DamageModifierHookContext;
 import io.autoptu.core.hook.DamageModifierHookRegistry;
 import io.autoptu.core.hook.DamageModifierHookResult;
+import io.autoptu.core.hook.EffectiveMoveHookContext;
+import io.autoptu.core.hook.EffectiveMoveHookRegistry;
+import io.autoptu.core.hook.EffectiveMoveHookResult;
 import io.autoptu.core.model.AttackModifier;
 import io.autoptu.core.model.CombatantStatProfile;
 import io.autoptu.core.model.GridCoord;
@@ -25,11 +30,13 @@ import java.util.Set;
 
 /**
  * Minecraft-facing direct-move entrypoint that derives effective combat stats,
- * evasion, accuracy stage, Sniper, No Guard, Blur, Probability Control, STAB,
- * type effectiveness, damage modifiers, and intrinsic move metadata from
- * authoritative runtime state before delegating to BattleRuntime.
+ * evasion, accuracy stage, Sniper, No Guard, Blur, Probability Control, pre-damage
+ * move transformations, STAB, type effectiveness, damage modifiers, and intrinsic
+ * move metadata from authoritative runtime state before delegating to BattleRuntime.
  */
 public final class RuntimeMoveResolution {
+    private static final EffectiveMoveHookRegistry EFFECTIVE_MOVE_HOOKS =
+            BuiltinEffectiveMoveHooks.standardRegistry();
     private static final DamageModifierHookRegistry DAMAGE_MODIFIER_HOOKS =
             BuiltinDamageModifierHooks.standardRegistry();
 
@@ -119,27 +126,53 @@ public final class RuntimeMoveResolution {
         MoveCombatProfile metadata = move.requireCombatProfile();
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
+
+        EffectiveMoveHookResult effectiveMoveHooks = authoritativeEffectiveMoveHooks(
+                state, choice, move, actor, target, metadata);
+        MoveCombatProfile effectiveMetadata = effectiveMoveHooks.profile();
+
         CombatantStatProfile actorStats = StatusStatResolution.apply(
                 actor.requireStatProfile(), state.statuses(choice.actorId()));
         CombatantStatProfile targetStats = StatusStatResolution.apply(
                 target.requireStatProfile(), state.statuses(choice.targetId()));
         EvasionProfile authoritativeEvasion = StatusEvasionResolution.apply(
                 target.requireEvasionProfile(), state.statuses(choice.targetId()));
-        int evasion = EvasionResolution.resolve(authoritativeEvasion, metadata.damageCategory());
-        int attackValue = StatResolution.offensive(actorStats, metadata.damageCategory(), ignorePositiveAttackStage);
-        int defenseValue = StatResolution.defensive(targetStats, metadata.damageCategory(), ignorePositiveDefenseStage);
+        int evasion = EvasionResolution.resolve(authoritativeEvasion, effectiveMetadata.damageCategory());
+        int attackValue = StatResolution.offensive(actorStats, effectiveMetadata.damageCategory(), ignorePositiveAttackStage);
+        int defenseValue = StatResolution.defensive(targetStats, effectiveMetadata.damageCategory(), ignorePositiveDefenseStage);
         boolean meleeNoGuard = isMelee(move) && (actor.noGuard() || target.noGuard());
-        int effectiveDb = authoritativeStabDamageBase(move, metadata, actor);
-        double typeMultiplier = authoritativeTypeMultiplier(metadata, target, input.typeMultiplier());
+        int effectiveDb = authoritativeStabDamageBase(move, effectiveMetadata, actor);
+        double typeMultiplier = authoritativeTypeMultiplier(effectiveMetadata, target, input.typeMultiplier());
         DamageModifierHookResult damageHooks = authoritativeDamageHooks(
-                state, choice, move, actor, target, metadata);
+                state, choice, move, actor, target, effectiveMetadata);
         MoveResolutionInput stateBoundInput = new MoveResolutionInput(
-                metadata.ac(), evasion, actor.accuracyStage(), metadata.critRange(), meleeNoGuard,
+                effectiveMetadata.ac(), evasion, actor.accuracyStage(), effectiveMetadata.critRange(), meleeNoGuard,
                 target.blur(), actor.probabilityControl(), effectiveDb, attackValue,
                 defenseValue, actor.sniper(), typeMultiplier, damageHooks.modifiers()
         );
         return BattleRuntime.applyAuthoritativeMove(state, choice, move, actorSize, targetSize,
-                lineOfSightBlockers, source, rng, stateBoundInput, damageHooks.events());
+                lineOfSightBlockers, source, rng, stateBoundInput,
+                combineEvents(effectiveMoveHooks.events(), damageHooks.events()));
+    }
+
+    private static EffectiveMoveHookResult authoritativeEffectiveMoveHooks(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            MoveOption move,
+            RuntimeCombatantState actor,
+            RuntimeCombatantState target,
+            MoveCombatProfile metadata
+    ) {
+        return EFFECTIVE_MOVE_HOOKS.resolve(new EffectiveMoveHookContext(
+                state,
+                choice.actorId(),
+                choice.targetId(),
+                actor,
+                target,
+                move,
+                metadata,
+                metadata
+        ));
     }
 
     private static int authoritativeStabDamageBase(MoveOption move, MoveCombatProfile metadata, RuntimeCombatantState actor) {
@@ -176,6 +209,17 @@ public final class RuntimeMoveResolution {
         DamageModifierHookResult hookResult = DAMAGE_MODIFIER_HOOKS.resolve(hookContext);
         resolved.addAll(hookResult.modifiers());
         return DamageModifierHookResult.of(resolved, hookResult.events());
+    }
+
+    private static List<BattleEvent> combineEvents(
+            List<? extends BattleEvent> first,
+            List<? extends BattleEvent> second
+    ) {
+        if ((first == null || first.isEmpty()) && (second == null || second.isEmpty())) return List.of();
+        ArrayList<BattleEvent> events = new ArrayList<>();
+        if (first != null) events.addAll(first);
+        if (second != null) events.addAll(second);
+        return List.copyOf(events);
     }
 
     private static boolean isMelee(MoveOption move) {
