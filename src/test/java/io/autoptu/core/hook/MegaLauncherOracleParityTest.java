@@ -40,18 +40,18 @@ class MegaLauncherOracleParityTest {
             int baseDb = Integer.parseInt(columns[2]);
             String ability = columns[3];
             int expectedDb = Integer.parseInt(columns[4]);
-            int expectedAmount = Integer.parseInt(columns[5]);
+            double expectedAmount = Double.parseDouble(columns[5]);
             int expectedEvents = Integer.parseInt(columns[6]);
 
             MoveProfileHookResult result = BuiltinMoveProfileHooks.standardRegistry()
                     .resolve(context(moveName, baseDb, ability));
 
-            int actualAmount = result.events().stream()
+            double actualAmount = result.events().stream()
                     .filter(RuleEffectEvent.class::isInstance)
                     .map(RuleEffectEvent.class::cast)
                     .filter(event -> "ability".equals(event.sourceKind()))
                     .filter(event -> "db_bonus".equals(event.effect()))
-                    .mapToInt(RuleEffectEvent::amount)
+                    .mapToDouble(RuleEffectEvent::amount)
                     .sum();
             long actualEvents = result.events().stream()
                     .filter(RuleEffectEvent.class::isInstance)
