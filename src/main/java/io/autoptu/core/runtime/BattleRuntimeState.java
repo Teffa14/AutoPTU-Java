@@ -8,15 +8,15 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /** Minimal authoritative battle state used by headless simulation and Minecraft adapters. */
 public final class BattleRuntimeState {
     private final MovementGrid grid;
     private final LinkedHashMap<String, RuntimeCombatantState> combatants = new LinkedHashMap<>();
-    private final LinkedHashMap<String, Set<String>> statusesByCombatant = new LinkedHashMap<>();
+    private final StatusStateStore statusState = new StatusStateStore();
     private final LinkedHashMap<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, CombatantGeometryState> geometryByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, CombatantAffiliationState> affiliationByCombatant = new LinkedHashMap<>();
@@ -155,10 +155,7 @@ public final class BattleRuntimeState {
             for (Map.Entry<String, ? extends Collection<String>> entry : statusesByCombatant.entrySet()) {
                 String combatantId = entry.getKey();
                 requireKnownCombatant(combatantId, "status state");
-                Set<String> normalized = normalizeStatuses(entry.getValue());
-                if (!normalized.isEmpty()) {
-                    this.statusesByCombatant.put(combatantId, normalized);
-                }
+                statusState.replaceNames(combatantId, entry.getValue());
             }
         }
         if (statusSkipFeaturesByCombatant != null) {
@@ -233,16 +230,51 @@ public final class BattleRuntimeState {
         return List.copyOf(combatants.keySet());
     }
 
+    /** Canonical status-name compatibility view backed by structured server-owned entries. */
     public Set<String> statuses(String combatantId) {
         requireCombatant(combatantId);
-        return statusesByCombatant.getOrDefault(combatantId, Set.of());
+        return statusState.names(combatantId);
     }
 
     public boolean hasStatus(String combatantId, String status) {
+        requireCombatant(combatantId);
         if (status == null || status.isBlank()) {
             return false;
         }
-        return statuses(combatantId).contains(status.strip().toLowerCase(Locale.ROOT));
+        return statusState.has(combatantId, status);
+    }
+
+    /** Structured status entries used by metadata-aware status lifecycle rules. */
+    public List<StatusEntry> statusEntries(String combatantId) {
+        requireCombatant(combatantId);
+        return statusState.entries(combatantId);
+    }
+
+    /** Finds one canonical status entry without exposing the mutable status store. */
+    public Optional<StatusEntry> statusEntry(String combatantId, String status) {
+        requireCombatant(combatantId);
+        if (status == null || status.isBlank()) {
+            return Optional.empty();
+        }
+        return statusState.find(combatantId, status);
+    }
+
+    /** Replaces all statuses for a combatant from server-owned structured state. */
+    public void replaceStatusEntries(String combatantId, Collection<StatusEntry> entries) {
+        requireKnownCombatant(combatantId, "status state");
+        statusState.replace(combatantId, entries);
+    }
+
+    /** Adds or replaces one server-owned status entry. */
+    public void putStatus(String combatantId, StatusEntry entry) {
+        requireKnownCombatant(combatantId, "status state");
+        statusState.put(combatantId, entry);
+    }
+
+    /** Removes one status from authoritative battle state. */
+    public boolean removeStatus(String combatantId, String status) {
+        requireKnownCombatant(combatantId, "status state");
+        return statusState.remove(combatantId, status);
     }
 
     public StatusSkipFeatureState statusSkipFeatures(String combatantId) {
@@ -305,20 +337,6 @@ public final class BattleRuntimeState {
         if (!this.combatants.containsKey(combatantId)) {
             throw new IllegalArgumentException(source + " references unknown combatant: " + combatantId);
         }
-    }
-
-    private static Set<String> normalizeStatuses(Collection<String> statuses) {
-        if (statuses == null || statuses.isEmpty()) {
-            return Set.of();
-        }
-        LinkedHashSet<String> normalized = new LinkedHashSet<>();
-        for (String status : statuses) {
-            if (status == null || status.isBlank()) {
-                continue;
-            }
-            normalized.add(status.strip().toLowerCase(Locale.ROOT));
-        }
-        return Set.copyOf(normalized);
     }
 
     private static List<MoveOption> copyMoveOptions(Collection<MoveOption> moves) {
