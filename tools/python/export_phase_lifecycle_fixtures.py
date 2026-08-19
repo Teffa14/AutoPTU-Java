@@ -16,6 +16,13 @@ def find_method(tree: ast.Module, class_name: str, name: str) -> ast.FunctionDef
     raise RuntimeError(f"{class_name}.{name} not found")
 
 
+def find_class(tree: ast.Module, class_name: str) -> ast.ClassDef:
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef) and node.name == class_name:
+            return node
+    raise RuntimeError(f"{class_name} not found")
+
+
 def logs_event_type(method: ast.FunctionDef, event_type: str) -> bool:
     for node in ast.walk(method):
         if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
@@ -84,26 +91,61 @@ def pending_status_skip_last_event_wins(method: ast.FunctionDef) -> bool:
     return False
 
 
-def method_source(source: str, method: ast.FunctionDef) -> str:
-    lines = source.splitlines()
-    end_lineno = method.end_lineno or method.lineno
-    return "\n".join(lines[method.lineno - 1:end_lineno])
+def dict_value(node: ast.Dict, key_name: str):
+    for key, value in zip(node.keys, node.values):
+        if isinstance(key, ast.Constant) and key.value == key_name:
+            return value
+    return None
 
 
-def flinch_start_contract(source: str, method: ast.FunctionDef) -> tuple[bool, bool]:
-    """Freeze the concrete Flinch START payload inside PokemonState.handle_phase_effects.
+def test_contains_name(test: ast.AST, name: str) -> bool:
+    return any(isinstance(node, ast.Name) and node.id == name for node in ast.walk(test))
 
-    This intentionally scopes the textual check to the located method. The Python
-    oracle file is very large and this contract is about stable literal payload
-    fields, so source-level matching is less brittle here than correlating nested
-    AST nodes across the entire method.
+
+def test_contains_attr(test: ast.AST, attr: str) -> bool:
+    return any(isinstance(node, ast.Attribute) and node.attr == attr for node in ast.walk(test))
+
+
+def flinch_payload_contract(node: ast.AST) -> tuple[bool, bool]:
+    emits_flinch = False
+    sets_skip = False
+    for child in ast.walk(node):
+        if not isinstance(child, ast.Dict):
+            continue
+        effect = dict_value(child, "effect")
+        if not (isinstance(effect, ast.Constant) and effect.value == "flinch"):
+            continue
+        emits_flinch = True
+        skip = dict_value(child, "skip_turn")
+        if isinstance(skip, ast.Constant) and skip.value is True:
+            sets_skip = True
+    return emits_flinch, sets_skip
+
+
+def flinch_start_contract(pokemon_state: ast.ClassDef) -> tuple[bool, bool]:
+    """Freeze the concrete PokemonState Flinch START branch.
+
+    The pinned Python file is very large and the Flinch logic has moved during
+    extraction work. Search each top-level PokemonState method independently,
+    requiring the START guard and the effect=flinch payload to occur within the
+    same method. This avoids both hard-coding a stale method name and matching
+    unrelated battle-controller code elsewhere in the file.
     """
-    text = method_source(source, method)
-    compact = " ".join(text.split())
-    has_guard = "if name in _FLINCH_STATUS_NAMES and phase == TurnPhase.START:" in compact
-    emits_flinch = '"effect": "flinch"' in text
-    sets_skip = '"skip_turn": True' in text
-    return has_guard and emits_flinch, has_guard and emits_flinch and sets_skip
+    for method in pokemon_state.body:
+        if not isinstance(method, ast.FunctionDef):
+            continue
+        for node in ast.walk(method):
+            if not isinstance(node, ast.If):
+                continue
+            if not test_contains_name(node.test, "_FLINCH_STATUS_NAMES"):
+                continue
+            if not test_contains_attr(node.test, "START"):
+                continue
+            emits_flinch, sets_skip = flinch_payload_contract(node)
+            if emits_flinch or sets_skip:
+                print(f"Flinch START contract owner: PokemonState.{method.name}")
+                return emits_flinch, sets_skip
+    return False, False
 
 
 def main() -> int:
@@ -123,10 +165,9 @@ def main() -> int:
     status_method = find_method(status_tree, "StatusController", "run_phase_effects")
 
     battle_state_path = source_root / "auto_ptu" / "rules" / "battle_state.py"
-    battle_state_source = battle_state_path.read_text(encoding="utf-8")
-    battle_state_tree = ast.parse(battle_state_source, filename=str(battle_state_path))
-    pokemon_phase_method = find_method(battle_state_tree, "PokemonState", "handle_phase_effects")
-    flinch_emits_event, flinch_sets_skip = flinch_start_contract(battle_state_source, pokemon_phase_method)
+    battle_state_tree = ast.parse(battle_state_path.read_text(encoding="utf-8"), filename=str(battle_state_path))
+    pokemon_state = find_class(battle_state_tree, "PokemonState")
+    flinch_emits_event, flinch_sets_skip = flinch_start_contract(pokemon_state)
 
     fixtures = [
         ("requires_current_actor", int(requires_current_actor(phase_method))),
