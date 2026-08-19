@@ -18,6 +18,17 @@ public final class BuiltinLifecycleHooks {
     private BuiltinLifecycleHooks() {}
 
     public static LifecycleHookRegistry registry() {
+        CombatantPhaseEffectDispatcher phaseDispatcher = CombatantPhaseEffectDispatcher.builder()
+                .family(
+                        CombatantPhaseEffectFamily.STATUS,
+                        new StatusPhaseLifecycleHook(BuiltinStatusPhaseEffects.registry())
+                )
+                .family(
+                        CombatantPhaseEffectFamily.ABILITY,
+                        new AbilityPhaseLifecycleHook(BuiltinAbilityPhaseEffects.lancerRegistry())
+                )
+                .build();
+
         return LifecycleHookRegistry.builder()
                 .register(
                         "round-move-frequency-reset",
@@ -63,6 +74,13 @@ public final class BuiltinLifecycleHooks {
                             context.injuryHistory().rotateForNewRound();
                             return LifecycleHookResult.empty();
                         }
+                )
+                .register(
+                        "combatant-phase-effects",
+                        HookSource.SYSTEM,
+                        LifecycleHookPoint.PHASE_CHANGE,
+                        500,
+                        phaseDispatcher
                 )
                 .register(
                         "turn-temporary-effect-cleanup",
