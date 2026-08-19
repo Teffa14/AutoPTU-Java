@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract the round-start lifecycle contract from Python PhaseController."""
+"""Extract round-start and turn-end lifecycle contracts from Python PhaseController."""
 from __future__ import annotations
 
 import argparse
@@ -7,13 +7,13 @@ import ast
 from pathlib import Path
 
 
-def find_start_round(tree: ast.Module) -> ast.FunctionDef:
+def find_phase_method(tree: ast.Module, name: str) -> ast.FunctionDef:
     for node in tree.body:
         if isinstance(node, ast.ClassDef) and node.name == "PhaseController":
             for statement in node.body:
-                if isinstance(statement, ast.FunctionDef) and statement.name == "start_round":
+                if isinstance(statement, ast.FunctionDef) and statement.name == name:
                     return statement
-    raise RuntimeError("PhaseController.start_round not found")
+    raise RuntimeError(f"PhaseController.{name} not found")
 
 
 def has_round_increment(method: ast.FunctionDef) -> bool:
@@ -50,6 +50,41 @@ def removed_temporary_effect_names(method: ast.FunctionDef) -> set[str]:
         if isinstance(first, ast.Constant) and isinstance(first.value, str):
             names.add(first.value)
     return names
+
+
+def adds_temporary_effect(method: ast.FunctionDef, effect_name: str) -> bool:
+    for node in ast.walk(method):
+        if not isinstance(node, ast.Call):
+            continue
+        if not isinstance(node.func, ast.Attribute) or node.func.attr != "add_temporary_effect":
+            continue
+        if not node.args:
+            continue
+        first = node.args[0]
+        if isinstance(first, ast.Constant) and first.value == effect_name:
+            return True
+    return False
+
+
+def temporary_effect_uses_round_payload(method: ast.FunctionDef, effect_name: str) -> bool:
+    for node in ast.walk(method):
+        if not isinstance(node, ast.Call):
+            continue
+        if not isinstance(node.func, ast.Attribute) or node.func.attr != "add_temporary_effect":
+            continue
+        if not node.args or not isinstance(node.args[0], ast.Constant) or node.args[0].value != effect_name:
+            continue
+        for keyword in node.keywords:
+            if keyword.arg != "round":
+                continue
+            if (
+                isinstance(keyword.value, ast.Attribute)
+                and isinstance(keyword.value.value, ast.Name)
+                and keyword.value.value.id == "battle"
+                and keyword.value.attr == "round"
+            ):
+                return True
+    return False
 
 
 def clears_battle_attribute(method: ast.FunctionDef, attribute: str) -> bool:
@@ -107,6 +142,75 @@ def assignment_uses_any_attribute(method: ast.FunctionDef, target_attr: str, sou
     return False
 
 
+def logs_event_type(method: ast.FunctionDef, event_type: str) -> bool:
+    for node in ast.walk(method):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        if node.func.attr != "log_event" or not node.args or not isinstance(node.args[0], ast.Dict):
+            continue
+        data = node.args[0]
+        for key, value in zip(data.keys, data.values):
+            if (
+                isinstance(key, ast.Constant)
+                and key.value == "type"
+                and isinstance(value, ast.Constant)
+                and value.value == event_type
+            ):
+                return True
+    return False
+
+
+def dispatches_trigger(method: ast.FunctionDef, trigger_name: str) -> bool:
+    return any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "trigger"
+        and node.args
+        and isinstance(node.args[0], ast.Constant)
+        and node.args[0].value == trigger_name
+        for node in ast.walk(method)
+    )
+
+
+def assigns_battle_attribute_none(method: ast.FunctionDef, attribute: str) -> bool:
+    for node in ast.walk(method):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not isinstance(node.value, ast.Constant) or node.value.value is not None:
+            continue
+        for target in node.targets:
+            if (
+                isinstance(target, ast.Attribute)
+                and isinstance(target.value, ast.Name)
+                and target.value.id == "battle"
+                and target.attr == attribute
+            ):
+                return True
+    return False
+
+
+def assigns_phase_start(method: ast.FunctionDef) -> bool:
+    for node in ast.walk(method):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(
+            isinstance(target, ast.Attribute)
+            and isinstance(target.value, ast.Name)
+            and target.value.id == "battle"
+            and target.attr == "phase"
+            for target in node.targets
+        ):
+            continue
+        if (
+            isinstance(node.value, ast.Attribute)
+            and isinstance(node.value.value, ast.Name)
+            and node.value.value.id == "TurnPhase"
+            and node.value.attr == "START"
+        ):
+            return True
+    return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
@@ -115,31 +219,41 @@ def main() -> int:
 
     path = args.source_root.resolve() / "auto_ptu" / "rules" / "controllers" / "phase_controller.py"
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    method = find_start_round(tree)
-    resetters = reset_targets(method)
-    removed_effects = removed_temporary_effect_names(method)
+    start_round = find_phase_method(tree, "start_round")
+    end_turn = find_phase_method(tree, "end_turn")
+    resetters = reset_targets(start_round)
+    round_removed_effects = removed_temporary_effect_names(start_round)
+    turn_removed_effects = removed_temporary_effect_names(end_turn)
 
     fixtures = [
-        ("round_increment", "1" if has_round_increment(method) else "0"),
+        ("round_increment", "1" if has_round_increment(start_round) else "0"),
         ("trainer_actions_reset_at_round_start", "1" if "trainer" in resetters else "0"),
         ("pokemon_actions_reset_at_round_start", "1" if "mon" in resetters or "pokemon" in resetters else "0"),
-        ("remove_intercept_ready", "1" if "intercept_ready" in removed_effects else "0"),
-        ("remove_extra_action", "1" if "extra_action" in removed_effects else "0"),
-        ("remove_delayed", "1" if "delayed" in removed_effects else "0"),
-        ("remove_riposte_ready", "1" if "riposte_ready" in removed_effects else "0"),
-        ("rotate_damage_last_round", "1" if assignment_uses_attribute(method, "damage_last_round", "damage_this_round") else "0"),
-        ("rotate_damage_taken_from_last_round", "1" if assignment_uses_attribute(method, "damage_taken_from_last_round", "damage_taken_from") else "0"),
-        ("clear_damage_this_round", "1" if clears_battle_attribute(method, "damage_this_round") else "0"),
-        ("clear_damage_taken_from", "1" if clears_battle_attribute(method, "damage_taken_from") else "0"),
-        ("clear_damage_received_this_round", "1" if clears_battle_attribute(method, "damage_received_this_round") else "0"),
-        ("rotate_injuries_previous_round", "1" if assignment_uses_attribute(method, "_injuries_previous_round", "_injuries_last_round") else "0"),
-        ("snapshot_injuries_last_round", "1" if assignment_uses_any_attribute(method, "_injuries_last_round", "injuries") else "0"),
+        ("remove_intercept_ready", "1" if "intercept_ready" in round_removed_effects else "0"),
+        ("remove_extra_action", "1" if "extra_action" in round_removed_effects else "0"),
+        ("remove_delayed", "1" if "delayed" in round_removed_effects else "0"),
+        ("remove_riposte_ready", "1" if "riposte_ready" in round_removed_effects else "0"),
+        ("rotate_damage_last_round", "1" if assignment_uses_attribute(start_round, "damage_last_round", "damage_this_round") else "0"),
+        ("rotate_damage_taken_from_last_round", "1" if assignment_uses_attribute(start_round, "damage_taken_from_last_round", "damage_taken_from") else "0"),
+        ("clear_damage_this_round", "1" if clears_battle_attribute(start_round, "damage_this_round") else "0"),
+        ("clear_damage_taken_from", "1" if clears_battle_attribute(start_round, "damage_taken_from") else "0"),
+        ("clear_damage_received_this_round", "1" if clears_battle_attribute(start_round, "damage_received_this_round") else "0"),
+        ("rotate_injuries_previous_round", "1" if assignment_uses_attribute(start_round, "_injuries_previous_round", "_injuries_last_round") else "0"),
+        ("snapshot_injuries_last_round", "1" if assignment_uses_any_attribute(start_round, "_injuries_last_round", "injuries") else "0"),
+        ("turn_end_remove_extra_action", "1" if "extra_action" in turn_removed_effects else "0"),
+        ("turn_end_remove_last_turn_round", "1" if "last_turn_round" in turn_removed_effects else "0"),
+        ("turn_end_add_last_turn_round", "1" if adds_temporary_effect(end_turn, "last_turn_round") else "0"),
+        ("turn_end_last_turn_round_uses_round", "1" if temporary_effect_uses_round_payload(end_turn, "last_turn_round") else "0"),
+        ("turn_end_logs_event", "1" if logs_event_type(end_turn, "turn_end") else "0"),
+        ("turn_end_dispatches_trainer_features", "1" if dispatches_trigger(end_turn, "turn_end") else "0"),
+        ("turn_end_clears_current_actor", "1" if assigns_battle_attribute_none(end_turn, "current_actor_id") else "0"),
+        ("turn_end_resets_phase_start", "1" if assigns_phase_start(end_turn) else "0"),
     ]
 
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("\n".join(f"{name}\t{value}" for name, value in fixtures) + "\n", encoding="utf-8")
-    print(f"wrote {len(fixtures)} Python round lifecycle fixtures to {output}")
+    print(f"wrote {len(fixtures)} Python lifecycle oracle fixtures to {output}")
     return 0
 
 
