@@ -2,6 +2,8 @@ package io.autoptu.core.hook;
 
 import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.model.TurnPhase;
+import io.autoptu.core.rules.AbilityIdentityResolution;
+import io.autoptu.core.runtime.RuntimeCombatantState;
 
 import java.util.List;
 import java.util.Set;
@@ -43,6 +45,49 @@ public final class BuiltinStatusPhaseEffects {
                                     "flinch"
                             );
                             return new LifecycleHookResult(List.of(event), pending);
+                        }
+                )
+                .build();
+    }
+
+    /**
+     * Registers the Strange Tempo branch of Confusion/Confused START handling.
+     *
+     * The Python oracle short-circuits normal Confusion handling when Strange Tempo
+     * is active, unless Sleep/Asleep or the canonical sleep_blocked temporary effect
+     * suppresses Confusion processing first. No pending skip is created in this branch.
+     */
+    public static StatusPhaseEffectRegistry strangeTempoRegistry() {
+        return StatusPhaseEffectRegistry.builder()
+                .register(
+                        "status.confusion.strange-tempo.start",
+                        Set.of("confusion", "confused"),
+                        TurnPhase.START,
+                        100,
+                        (context, status) -> {
+                            String actorId = context.actorId();
+                            if (context.state().hasStatus(actorId, "sleep")
+                                    || context.state().hasStatus(actorId, "asleep")) {
+                                return LifecycleHookResult.empty();
+                            }
+                            RuntimeCombatantState actor = context.state().requireCombatant(actorId);
+                            if (actor.temporaryEffects().count("sleep_blocked") > 0) {
+                                return LifecycleHookResult.empty();
+                            }
+                            if (!AbilityIdentityResolution.matchesRegistration(actor.abilities(), "Strange Tempo")) {
+                                return LifecycleHookResult.empty();
+                            }
+                            RuleEffectEvent event = new RuleEffectEvent(
+                                    "ability",
+                                    "Strange Tempo",
+                                    actorId,
+                                    "",
+                                    "",
+                                    "confusion_control",
+                                    0.0,
+                                    actor.hp()
+                            );
+                            return new LifecycleHookResult(List.of(event), null);
                         }
                 )
                 .build();
