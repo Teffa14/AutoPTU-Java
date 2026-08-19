@@ -7,18 +7,21 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Mutable server-owned temporary-effect multiset for one combatant.
+ * Mutable server-owned temporary-effect collection for one combatant.
  *
- * Python permits multiple temporary effects with the same name and several lifecycle
- * paths remove every matching entry with repeated remove_temporary_effect calls. This
- * store preserves that multiplicity while keeping Minecraft/Cobblemon outside the rule.
+ * Python permits multiple temporary effects with the same name and stores metadata on
+ * each entry. This store preserves insertion order, multiplicity, and payload while
+ * keeping Minecraft/Cobblemon outside the authoritative rule state.
  */
 public final class TemporaryEffectStore {
-    private final LinkedHashMap<String, Integer> counts = new LinkedHashMap<>();
+    private final ArrayList<TemporaryEffectEntry> entries = new ArrayList<>();
 
     public void add(String effectName) {
-        String key = normalize(effectName);
-        counts.merge(key, 1, Integer::sum);
+        add(effectName, Map.of());
+    }
+
+    public void add(String effectName, Map<String, ?> payload) {
+        entries.add(new TemporaryEffectEntry(effectName, payload));
     }
 
     public boolean has(String effectName) {
@@ -27,22 +30,53 @@ public final class TemporaryEffectStore {
 
     public int count(String effectName) {
         String key = normalize(effectName);
-        return counts.getOrDefault(key, 0);
+        int count = 0;
+        for (TemporaryEffectEntry entry : entries) {
+            if (entry.name().equals(key)) {
+                count += 1;
+            }
+        }
+        return count;
+    }
+
+    public List<TemporaryEffectEntry> getAll(String effectName) {
+        String key = normalize(effectName);
+        ArrayList<TemporaryEffectEntry> matching = new ArrayList<>();
+        for (TemporaryEffectEntry entry : entries) {
+            if (entry.name().equals(key)) {
+                matching.add(entry);
+            }
+        }
+        return List.copyOf(matching);
+    }
+
+    public List<TemporaryEffectEntry> entriesInInsertionOrder() {
+        return List.copyOf(entries);
     }
 
     /** Remove every occurrence and return the number removed. */
     public int removeAll(String effectName) {
         String key = normalize(effectName);
-        Integer removed = counts.remove(key);
-        return removed == null ? 0 : removed;
+        int before = entries.size();
+        entries.removeIf(entry -> entry.name().equals(key));
+        return before - entries.size();
     }
 
+    /** Compatibility count snapshot used by existing diagnostics/tests. */
     public Map<String, Integer> snapshot() {
+        LinkedHashMap<String, Integer> counts = new LinkedHashMap<>();
+        for (TemporaryEffectEntry entry : entries) {
+            counts.merge(entry.name(), 1, Integer::sum);
+        }
         return Map.copyOf(counts);
     }
 
     public List<String> namesInInsertionOrder() {
-        return List.copyOf(new ArrayList<>(counts.keySet()));
+        LinkedHashMap<String, Boolean> names = new LinkedHashMap<>();
+        for (TemporaryEffectEntry entry : entries) {
+            names.putIfAbsent(entry.name(), Boolean.TRUE);
+        }
+        return List.copyOf(new ArrayList<>(names.keySet()));
     }
 
     private static String normalize(String effectName) {
