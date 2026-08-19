@@ -35,7 +35,11 @@ class PerkPhaseEffectRegistryOracleParityTest {
                 "registry_supports_global_hooks",
                 "end_passive_hooks_present",
                 "defense_mastery_is_end_scoped",
-                "stat_mastery_is_end_scoped"
+                "stat_mastery_is_end_scoped",
+                "links_resolve_trainer_from_actor_controller",
+                "links_require_trainer_ap",
+                "links_spend_trainer_ap",
+                "perk_filter_is_actor_feature_owned"
         )) {
             assertEquals(1, oracle.get(contract), contract);
         }

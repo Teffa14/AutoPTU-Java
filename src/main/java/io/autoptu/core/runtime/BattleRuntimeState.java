@@ -22,6 +22,8 @@ public final class BattleRuntimeState {
     private final LinkedHashMap<String, CombatantAffiliationState> affiliationByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, List<MoveOption>> movesByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, List<HeldItemState>> heldItemsByCombatant = new LinkedHashMap<>();
+    private final LinkedHashMap<String, TrainerRuntimeState> trainersById = new LinkedHashMap<>();
+    private final LinkedHashMap<String, String> controllerByCombatant = new LinkedHashMap<>();
     private final RoundDamageHistoryState damageHistory = new RoundDamageHistoryState();
 
     public BattleRuntimeState(MovementGrid grid, List<RuntimeCombatantState> combatants) {
@@ -325,6 +327,65 @@ public final class BattleRuntimeState {
     public List<HeldItemState> heldItems(String combatantId) {
         requireCombatant(combatantId);
         return heldItemsByCombatant.getOrDefault(combatantId, List.of());
+    }
+
+    /** Register one server-owned trainer/controller state. */
+    public void putTrainer(TrainerRuntimeState trainer) {
+        if (trainer == null) throw new IllegalArgumentException("trainer state is required");
+        TrainerRuntimeState previous = trainersById.putIfAbsent(trainer.trainerId(), trainer);
+        if (previous != null) {
+            throw new IllegalArgumentException("duplicate trainerId: " + trainer.trainerId());
+        }
+    }
+
+    /** Bind a combatant to the trainer/controller that owns its Trainer Features and AP. */
+    public void bindController(String combatantId, String trainerId) {
+        requireKnownCombatant(combatantId, "combatant controller");
+        if (trainerId == null || trainerId.isBlank()) {
+            throw new IllegalArgumentException("trainerId is required");
+        }
+        String canonicalTrainerId = trainerId.strip();
+        if (!trainersById.containsKey(canonicalTrainerId)) {
+            throw new IllegalArgumentException("combatant controller references unknown trainer: " + canonicalTrainerId);
+        }
+        String previous = controllerByCombatant.putIfAbsent(combatantId, canonicalTrainerId);
+        if (previous != null && !previous.equals(canonicalTrainerId)) {
+            throw new IllegalArgumentException("combatant already bound to trainer: " + combatantId);
+        }
+    }
+
+    public boolean hasCanonicalTrainer(String combatantId) {
+        requireCombatant(combatantId);
+        return controllerByCombatant.containsKey(combatantId);
+    }
+
+    public String controllerId(String combatantId) {
+        requireCombatant(combatantId);
+        String trainerId = controllerByCombatant.get(combatantId);
+        if (trainerId == null) {
+            throw new IllegalStateException("combatant has no canonical trainer/controller: " + combatantId);
+        }
+        return trainerId;
+    }
+
+    public TrainerRuntimeState requireTrainer(String trainerId) {
+        if (trainerId == null || trainerId.isBlank()) {
+            throw new IllegalArgumentException("trainerId is required");
+        }
+        TrainerRuntimeState trainer = trainersById.get(trainerId.strip());
+        if (trainer == null) {
+            throw new IllegalArgumentException("unknown trainer: " + trainerId);
+        }
+        return trainer;
+    }
+
+    public TrainerRuntimeState requireTrainerForCombatant(String combatantId) {
+        return requireTrainer(controllerId(combatantId));
+    }
+
+    /** Canonical Trainer Feature names used by perk registries. */
+    public List<String> trainerFeatures(String combatantId) {
+        return requireTrainerForCombatant(combatantId).trainerFeatures();
     }
 
     /** Python AI candidate semantics: active, non-fainted combatants only. */

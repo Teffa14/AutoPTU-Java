@@ -26,6 +26,18 @@ def main() -> int:
         "end_passive_hooks_present": int(passive.count('@register_perk_hook("end"') >= 8),
         "defense_mastery_is_end_scoped": int('@register_perk_hook("end", "Defense Mastery")' in passive),
         "stat_mastery_is_end_scoped": int('@register_perk_hook("end", "Stat Mastery")' in passive),
+        "links_resolve_trainer_from_actor_controller": int(
+            'get(getattr(actor, "controller_id", ""))' in passive
+        ),
+        "links_require_trainer_ap": int(
+            'int(getattr(trainer, "ap", 0) or 0) < 1' in passive
+        ),
+        "links_spend_trainer_ap": int(
+            'trainer.ap = int(getattr(trainer, "ap", 0) or 0) - 1' in passive
+        ),
+        "perk_filter_is_actor_feature_owned": int(
+            'ctx.actor.has_trainer_feature(perk)' in hooks
+        ),
     }
     if not all(rows.values()):
         raise RuntimeError(f"pinned oracle perk phase registry contract changed: {rows}")
