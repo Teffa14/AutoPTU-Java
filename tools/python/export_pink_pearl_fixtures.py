@@ -21,11 +21,14 @@ def main() -> None:
     from auto_ptu.rules import BattleState, PokemonState, TrainerState
     from auto_ptu.rules.calculations import build_attack_context
 
+    # Java MoveCombatProfile currently represents damaging moves only. Status-move
+    # behavior remains outside this parity slice, so fixtures stay within the shared
+    # Physical/Special contract instead of widening the Java move model implicitly.
     cases = [
-        ("psychic_with_pearl", "Psychic", "Special", True),
-        ("psychic_without_pearl", "Psychic", "Special", False),
-        ("water_with_pearl", "Water", "Special", True),
-        ("psychic_status_with_pearl", "Psychic", "Status", True),
+        ("psychic_special_with_pearl", "Psychic", "Special", True),
+        ("psychic_special_without_pearl", "Psychic", "Special", False),
+        ("psychic_physical_with_pearl", "Psychic", "Physical", True),
+        ("water_special_with_pearl", "Water", "Special", True),
     ]
 
     output = Path(args.output)
