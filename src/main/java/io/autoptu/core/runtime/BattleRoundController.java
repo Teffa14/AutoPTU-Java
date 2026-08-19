@@ -27,6 +27,7 @@ public final class BattleRoundController {
     private final LifecycleHookRegistry lifecycleHooks;
     private final RoundDamageHistoryState damageHistory;
     private final RoundInjuryHistoryState injuryHistory;
+    private final BattleTurnState turnState;
     private int round;
 
     public BattleRoundController(BattleRuntimeState state) {
@@ -67,6 +68,17 @@ public final class BattleRoundController {
             RoundDamageHistoryState damageHistory,
             RoundInjuryHistoryState injuryHistory
     ) {
+        this(state, initialRound, lifecycleHooks, damageHistory, injuryHistory, new BattleTurnState());
+    }
+
+    public BattleRoundController(
+            BattleRuntimeState state,
+            int initialRound,
+            LifecycleHookRegistry lifecycleHooks,
+            RoundDamageHistoryState damageHistory,
+            RoundInjuryHistoryState injuryHistory,
+            BattleTurnState turnState
+    ) {
         if (state == null) throw new IllegalArgumentException("state is required");
         if (initialRound < 0) throw new IllegalArgumentException("initialRound cannot be negative");
         this.state = state;
@@ -74,6 +86,10 @@ public final class BattleRoundController {
         this.lifecycleHooks = Objects.requireNonNull(lifecycleHooks, "lifecycleHooks");
         this.damageHistory = Objects.requireNonNull(damageHistory, "damageHistory");
         this.injuryHistory = Objects.requireNonNull(injuryHistory, "injuryHistory");
+        this.turnState = Objects.requireNonNull(turnState, "turnState");
+        if (turnState.currentActorId() != null) {
+            state.requireCombatant(turnState.currentActorId());
+        }
     }
 
     public int round() {
@@ -88,6 +104,25 @@ public final class BattleRoundController {
     /** Server-owned injury history shared by lifecycle hooks and downstream rule families. */
     public RoundInjuryHistoryState injuryHistory() {
         return injuryHistory;
+    }
+
+    /** Server-owned active actor and phase pointer. */
+    public BattleTurnState turnState() {
+        return turnState;
+    }
+
+    /** Begin an authoritative combatant turn at Python's START phase. */
+    public void beginTurn(String actorId) {
+        state.requireCombatant(actorId);
+        turnState.beginTurn(actorId);
+    }
+
+    /**
+     * Advance the server-owned phase pointer without exposing mutable state to adapters.
+     * Phase effects themselves remain separate bounded lifecycle slices.
+     */
+    public void setPhase(TurnPhase phase) {
+        turnState.setPhase(phase);
     }
 
     /** Backwards-compatible round transition for callers that do not consume events yet. */
@@ -118,19 +153,22 @@ public final class BattleRoundController {
                         ""
                 )
         );
+        // Python start_round always re-enters START with no active combatant.
+        turnState.clearToStart();
         return new RoundStartResult(round, result.events());
     }
 
     /**
-     * Close one combatant turn through the same authoritative lifecycle registry.
+     * Close the currently active combatant turn using only server-owned identity/phase.
      *
-     * Python clears actor-scoped temporary state before logging turn_end. Future
-     * Trainer Feature/ability registrations can attach to TURN_END without giving
-     * Minecraft control over cleanup or phase-scoped rule execution.
+     * Python clears actor-scoped temporary state, logs turn_end, then clears
+     * current_actor_id and resets phase to START. The preferred Minecraft-facing
+     * boundary therefore has no actor or phase parameters that an adapter can spoof.
      */
-    public List<BattleEvent> endTurn(String actorId, TurnPhase phase) {
-        if (actorId == null || actorId.isBlank()) throw new IllegalArgumentException("actorId is required");
-        if (phase == null) throw new IllegalArgumentException("phase is required");
+    public List<BattleEvent> endTurn() {
+        String actorId = turnState.currentActorId();
+        if (actorId == null) return List.of();
+        TurnPhase phase = turnState.phase();
         state.requireCombatant(actorId);
 
         LifecycleHookResult result = lifecycleHooks.resolve(
@@ -148,7 +186,20 @@ public final class BattleRoundController {
         ArrayList<BattleEvent> events = new ArrayList<>(result.events().size() + 1);
         events.addAll(result.events());
         events.add(new TurnEndedEvent(actorId, round, phase));
+        turnState.clearToStart();
         return List.copyOf(events);
+    }
+
+    /**
+     * Transitional compatibility boundary for older callers/tests.
+     * New adapters should seed/advance the authoritative turn state and call endTurn().
+     */
+    public List<BattleEvent> endTurn(String actorId, TurnPhase phase) {
+        if (actorId == null || actorId.isBlank()) throw new IllegalArgumentException("actorId is required");
+        if (phase == null) throw new IllegalArgumentException("phase is required");
+        state.requireCombatant(actorId);
+        turnState.setActiveTurn(actorId, phase);
+        return endTurn();
     }
 
     private static RoundDamageHistoryState canonicalDamageHistory(BattleRuntimeState state) {
