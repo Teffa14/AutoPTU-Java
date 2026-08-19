@@ -21,7 +21,7 @@ public record TrainerFeatureEvent(
         if (actorId.isBlank()) throw new IllegalArgumentException("actorId is required");
         if (feature.isBlank()) throw new IllegalArgumentException("feature is required");
         if (effect.isBlank()) throw new IllegalArgumentException("effect is required");
-        if (targetHp() < 0) throw new IllegalArgumentException("targetHp cannot be negative");
+        if (intDetail(details, "targetHp", 0) < 0) throw new IllegalArgumentException("targetHp cannot be negative");
     }
 
     /**
@@ -57,7 +57,7 @@ public record TrainerFeatureEvent(
     }
 
     public int targetHp() {
-        return intDetail("targetHp", 0);
+        return intDetail(details, "targetHp", 0);
     }
 
     public String trainer() {
@@ -77,11 +77,11 @@ public record TrainerFeatureEvent(
     }
 
     public int amount() {
-        return intDetail("amount", 0);
+        return intDetail(details, "amount", 0);
     }
 
     public int apSpent() {
-        return intDetail("ap_spent", 0);
+        return intDetail(details, "ap_spent", 0);
     }
 
     @Override
@@ -106,7 +106,7 @@ public record TrainerFeatureEvent(
         return value == null ? "" : String.valueOf(value).strip();
     }
 
-    private int intDetail(String key, int fallback) {
+    private static int intDetail(Map<String, Object> details, String key, int fallback) {
         Object value = details.get(key);
         if (value instanceof Number number) return number.intValue();
         if (value instanceof String text) {
