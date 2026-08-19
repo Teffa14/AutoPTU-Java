@@ -37,6 +37,21 @@ def reset_targets(method: ast.FunctionDef) -> set[str]:
     return targets
 
 
+def removed_temporary_effect_names(method: ast.FunctionDef) -> set[str]:
+    names: set[str] = set()
+    for node in ast.walk(method):
+        if not isinstance(node, ast.Call):
+            continue
+        if not isinstance(node.func, ast.Attribute) or node.func.attr != "remove_temporary_effect":
+            continue
+        if not node.args:
+            continue
+        first = node.args[0]
+        if isinstance(first, ast.Constant) and isinstance(first.value, str):
+            names.add(first.value)
+    return names
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
@@ -47,11 +62,16 @@ def main() -> int:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     method = find_start_round(tree)
     resetters = reset_targets(method)
+    removed_effects = removed_temporary_effect_names(method)
 
     fixtures = [
         ("round_increment", "1" if has_round_increment(method) else "0"),
         ("trainer_actions_reset_at_round_start", "1" if "trainer" in resetters else "0"),
         ("pokemon_actions_reset_at_round_start", "1" if "mon" in resetters or "pokemon" in resetters else "0"),
+        ("remove_intercept_ready", "1" if "intercept_ready" in removed_effects else "0"),
+        ("remove_extra_action", "1" if "extra_action" in removed_effects else "0"),
+        ("remove_delayed", "1" if "delayed" in removed_effects else "0"),
+        ("remove_riposte_ready", "1" if "riposte_ready" in removed_effects else "0"),
     ]
 
     output = args.output.resolve()
