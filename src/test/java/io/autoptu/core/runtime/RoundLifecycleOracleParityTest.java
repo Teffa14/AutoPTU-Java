@@ -36,7 +36,7 @@ class RoundLifecycleOracleParityTest {
         );
         actor.actionBudget().markAction(ActionType.STANDARD, "already used");
         seedRoundScopedTemporaryEffects(actor);
-        actor.temporaryEffects().add("persistent_marker");
+        actor.temporaryEffects().add("persistent_marker", Map.of("round", 99));
 
         BattleRuntimeState state = new BattleRuntimeState(
                 new MovementGrid(4, 4, Set.of(), Map.of()),
@@ -57,12 +57,13 @@ class RoundLifecycleOracleParityTest {
         assertCleanupMatchesOracle(actor, fixture, "delayed", "remove_delayed");
         assertCleanupMatchesOracle(actor, fixture, "riposte_ready", "remove_riposte_ready");
         assertTrue(actor.temporaryEffects().has("persistent_marker"));
+        assertEquals(99, actor.temporaryEffects().getAll("persistent_marker").get(0).payload().get("round"));
     }
 
     private static void seedRoundScopedTemporaryEffects(RuntimeCombatantState actor) {
         for (String effect : List.of("intercept_ready", "extra_action", "delayed", "riposte_ready")) {
-            actor.temporaryEffects().add(effect);
-            actor.temporaryEffects().add(effect);
+            actor.temporaryEffects().add(effect, Map.of("round", 2, "source", "first"));
+            actor.temporaryEffects().add(effect, Map.of("round", 3, "source", "second"));
             assertEquals(2, actor.temporaryEffects().count(effect));
         }
     }

@@ -43,6 +43,7 @@ val oracleMoveFrequency = providers.gradleProperty("oracleMoveFrequency")
 val oracleRoundLifecycle = providers.gradleProperty("oracleRoundLifecycle")
 val oraclePinkPearl = providers.gradleProperty("oraclePinkPearl")
 val oracleMegaLauncher = providers.gradleProperty("oracleMegaLauncher")
+val oracleTemporaryEffectPayload = providers.gradleProperty("oracleTemporaryEffectPayload")
 
 tasks.test {
     useJUnitPlatform()
@@ -68,6 +69,7 @@ tasks.test {
     if (oracleRoundLifecycle.isPresent) systemProperty("autoptu.round.lifecycle.oracle", oracleRoundLifecycle.get())
     if (oraclePinkPearl.isPresent) systemProperty("autoptu.pink.pearl.oracle", oraclePinkPearl.get())
     if (oracleMegaLauncher.isPresent) systemProperty("autoptu.mega.launcher.oracle", oracleMegaLauncher.get())
+    if (oracleTemporaryEffectPayload.isPresent) systemProperty("autoptu.temporary.effect.payload.oracle", oracleTemporaryEffectPayload.get())
 }
 
 tasks.withType<JavaCompile>().configureEach {
