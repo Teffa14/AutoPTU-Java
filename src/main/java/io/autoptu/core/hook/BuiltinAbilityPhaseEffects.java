@@ -24,12 +24,14 @@ public final class BuiltinAbilityPhaseEffects {
         int shiftedDistance = 0;
         for (TemporaryEffectEntry entry : actor.temporaryEffects().getAll("lancer_shift")) {
             int entryRound = intValue(entry.payload().get("round"));
-            if (entryRound != context.round()) {
-                continue;
+            if (entryRound == context.round()) {
+                shiftedDistance = Math.max(shiftedDistance, intValue(entry.payload().get("distance")));
             }
-            shiftedDistance = Math.max(shiftedDistance, intValue(entry.payload().get("distance")));
         }
-        actor.temporaryEffects().removeAll("lancer_shift");
+        actor.temporaryEffects().removeIf(
+                "lancer_shift",
+                entry -> intValue(entry.payload().get("round")) != context.round()
+        );
 
         if (shiftedDistance >= 3) {
             actor.temporaryEffects().add("crit_range_bonus", Map.of(
