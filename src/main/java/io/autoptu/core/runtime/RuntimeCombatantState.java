@@ -29,6 +29,7 @@ public final class RuntimeCombatantState {
     private final boolean noGuard;
     private final boolean blur;
     private final MoveFrequencyUsage moveFrequencyUsage = new MoveFrequencyUsage();
+    private final TemporaryEffectStore temporaryEffects = new TemporaryEffectStore();
     private MovementProfile movementProfile;
     private int hp;
     private boolean probabilityControl;
@@ -275,6 +276,11 @@ public final class RuntimeCombatantState {
 
     public MoveFrequencyUsage moveFrequencyUsage() {
         return moveFrequencyUsage;
+    }
+
+    /** Server-owned temporary effects, including multiplicity for repeated Python entries. */
+    public TemporaryEffectStore temporaryEffects() {
+        return temporaryEffects;
     }
 
     public boolean hasStatProfile() {
