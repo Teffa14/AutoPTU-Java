@@ -48,6 +48,7 @@ val oracleTemporaryEffectPayload = providers.gradleProperty("oracleTemporaryEffe
 val oracleDelayedHit = providers.gradleProperty("oracleDelayedHit")
 val oracleDamageHistory = providers.gradleProperty("oracleDamageHistory")
 val oracleStatusApplication = providers.gradleProperty("oracleStatusApplication")
+val oracleLancerPhase = providers.gradleProperty("oracleLancerPhase")
 
 tasks.test {
     useJUnitPlatform()
@@ -78,6 +79,7 @@ tasks.test {
     if (oracleDelayedHit.isPresent) systemProperty("autoptu.delayed.hit.oracle", oracleDelayedHit.get())
     if (oracleDamageHistory.isPresent) systemProperty("autoptu.damage.history.oracle", oracleDamageHistory.get())
     if (oracleStatusApplication.isPresent) systemProperty("autoptu.status.application.oracle", oracleStatusApplication.get())
+    if (oracleLancerPhase.isPresent) systemProperty("autoptu.lancer.phase.oracle", oracleLancerPhase.get())
 }
 
 tasks.withType<JavaCompile>().configureEach {

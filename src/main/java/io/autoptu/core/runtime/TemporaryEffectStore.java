@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Predicate;
 
 /**
  * Mutable server-owned temporary-effect collection for one combatant.
@@ -38,9 +39,7 @@ public final class TemporaryEffectStore {
         String key = normalize(effectName);
         int count = 0;
         for (TemporaryEffectEntry entry : entries) {
-            if (entry.name().equals(key)) {
-                count += 1;
-            }
+            if (entry.name().equals(key)) count += 1;
         }
         return count;
     }
@@ -49,9 +48,7 @@ public final class TemporaryEffectStore {
         String key = normalize(effectName);
         ArrayList<TemporaryEffectEntry> matching = new ArrayList<>();
         for (TemporaryEffectEntry entry : entries) {
-            if (entry.name().equals(key)) {
-                matching.add(entry);
-            }
+            if (entry.name().equals(key)) matching.add(entry);
         }
         return List.copyOf(matching);
     }
@@ -62,33 +59,33 @@ public final class TemporaryEffectStore {
 
     /** Remove every occurrence and return the number removed. */
     public int removeAll(String effectName) {
+        return removeIf(effectName, ignored -> true);
+    }
+
+    /** Remove only matching occurrences of one normalized effect family. */
+    public int removeIf(String effectName, Predicate<TemporaryEffectEntry> predicate) {
         String key = normalize(effectName);
+        if (predicate == null) throw new IllegalArgumentException("predicate is required");
         int before = entries.size();
-        entries.removeIf(entry -> entry.name().equals(key));
+        entries.removeIf(entry -> entry.name().equals(key) && predicate.test(entry));
         return before - entries.size();
     }
 
     /** Compatibility count snapshot used by existing diagnostics/tests. */
     public Map<String, Integer> snapshot() {
         LinkedHashMap<String, Integer> counts = new LinkedHashMap<>();
-        for (TemporaryEffectEntry entry : entries) {
-            counts.merge(entry.name(), 1, Integer::sum);
-        }
+        for (TemporaryEffectEntry entry : entries) counts.merge(entry.name(), 1, Integer::sum);
         return Map.copyOf(counts);
     }
 
     public List<String> namesInInsertionOrder() {
         LinkedHashMap<String, Boolean> names = new LinkedHashMap<>();
-        for (TemporaryEffectEntry entry : entries) {
-            names.putIfAbsent(entry.name(), Boolean.TRUE);
-        }
+        for (TemporaryEffectEntry entry : entries) names.putIfAbsent(entry.name(), Boolean.TRUE);
         return List.copyOf(new ArrayList<>(names.keySet()));
     }
 
     private static String normalize(String effectName) {
-        if (effectName == null || effectName.isBlank()) {
-            throw new IllegalArgumentException("effectName is required");
-        }
+        if (effectName == null || effectName.isBlank()) throw new IllegalArgumentException("effectName is required");
         return effectName.strip().toLowerCase(Locale.ROOT);
     }
 }
