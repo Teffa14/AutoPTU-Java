@@ -41,6 +41,7 @@ val oracleStatusSkip = providers.gradleProperty("oracleStatusSkip")
 val oracleStatusSkipExceptions = providers.gradleProperty("oracleStatusSkipExceptions")
 val oracleMoveFrequency = providers.gradleProperty("oracleMoveFrequency")
 val oracleRoundLifecycle = providers.gradleProperty("oracleRoundLifecycle")
+val oraclePinkPearl = providers.gradleProperty("oraclePinkPearl")
 
 tasks.test {
     useJUnitPlatform()
@@ -64,6 +65,7 @@ tasks.test {
     if (oracleStatusSkipExceptions.isPresent) systemProperty("autoptu.status.skip.exception.oracle", oracleStatusSkipExceptions.get())
     if (oracleMoveFrequency.isPresent) systemProperty("autoptu.move.frequency.oracle", oracleMoveFrequency.get())
     if (oracleRoundLifecycle.isPresent) systemProperty("autoptu.round.lifecycle.oracle", oracleRoundLifecycle.get())
+    if (oraclePinkPearl.isPresent) systemProperty("autoptu.pink.pearl.oracle", oraclePinkPearl.get())
 }
 
 tasks.withType<JavaCompile>().configureEach {
