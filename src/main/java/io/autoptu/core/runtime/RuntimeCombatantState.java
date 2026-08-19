@@ -11,6 +11,7 @@ import io.autoptu.core.rules.Calculations;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Mutable server-authoritative state for one combatant.
@@ -23,6 +24,7 @@ public final class RuntimeCombatantState {
     private final int maxHp;
     private final ActionBudget actionBudget;
     private final CombatantStatProfile statProfile;
+    private final CombatStageState combatStages;
     private final EvasionProfile evasionProfile;
     private final int accuracyStage;
     private final boolean sniper;
@@ -163,6 +165,7 @@ public final class RuntimeCombatantState {
         this.maxHp = maxHp;
         this.actionBudget = actionBudget;
         this.statProfile = statProfile;
+        this.combatStages = new CombatStageState(statProfile == null ? Map.of() : statProfile.stages());
         this.evasionProfile = evasionProfile;
         this.accuracyStage = Calculations.accuracyStageValue(accuracyStage);
         this.sniper = sniper;
@@ -292,6 +295,16 @@ public final class RuntimeCombatantState {
             throw new IllegalStateException("combatant " + combatantId + " has no stat profile");
         }
         return statProfile;
+    }
+
+    /** Mutable canonical PTU combat stages used by moves, statuses, abilities, items, and Features. */
+    public CombatStageState combatStages() {
+        return combatStages;
+    }
+
+    /** Pure stat profile rebound to the current canonical combat stages. */
+    public CombatantStatProfile effectiveStatProfile() {
+        return requireStatProfile().withStages(combatStages.snapshot());
     }
 
     public boolean hasEvasionProfile() {
