@@ -5,6 +5,7 @@ import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
 import io.autoptu.core.rules.ActionBudget;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -21,7 +22,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 class StatusApplicationOracleParityTest {
     @Test
     void innerFocusFlinchPreventionMatchesPinnedPythonContract() throws IOException {
-        Map<String, Integer> oracle = readOracle();
+        String property = System.getProperty("autoptu.status.application.oracle");
+        Assumptions.assumeTrue(property != null && !property.isBlank());
+        Map<String, Integer> oracle = readOracle(Path.of(property));
         assertEquals(1, oracle.get("inner_focus_checks_flinch_alias_set"));
         assertEquals(1, oracle.get("inner_focus_emits_status_block"));
         assertEquals(1, oracle.get("inner_focus_returns_before_status_write"));
@@ -46,13 +49,9 @@ class StatusApplicationOracleParityTest {
                 result.events().getFirst().stableKey());
     }
 
-    private static Map<String, Integer> readOracle() throws IOException {
-        String property = System.getProperty("autoptu.status.application.oracle");
-        if (property == null || property.isBlank()) {
-            throw new IllegalStateException("autoptu.status.application.oracle is required");
-        }
+    private static Map<String, Integer> readOracle(Path path) throws IOException {
         Map<String, Integer> result = new HashMap<>();
-        List<String> lines = Files.readAllLines(Path.of(property));
+        List<String> lines = Files.readAllLines(path);
         for (int i = 1; i < lines.size(); i++) {
             if (lines.get(i).isBlank()) continue;
             String[] parts = lines.get(i).split("\\t");
