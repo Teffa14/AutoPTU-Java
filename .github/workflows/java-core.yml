@@ -52,6 +52,7 @@ jobs:
           python3 -m py_compile tools/python/export_move_frequency_fixtures.py
           python3 -m py_compile tools/python/export_round_lifecycle_fixtures.py
           python3 -m py_compile tools/python/export_pink_pearl_fixtures.py
+          python3 -m py_compile tools/python/export_mega_launcher_fixtures.py
 
       - name: Export Python oracle fixtures
         run: |
@@ -76,6 +77,7 @@ jobs:
           python3 tools/python/export_move_frequency_fixtures.py --source-root python-oracle --output build/oracle/move-frequency.tsv
           python3 tools/python/export_round_lifecycle_fixtures.py --source-root python-oracle --output build/oracle/round-lifecycle.tsv
           python3 tools/python/export_pink_pearl_fixtures.py --source-root python-oracle --output build/oracle/pink-pearl.tsv
+          python3 tools/python/export_mega_launcher_fixtures.py --source-root python-oracle --output build/oracle/mega-launcher.tsv
 
       - name: Run Java core and Python-oracle parity tests
         run: >-
@@ -101,3 +103,4 @@ jobs:
           -PoracleMoveFrequency="$GITHUB_WORKSPACE/build/oracle/move-frequency.tsv"
           -PoracleRoundLifecycle="$GITHUB_WORKSPACE/build/oracle/round-lifecycle.tsv"
           -PoraclePinkPearl="$GITHUB_WORKSPACE/build/oracle/pink-pearl.tsv"
+          -PoracleMegaLauncher="$GITHUB_WORKSPACE/build/oracle/mega-launcher.tsv"
