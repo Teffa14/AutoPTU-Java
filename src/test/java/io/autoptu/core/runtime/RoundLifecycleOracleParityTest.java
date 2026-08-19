@@ -18,6 +18,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoundLifecycleOracleParityTest {
     @Test
@@ -34,6 +35,9 @@ class RoundLifecycleOracleParityTest {
                 new ActionBudget()
         );
         actor.actionBudget().markAction(ActionType.STANDARD, "already used");
+        seedRoundScopedTemporaryEffects(actor);
+        actor.temporaryEffects().add("persistent_marker");
+
         BattleRuntimeState state = new BattleRuntimeState(
                 new MovementGrid(4, 4, Set.of(), Map.of()),
                 List.of(actor)
@@ -47,6 +51,30 @@ class RoundLifecycleOracleParityTest {
         assertEquals(1, fixture.get("trainer_actions_reset_at_round_start"));
         assertEquals(0, fixture.get("pokemon_actions_reset_at_round_start"));
         assertFalse(actor.actionBudget().hasActionAvailable(ActionType.STANDARD));
+
+        assertCleanupMatchesOracle(actor, fixture, "intercept_ready", "remove_intercept_ready");
+        assertCleanupMatchesOracle(actor, fixture, "extra_action", "remove_extra_action");
+        assertCleanupMatchesOracle(actor, fixture, "delayed", "remove_delayed");
+        assertCleanupMatchesOracle(actor, fixture, "riposte_ready", "remove_riposte_ready");
+        assertTrue(actor.temporaryEffects().has("persistent_marker"));
+    }
+
+    private static void seedRoundScopedTemporaryEffects(RuntimeCombatantState actor) {
+        for (String effect : List.of("intercept_ready", "extra_action", "delayed", "riposte_ready")) {
+            actor.temporaryEffects().add(effect);
+            actor.temporaryEffects().add(effect);
+            assertEquals(2, actor.temporaryEffects().count(effect));
+        }
+    }
+
+    private static void assertCleanupMatchesOracle(
+            RuntimeCombatantState actor,
+            Map<String, Integer> fixture,
+            String effectName,
+            String fixtureKey
+    ) {
+        assertEquals(1, fixture.get(fixtureKey));
+        assertEquals(0, actor.temporaryEffects().count(effectName));
     }
 
     private static Map<String, Integer> readFixture(Path path) throws IOException {
