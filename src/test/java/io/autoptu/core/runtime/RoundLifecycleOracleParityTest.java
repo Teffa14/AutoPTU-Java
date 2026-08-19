@@ -43,6 +43,7 @@ class RoundLifecycleOracleParityTest {
                 List.of(actor)
         );
         BattleRoundController rounds = new BattleRoundController(state, 3);
+        seedDamageHistory(rounds.damageHistory());
 
         int before = rounds.round();
         int after = rounds.startRound();
@@ -58,6 +59,8 @@ class RoundLifecycleOracleParityTest {
         assertCleanupMatchesOracle(actor, fixture, "riposte_ready", "remove_riposte_ready");
         assertTrue(actor.temporaryEffects().has("persistent_marker"));
         assertEquals(99, actor.temporaryEffects().getAll("persistent_marker").get(0).payload().get("round"));
+
+        assertDamageHistoryMatchesOracle(rounds.damageHistory(), fixture);
     }
 
     private static void seedRoundScopedTemporaryEffects(RuntimeCombatantState actor) {
@@ -66,6 +69,31 @@ class RoundLifecycleOracleParityTest {
             actor.temporaryEffects().add(effect, Map.of("round", 3, "source", "second"));
             assertEquals(2, actor.temporaryEffects().count(effect));
         }
+    }
+
+    private static void seedDamageHistory(RoundDamageHistoryState history) {
+        history.recordDamageThisRound("actor");
+        history.recordDamageThisRound("target");
+        history.recordDamageTakenFrom("target", "actor");
+        history.recordDamageTakenFrom("target", "hazard");
+        history.recordDamageReceivedThisRound("target");
+    }
+
+    private static void assertDamageHistoryMatchesOracle(
+            RoundDamageHistoryState history,
+            Map<String, Integer> fixture
+    ) {
+        assertEquals(1, fixture.get("rotate_damage_last_round"));
+        assertEquals(Set.of("actor", "target"), history.damageLastRound());
+        assertEquals(1, fixture.get("rotate_damage_taken_from_last_round"));
+        assertEquals(Set.of("actor", "hazard"), history.damageTakenFromLastRound().get("target"));
+
+        assertEquals(1, fixture.get("clear_damage_this_round"));
+        assertTrue(history.damageThisRound().isEmpty());
+        assertEquals(1, fixture.get("clear_damage_taken_from"));
+        assertTrue(history.damageTakenFromThisRound().isEmpty());
+        assertEquals(1, fixture.get("clear_damage_received_this_round"));
+        assertTrue(history.damageReceivedThisRound().isEmpty());
     }
 
     private static void assertCleanupMatchesOracle(
