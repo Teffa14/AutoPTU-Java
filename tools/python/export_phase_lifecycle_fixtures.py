@@ -84,36 +84,38 @@ def pending_status_skip_last_event_wins(method: ast.FunctionDef) -> bool:
     return False
 
 
+def dict_value(node: ast.Dict, key_name: str):
+    for key, value in zip(node.keys, node.values):
+        if isinstance(key, ast.Constant) and key.value == key_name:
+            return value
+    return None
+
+
 def flinch_start_contract(method: ast.FunctionDef) -> tuple[bool, bool]:
     """Freeze the concrete PokemonState Flinch START event/skip contract."""
+    has_flinch_start_guard = False
     for node in ast.walk(method):
         if not isinstance(node, ast.If):
             continue
-        test_names = {
-            child.id for child in ast.walk(node.test) if isinstance(child, ast.Name)
-        }
-        test_attrs = {
-            child.attr for child in ast.walk(node.test) if isinstance(child, ast.Attribute)
-        }
-        if "_FLINCH_STATUS_NAMES" not in test_names or "START" not in test_attrs:
+        dumped = ast.dump(node.test, include_attributes=False)
+        if "_FLINCH_STATUS_NAMES" in dumped and "START" in dumped:
+            has_flinch_start_guard = True
+            break
+
+    emits_flinch = False
+    sets_skip = False
+    for node in ast.walk(method):
+        if not isinstance(node, ast.Dict):
             continue
-        emits_flinch = False
-        sets_skip = False
-        for child in ast.walk(node):
-            if not isinstance(child, ast.Dict):
-                continue
-            values = {}
-            for key, value in zip(child.keys, child.values):
-                if isinstance(key, ast.Constant) and isinstance(key.value, str):
-                    values[key.value] = value
-            effect = values.get("effect")
-            skip = values.get("skip_turn")
-            if isinstance(effect, ast.Constant) and effect.value == "flinch":
-                emits_flinch = True
-                if isinstance(skip, ast.Constant) and skip.value is True:
-                    sets_skip = True
-        return emits_flinch, sets_skip
-    return False, False
+        effect = dict_value(node, "effect")
+        if not (isinstance(effect, ast.Constant) and effect.value == "flinch"):
+            continue
+        emits_flinch = True
+        skip = dict_value(node, "skip_turn")
+        if isinstance(skip, ast.Constant) and skip.value is True:
+            sets_skip = True
+
+    return has_flinch_start_guard and emits_flinch, has_flinch_start_guard and sets_skip
 
 
 def main() -> int:
