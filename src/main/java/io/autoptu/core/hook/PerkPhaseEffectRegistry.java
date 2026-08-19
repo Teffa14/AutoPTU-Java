@@ -4,6 +4,7 @@ import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.model.TurnPhase;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -11,7 +12,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
-/** Ordered server-authoritative registry for phase-scoped Trainer Feature/perk behavior. */
+/** Ordered registry for phase-scoped Trainer Feature/perk behavior. */
 public final class PerkPhaseEffectRegistry {
     private final List<Registration> registrations;
 
@@ -29,20 +30,29 @@ public final class PerkPhaseEffectRegistry {
         return registrations;
     }
 
-    public LifecycleHookResult resolve(LifecycleHookContext context) {
+    /**
+     * Resolves hooks against a server-owned Trainer Feature projection.
+     * The feature collection is an explicit core contract for this bounded slice;
+     * the next integration step will bind it to canonical BattleRuntimeState.
+     */
+    public LifecycleHookResult resolve(
+            LifecycleHookContext context,
+            Collection<String> trainerFeatures
+    ) {
         Objects.requireNonNull(context, "context");
         if (context.point() != LifecycleHookPoint.PHASE_CHANGE) {
             throw new IllegalArgumentException("perk phase effects require PHASE_CHANGE context");
         }
         if (context.actorId().isBlank()) return LifecycleHookResult.empty();
         TurnPhase phase = Objects.requireNonNull(context.phase(), "phase");
+        Set<String> normalizedFeatures = normalizeFeatures(trainerFeatures);
 
         ArrayList<BattleEvent> events = new ArrayList<>();
         PendingStatusSkipRequest pending = null;
         for (Registration registration : registrations) {
             if (registration.phase() != phase) continue;
             if (registration.perkName() != null
-                    && !context.state().hasTrainerFeature(context.actorId(), registration.perkName())) {
+                    && !normalizedFeatures.contains(registration.perkName().toLowerCase(Locale.ROOT))) {
                 continue;
             }
             LifecycleHookResult result = registration.effect().apply(context, registration.perkName());
@@ -53,6 +63,17 @@ public final class PerkPhaseEffectRegistry {
             if (result.pendingStatusSkip() != null) pending = result.pendingStatusSkip();
         }
         return new LifecycleHookResult(events, pending);
+    }
+
+    private static Set<String> normalizeFeatures(Collection<String> trainerFeatures) {
+        if (trainerFeatures == null || trainerFeatures.isEmpty()) return Set.of();
+        HashSet<String> normalized = new HashSet<>();
+        for (String feature : trainerFeatures) {
+            if (feature != null && !feature.isBlank()) {
+                normalized.add(feature.strip().toLowerCase(Locale.ROOT));
+            }
+        }
+        return Set.copyOf(normalized);
     }
 
     public record Registration(
