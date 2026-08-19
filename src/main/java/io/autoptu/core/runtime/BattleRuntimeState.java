@@ -22,9 +22,10 @@ public final class BattleRuntimeState {
     private final LinkedHashMap<String, CombatantAffiliationState> affiliationByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, List<MoveOption>> movesByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, List<HeldItemState>> heldItemsByCombatant = new LinkedHashMap<>();
+    private final LinkedHashMap<String, List<AbilityState>> abilitiesByCombatant = new LinkedHashMap<>();
 
     public BattleRuntimeState(MovementGrid grid, List<RuntimeCombatantState> combatants) {
-        this(grid, combatants, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
+        this(grid, combatants, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     public BattleRuntimeState(
@@ -32,7 +33,7 @@ public final class BattleRuntimeState {
             List<RuntimeCombatantState> combatants,
             Map<String, ? extends Collection<String>> statusesByCombatant
     ) {
-        this(grid, combatants, statusesByCombatant, Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
+        this(grid, combatants, statusesByCombatant, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     /**
@@ -46,7 +47,7 @@ public final class BattleRuntimeState {
             Map<String, ? extends Collection<String>> statusesByCombatant,
             Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant
     ) {
-        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, Map.of(), Map.of(), Map.of(), Map.of());
+        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     /**
@@ -63,7 +64,7 @@ public final class BattleRuntimeState {
             Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant,
             Map<String, CombatantGeometryState> geometryByCombatant
     ) {
-        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, geometryByCombatant, Map.of(), Map.of(), Map.of());
+        this(grid, combatants, statusesByCombatant, statusSkipFeaturesByCombatant, geometryByCombatant, Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     /**
@@ -88,6 +89,7 @@ public final class BattleRuntimeState {
                 statusSkipFeaturesByCombatant,
                 geometryByCombatant,
                 affiliationByCombatant,
+                Map.of(),
                 Map.of(),
                 Map.of()
         );
@@ -117,6 +119,7 @@ public final class BattleRuntimeState {
                 geometryByCombatant,
                 affiliationByCombatant,
                 movesByCombatant,
+                Map.of(),
                 Map.of()
         );
     }
@@ -136,6 +139,36 @@ public final class BattleRuntimeState {
             Map<String, CombatantAffiliationState> affiliationByCombatant,
             Map<String, ? extends Collection<MoveOption>> movesByCombatant,
             Map<String, ? extends Collection<HeldItemState>> heldItemsByCombatant
+    ) {
+        this(
+                grid,
+                combatants,
+                statusesByCombatant,
+                statusSkipFeaturesByCombatant,
+                geometryByCombatant,
+                affiliationByCombatant,
+                movesByCombatant,
+                heldItemsByCombatant,
+                Map.of()
+        );
+    }
+
+    /**
+     * Full authoritative battle snapshot including canonical held items and abilities.
+     *
+     * Ability identities are battle rule inputs. Minecraft/Cobblemon may render them,
+     * but cannot grant or suppress an ability by altering entity/client state.
+     */
+    public BattleRuntimeState(
+            MovementGrid grid,
+            List<RuntimeCombatantState> combatants,
+            Map<String, ? extends Collection<String>> statusesByCombatant,
+            Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant,
+            Map<String, CombatantGeometryState> geometryByCombatant,
+            Map<String, CombatantAffiliationState> affiliationByCombatant,
+            Map<String, ? extends Collection<MoveOption>> movesByCombatant,
+            Map<String, ? extends Collection<HeldItemState>> heldItemsByCombatant,
+            Map<String, ? extends Collection<AbilityState>> abilitiesByCombatant
     ) {
         if (grid == null) {
             throw new IllegalArgumentException("grid is required");
@@ -202,6 +235,13 @@ public final class BattleRuntimeState {
                 String combatantId = entry.getKey();
                 requireKnownCombatant(combatantId, "held-item state");
                 this.heldItemsByCombatant.put(combatantId, copyHeldItems(entry.getValue()));
+            }
+        }
+        if (abilitiesByCombatant != null) {
+            for (Map.Entry<String, ? extends Collection<AbilityState>> entry : abilitiesByCombatant.entrySet()) {
+                String combatantId = entry.getKey();
+                requireKnownCombatant(combatantId, "ability state");
+                this.abilitiesByCombatant.put(combatantId, copyAbilities(entry.getValue()));
             }
         }
     }
@@ -289,6 +329,18 @@ public final class BattleRuntimeState {
         return heldItemsByCombatant.getOrDefault(combatantId, List.of());
     }
 
+    /** True when this snapshot explicitly owns the combatant's ability state, including an empty list. */
+    public boolean hasCanonicalAbilities(String combatantId) {
+        requireCombatant(combatantId);
+        return abilitiesByCombatant.containsKey(combatantId);
+    }
+
+    /** Canonical ability identities, defensively copied at snapshot construction. */
+    public List<AbilityState> abilities(String combatantId) {
+        requireCombatant(combatantId);
+        return abilitiesByCombatant.getOrDefault(combatantId, List.of());
+    }
+
     /** Python AI candidate semantics: active, non-fainted combatants only. */
     public boolean isTargetableCombatant(String combatantId) {
         RuntimeCombatantState combatant = requireCombatant(combatantId);
@@ -347,6 +399,24 @@ public final class BattleRuntimeState {
                 throw new IllegalArgumentException("duplicate itemId in combatant held items: " + heldItem.itemId());
             }
             copied.add(heldItem);
+        }
+        return List.copyOf(copied);
+    }
+
+    private static List<AbilityState> copyAbilities(Collection<AbilityState> abilities) {
+        if (abilities == null || abilities.isEmpty()) {
+            return List.of();
+        }
+        ArrayList<AbilityState> copied = new ArrayList<>();
+        LinkedHashSet<String> abilityIds = new LinkedHashSet<>();
+        for (AbilityState ability : abilities) {
+            if (ability == null) {
+                continue;
+            }
+            if (!abilityIds.add(ability.abilityId())) {
+                throw new IllegalArgumentException("duplicate abilityId in combatant abilities: " + ability.abilityId());
+            }
+            copied.add(ability);
         }
         return List.copyOf(copied);
     }
