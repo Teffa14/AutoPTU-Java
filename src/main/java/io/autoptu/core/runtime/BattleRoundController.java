@@ -21,6 +21,7 @@ public final class BattleRoundController {
     private final BattleRuntimeState state;
     private final LifecycleHookRegistry lifecycleHooks;
     private final RoundDamageHistoryState damageHistory;
+    private final RoundInjuryHistoryState injuryHistory;
     private int round;
 
     public BattleRoundController(BattleRuntimeState state) {
@@ -36,7 +37,13 @@ public final class BattleRoundController {
             int initialRound,
             LifecycleHookRegistry lifecycleHooks
     ) {
-        this(state, initialRound, lifecycleHooks, new RoundDamageHistoryState());
+        this(
+                state,
+                initialRound,
+                lifecycleHooks,
+                new RoundDamageHistoryState(),
+                new RoundInjuryHistoryState()
+        );
     }
 
     public BattleRoundController(
@@ -45,12 +52,23 @@ public final class BattleRoundController {
             LifecycleHookRegistry lifecycleHooks,
             RoundDamageHistoryState damageHistory
     ) {
+        this(state, initialRound, lifecycleHooks, damageHistory, new RoundInjuryHistoryState());
+    }
+
+    public BattleRoundController(
+            BattleRuntimeState state,
+            int initialRound,
+            LifecycleHookRegistry lifecycleHooks,
+            RoundDamageHistoryState damageHistory,
+            RoundInjuryHistoryState injuryHistory
+    ) {
         if (state == null) throw new IllegalArgumentException("state is required");
         if (initialRound < 0) throw new IllegalArgumentException("initialRound cannot be negative");
         this.state = state;
         this.round = initialRound;
         this.lifecycleHooks = Objects.requireNonNull(lifecycleHooks, "lifecycleHooks");
         this.damageHistory = Objects.requireNonNull(damageHistory, "damageHistory");
+        this.injuryHistory = Objects.requireNonNull(injuryHistory, "injuryHistory");
     }
 
     public int round() {
@@ -60,6 +78,11 @@ public final class BattleRoundController {
     /** Server-owned damage history shared by lifecycle hooks and downstream rule families. */
     public RoundDamageHistoryState damageHistory() {
         return damageHistory;
+    }
+
+    /** Server-owned injury history shared by lifecycle hooks and downstream rule families. */
+    public RoundInjuryHistoryState injuryHistory() {
+        return injuryHistory;
     }
 
     /** Backwards-compatible round transition for callers that do not consume events yet. */
@@ -83,6 +106,7 @@ public final class BattleRoundController {
                 new LifecycleHookContext(
                         state,
                         damageHistory,
+                        injuryHistory,
                         LifecycleHookPoint.ROUND_START,
                         previousRound,
                         round,
