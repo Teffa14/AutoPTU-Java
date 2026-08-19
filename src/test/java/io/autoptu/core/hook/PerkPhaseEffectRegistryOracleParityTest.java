@@ -39,7 +39,16 @@ class PerkPhaseEffectRegistryOracleParityTest {
                 "links_resolve_trainer_from_actor_controller",
                 "links_require_trainer_ap",
                 "links_spend_trainer_ap",
-                "perk_filter_is_actor_feature_owned"
+                "perk_filter_is_actor_feature_owned",
+                "defense_mastery_skips_fainted_actor",
+                "defense_mastery_reads_shifted_this_turn",
+                "defense_mastery_requires_current_round_shift",
+                "defense_mastery_grants_five_damage_reduction",
+                "defense_mastery_expires_next_round",
+                "defense_mastery_is_non_consuming",
+                "defense_mastery_event_keeps_trainer",
+                "defense_mastery_event_reports_amount",
+                "defense_mastery_event_reports_phase"
         )) {
             assertEquals(1, oracle.get(contract), contract);
         }
