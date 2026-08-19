@@ -6,6 +6,7 @@ import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveSpec;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
+import io.autoptu.core.model.TurnPhase;
 import io.autoptu.core.rules.ActionBudget;
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +16,9 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BattleRoundControllerTest {
     @Test
@@ -47,6 +50,40 @@ class BattleRoundControllerTest {
         assertFalse(actor.actionBudget().hasActionAvailable(ActionType.STANDARD));
         assertFalse(actor.actionBudget().hasActionAvailable(ActionType.SHIFT));
         assertEquals(1, actor.actionBudget().extraCount(ActionType.STANDARD));
+    }
+
+    @Test
+    void roundStartClearsActiveActorAndReturnsToStartPhase() {
+        RuntimeCombatantState actor = combatant("actor");
+        BattleTurnState turnState = new BattleTurnState("actor", TurnPhase.ACTION);
+        BattleRoundController rounds = new BattleRoundController(
+                state(actor),
+                2,
+                io.autoptu.core.hook.BuiltinLifecycleHooks.registry(),
+                new RoundDamageHistoryState(),
+                new RoundInjuryHistoryState(),
+                turnState
+        );
+
+        rounds.startRound();
+
+        assertNull(rounds.turnState().currentActorId());
+        assertEquals(TurnPhase.START, rounds.turnState().phase());
+    }
+
+    @Test
+    void authoritativeTurnPointerDrivesTurnEndAndClearsAfterEvent() {
+        RuntimeCombatantState actor = combatant("actor");
+        BattleRoundController rounds = new BattleRoundController(state(actor), 4);
+        rounds.beginTurn("actor");
+        rounds.setPhase(TurnPhase.END);
+
+        assertEquals("actor", rounds.turnState().currentActorId());
+        assertEquals(TurnPhase.END, rounds.turnState().phase());
+        assertEquals(1, rounds.endTurn().size());
+        assertNull(rounds.turnState().currentActorId());
+        assertEquals(TurnPhase.START, rounds.turnState().phase());
+        assertTrue(rounds.endTurn().isEmpty());
     }
 
     @Test
