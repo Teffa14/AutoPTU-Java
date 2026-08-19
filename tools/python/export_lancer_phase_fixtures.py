@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze Lancer END phase behavior from the pinned Python AutoPTU source."""
+"""Freeze generic ability-phase and Lancer END behavior from pinned Python AutoPTU."""
 from __future__ import annotations
 
 import argparse
@@ -12,6 +12,8 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
 
+    hooks_path = args.source_root / "auto_ptu" / "rules" / "hooks" / "phase_hooks.py"
+    hooks = hooks_path.read_text(encoding="utf-8")
     source_path = args.source_root / "auto_ptu" / "rules" / "hooks" / "abilities" / "phase_effects.py"
     source = source_path.read_text(encoding="utf-8")
     marker = '@register_phase_hook("end", ability="Lancer")'
@@ -22,6 +24,9 @@ def main() -> int:
     window = source[start: next_registration if next_registration >= 0 else len(source)]
 
     rows = {
+        "registry_is_phase_scoped": int('_PHASE_HOOKS.get(phase_value, [])' in hooks),
+        "registry_filters_by_canonical_ability": int('ctx.pokemon.has_ability(ability)' in hooks),
+        "registry_preserves_registration_order": int('for ability, func in hooks:' in hooks),
         "registered_at_end": int(marker in window),
         "reads_lancer_shift": int('get_temporary_effects("lancer_shift")' in window),
         "drops_stale_round_entries": int('entry.get("round") != battle.round' in window and 'remove_temporary_effect("lancer_shift")' in window),
@@ -32,14 +37,14 @@ def main() -> int:
         "grants_damage_reduction_five": int('"damage_reduction"' in window and 'amount=5' in window and '"effect": "damage_reduction"' in window),
     }
     if not all(rows.values()):
-        raise RuntimeError(f"pinned oracle Lancer phase contract changed: {rows}")
+        raise RuntimeError(f"pinned oracle ability phase contract changed: {rows}")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         "contract\tvalue\n" + "".join(f"{name}\t{value}\n" for name, value in rows.items()),
         encoding="utf-8",
     )
-    print(f"wrote {len(rows)} Python Lancer phase fixtures to {args.output}")
+    print(f"wrote {len(rows)} Python ability/Lancer phase fixtures to {args.output}")
     return 0
 
 
