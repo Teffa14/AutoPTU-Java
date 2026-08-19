@@ -42,6 +42,7 @@ public final class LifecycleHookRegistry {
             throw new IllegalArgumentException("context point does not match requested lifecycle point");
         }
         ArrayList<BattleEvent> events = new ArrayList<>();
+        PendingStatusSkipRequest pendingStatusSkip = null;
         for (Registration registration : registrations) {
             if (registration.point() != point) continue;
             LifecycleHookResult result = registration.hook().apply(context);
@@ -49,8 +50,16 @@ public final class LifecycleHookRegistry {
                 throw new IllegalStateException("lifecycle hook returned null: " + registration.key());
             }
             events.addAll(result.events());
+            if (result.pendingStatusSkip() != null) {
+                if (pendingStatusSkip != null) {
+                    throw new IllegalStateException(
+                            "multiple pending status skips emitted at " + point.name().toLowerCase(Locale.ROOT)
+                    );
+                }
+                pendingStatusSkip = result.pendingStatusSkip();
+            }
         }
-        return LifecycleHookResult.events(events);
+        return new LifecycleHookResult(events, pendingStatusSkip);
     }
 
     public record Registration(
