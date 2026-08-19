@@ -1,9 +1,12 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.event.BattleEvent;
+import io.autoptu.core.event.TurnEndedEvent;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
+import io.autoptu.core.model.TurnPhase;
 import io.autoptu.core.rules.ActionBudget;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -18,6 +21,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoundLifecycleOracleParityTest {
@@ -64,6 +68,7 @@ class RoundLifecycleOracleParityTest {
 
         assertDamageHistoryMatchesOracle(rounds.damageHistory(), fixture);
         assertInjuryHistoryMatchesOracle(rounds, fixture);
+        assertTurnEndMatchesOracle(rounds, actor, fixture);
     }
 
     private static void seedRoundScopedTemporaryEffects(RuntimeCombatantState actor) {
@@ -115,6 +120,42 @@ class RoundLifecycleOracleParityTest {
         assertEquals(1, fixture.get("rotate_injuries_previous_round"));
         assertEquals(Map.of("actor", 2, "target", 1), history.injuriesPreviousRound());
         assertEquals(Map.of("actor", 3, "target", 1), history.injuriesLastRound());
+    }
+
+    private static void assertTurnEndMatchesOracle(
+            BattleRoundController rounds,
+            RuntimeCombatantState actor,
+            Map<String, Integer> fixture
+    ) {
+        actor.temporaryEffects().add("extra_action", Map.of("source", "first"));
+        actor.temporaryEffects().add("extra_action", Map.of("source", "second"));
+        actor.temporaryEffects().add("last_turn_round", Map.of("round", 1));
+        actor.temporaryEffects().add("last_turn_round", Map.of("round", 2));
+
+        List<BattleEvent> events = rounds.endTurn("actor", TurnPhase.END);
+
+        assertEquals(1, fixture.get("turn_end_remove_extra_action"));
+        assertEquals(0, actor.temporaryEffects().count("extra_action"));
+        assertEquals(1, fixture.get("turn_end_remove_last_turn_round"));
+        assertEquals(1, fixture.get("turn_end_add_last_turn_round"));
+        assertEquals(1, actor.temporaryEffects().count("last_turn_round"));
+        assertEquals(1, fixture.get("turn_end_last_turn_round_uses_round"));
+        assertEquals(rounds.round(), actor.temporaryEffects().getAll("last_turn_round").get(0).payload().get("round"));
+
+        assertEquals(1, fixture.get("turn_end_logs_event"));
+        assertEquals(1, events.size());
+        TurnEndedEvent event = assertInstanceOf(TurnEndedEvent.class, events.get(0));
+        assertEquals("actor", event.actorId());
+        assertEquals(rounds.round(), event.round());
+        assertEquals(TurnPhase.END, event.phase());
+
+        // These Python responsibilities are deliberately frozen here but remain
+        // separate future slices because Java does not yet own a global actor/phase
+        // pointer or the full Trainer Feature dispatcher lifecycle.
+        assertEquals(1, fixture.get("turn_end_dispatches_trainer_features"));
+        assertEquals(1, fixture.get("turn_end_clears_current_actor"));
+        assertEquals(1, fixture.get("turn_end_resets_phase_start"));
+        assertTrue(actor.temporaryEffects().has("persistent_marker"));
     }
 
     private static void assertCleanupMatchesOracle(
