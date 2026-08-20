@@ -5,7 +5,7 @@ import io.autoptu.core.event.BattleEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Result of advancing the canonical initiative cursor within the current round. */
+/** Result of advancing the canonical initiative cursor. */
 public record InitiativeTurnAdvanceResult(
         String actorId,
         int initiativeIndex,
@@ -30,6 +30,13 @@ public record InitiativeTurnAdvanceResult(
     }
 
     public static InitiativeTurnAdvanceResult exhausted(int initiativeIndex) {
-        return new InitiativeTurnAdvanceResult("", initiativeIndex, true, List.of());
+        return exhausted(initiativeIndex, List.of());
+    }
+
+    public static InitiativeTurnAdvanceResult exhausted(
+            int initiativeIndex,
+            List<BattleEvent> events
+    ) {
+        return new InitiativeTurnAdvanceResult("", initiativeIndex, true, events);
     }
 }
