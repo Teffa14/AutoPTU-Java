@@ -18,6 +18,12 @@ public final class BuiltinPostDamageHooks {
     );
 
     private static final PostDamageHookRegistry STANDARD = PostDamageHookRegistry.builder()
+            .register("adaptability-errata", HookSource.ABILITY, 80,
+                    context -> RandomD10PostDamageAbility.resolve(
+                            context, RandomD10PostDamageAbility.Rule.adaptabilityErrata()))
+            .register("damp-errata", HookSource.ABILITY, 90,
+                    context -> RandomD10PostDamageAbility.resolve(
+                            context, RandomD10PostDamageAbility.Rule.dampErrata()))
             .register("adjacent-elemental-boosts", HookSource.ABILITY, 100,
                     BuiltinPostDamageHooks::adjacentElementalBoosts)
             .register("spatial-general-damage-auras", HookSource.ABILITY, 110,
