@@ -8,6 +8,7 @@ public enum BattleEventKind {
     TRAINER_FEATURE("trainer_feature"),
     RULE_EFFECT("rule_effect"),
     PHASE_CHANGE("phase"),
+    TURN_START("turn_start"),
     TURN_END("turn_end");
 
     private final String value;
