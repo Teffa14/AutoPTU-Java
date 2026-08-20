@@ -63,6 +63,7 @@ jobs:
           python3 -m py_compile tools/python/export_combat_stage_hook_fixtures.py
           python3 -m py_compile tools/python/export_spatial_damage_aura_fixtures.py
           python3 -m py_compile tools/python/export_move_keyword_fixtures.py
+          python3 -m py_compile tools/python/export_analytic_fixtures.py
 
       - name: Export Python oracle fixtures
         run: |
@@ -98,6 +99,7 @@ jobs:
           python3 tools/python/export_combat_stage_hook_fixtures.py --source-root python-oracle --output build/oracle/combat-stage-hooks.tsv
           python3 tools/python/export_spatial_damage_aura_fixtures.py --source-root python-oracle --output build/oracle/spatial-damage-auras.tsv
           python3 tools/python/export_move_keyword_fixtures.py --source-root python-oracle --output build/oracle/move-keywords.tsv
+          python3 tools/python/export_analytic_fixtures.py --source-root python-oracle --output build/oracle/analytic.tsv
 
       - name: Run Java core and Python-oracle parity tests
         run: >-
@@ -134,3 +136,4 @@ jobs:
           -PoracleCombatStageHooks="$GITHUB_WORKSPACE/build/oracle/combat-stage-hooks.tsv"
           -PoracleSpatialDamageAuras="$GITHUB_WORKSPACE/build/oracle/spatial-damage-auras.tsv"
           -PoracleMoveKeyword="$GITHUB_WORKSPACE/build/oracle/move-keywords.tsv"
+          -PoracleAnalytic="$GITHUB_WORKSPACE/build/oracle/analytic.tsv"
