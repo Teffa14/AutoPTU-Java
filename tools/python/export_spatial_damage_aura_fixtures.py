@@ -22,6 +22,7 @@ def main() -> int:
         _adjacent_aura_sources,
         _apply_adjacent_aura_bonus,
     )
+    from auto_ptu.rules.hooks.abilities.attacker_damage_bonuses import _aura_storm_errata_bonus
 
     @dataclass
     class Spec:
@@ -37,6 +38,8 @@ def main() -> int:
             active=True,
             fainted=False,
             types=None,
+            injuries=0,
+            temporary_effects=None,
         ):
             self.position = position
             self.ability = ability
@@ -45,14 +48,33 @@ def main() -> int:
             self.fainted = fainted
             self.hp = 30
             self.spec = Spec(list(types or ["Normal"]))
-            self.injuries = 0
+            self.injuries = injuries
+            self._temporary_effects = list(temporary_effects or [])
 
         def has_ability(self, name):
             return self.ability.strip().lower() == str(name).strip().lower()
 
+        def get_temporary_effects(self, name):
+            target = str(name).strip().lower()
+            return [
+                dict(entry)
+                for entry in self._temporary_effects
+                if str(entry.get("name", "")).strip().lower() == target
+            ]
+
+        def remove_temporary_effect(self, name):
+            target = str(name).strip().lower()
+            self._temporary_effects = [
+                entry
+                for entry in self._temporary_effects
+                if str(entry.get("name", "")).strip().lower() != target
+            ]
+
     class Battle:
-        def __init__(self, pokemon):
+        def __init__(self, pokemon, *, aura_break_blocked=False):
             self.pokemon = pokemon
+            self.round = 0
+            self.aura_break_blocked = aura_break_blocked
 
         def _team_for(self, pid):
             return self.pokemon[pid].team
@@ -72,11 +94,11 @@ def main() -> int:
             return matches
 
         def _aura_break_blockers(self, *args, **kwargs):
-            return []
+            return ["blocker"] if self.aura_break_blocked else []
 
     # The Java post-damage contract only accepts damaging MoveCombatProfile values.
     # Python's Status guard remains upstream of this seam and is not weakened here.
-    cases = [
+    spatial_cases = [
         ("water_adjacent", "Water", "Special", "Aqua Boost", "A", (1, 2), True, False, ["Normal"], False, None),
         ("fire_adjacent", "Fire", "Physical", "Ignition Boost", "A", (2, 1), True, False, ["Normal"], False, None),
         ("electric_adjacent", "Electric", "Special", "Thunder Boost", "A", (2, 2), True, False, ["Normal"], False, None),
@@ -98,8 +120,10 @@ def main() -> int:
 
     rows = [
         "name\tmove_type\tcategory\tability\tholder_team\tholder_x\tholder_y\tactive\tfainted\t"
-        "holder_types\texpected_source\texpected_bonus\texpected_events"
+        "holder_types\texpected_source\texpected_bonus\texpected_events\tvariant\tactor_ability\t"
+        "move_keywords\tactor_injuries\taura_break_blocked\taura_break_errata_inverts"
     ]
+
     for (
         name,
         move_type,
@@ -112,7 +136,7 @@ def main() -> int:
         holder_types,
         second_holder,
         forced_source,
-    ) in cases:
+    ) in spatial_cases:
         attacker = Mon(position=(1, 1), team="A")
         defender = Mon(position=(1, 0), team="B")
         holder = Mon(
@@ -156,19 +180,68 @@ def main() -> int:
         if forced_source is not None and source != forced_source:
             raise AssertionError(f"{name}: expected source {forced_source}, got {source}")
         rows.append("\t".join(map(str, [
-            name,
-            move_type,
-            category,
-            ability,
-            holder_team,
-            holder_pos[0],
-            holder_pos[1],
-            active,
-            fainted,
-            "|".join(holder_types),
-            source,
-            bonus,
-            len(events),
+            name, move_type, category, ability, holder_team, holder_pos[0], holder_pos[1], active, fainted,
+            "|".join(holder_types), source, bonus, len(events), "spatial", "", "", 0, False, False,
+        ])))
+
+    aura_cases = [
+        ("aura_storm_zero_injuries", "normal", "Aura Storm", ["Aura"], 0, False, False),
+        ("aura_storm_two_injuries", "normal", "Aura Storm", ["Aura"], 2, False, False),
+        ("aura_storm_missing_keyword", "normal", "Aura Storm", ["Contact"], 2, False, False),
+        ("aura_storm_blocked", "normal", "Aura Storm", ["Aura"], 2, True, False),
+        ("aura_storm_errata_zero_injuries", "errata", "Aura Storm [Errata]", [], 0, False, False),
+        ("aura_storm_errata_two_injuries", "errata", "Aura Storm [Errata]", [], 2, False, False),
+        ("aura_storm_errata_inverted", "errata", "Aura Storm [Errata]", [], 2, False, True),
+    ]
+    for name, variant, actor_ability, keywords, injuries, blocked, inverted in aura_cases:
+        temporary_effects = []
+        if inverted:
+            temporary_effects.append({
+                "name": "aura_break_errata",
+                "ability": "Aura Storm [Errata]",
+                "source_id": "breaker",
+                "expires_round": 0,
+            })
+        attacker = Mon(
+            position=(1, 1),
+            team="A",
+            ability=actor_ability,
+            injuries=injuries,
+            temporary_effects=temporary_effects,
+        )
+        defender = Mon(position=(1, 0), team="B")
+        battle = Battle({"actor": attacker, "target": defender}, aura_break_blocked=blocked)
+        move = MoveSpec(
+            name="Oracle Aura Move",
+            type="Psychic",
+            category="Special",
+            db=6,
+            ac=2,
+            keywords=keywords,
+        )
+        result = {"hit": True, "damage": 20}
+        events = []
+        ctx = AbilityHookContext(
+            battle=battle,
+            attacker_id="actor",
+            attacker=attacker,
+            defender_id="target",
+            defender=defender,
+            move=move,
+            effective_move=move,
+            events=events,
+            phase="post_result_auras" if variant == "normal" else "post_result",
+            result=result,
+        )
+        if variant == "normal":
+            _apply_adjacent_aura_bonus(ctx)
+        else:
+            _aura_storm_errata_bonus(ctx)
+        bonus = int(result.get("damage", 0)) - 20
+        expected_source = "actor" if any(event.get("ability", "").startswith("Aura Storm") for event in events) else ""
+        rows.append("\t".join(map(str, [
+            name, "Psychic", "Special", "", "A", 0, 0, True, False, "Normal",
+            expected_source, bonus, len(events), variant, actor_ability, "|".join(keywords), injuries, blocked, inverted,
         ])))
 
     output = Path(args.output)
