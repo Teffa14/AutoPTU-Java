@@ -50,6 +50,7 @@ val oracleDamageHistory = providers.gradleProperty("oracleDamageHistory")
 val oracleStatusApplication = providers.gradleProperty("oracleStatusApplication")
 val oracleLancerPhase = providers.gradleProperty("oracleLancerPhase")
 val oraclePerkPhase = providers.gradleProperty("oraclePerkPhase")
+val oracleCombatStageHooks = providers.gradleProperty("oracleCombatStageHooks")
 
 tasks.test {
     useJUnitPlatform()
@@ -82,6 +83,7 @@ tasks.test {
     if (oracleStatusApplication.isPresent) systemProperty("autoptu.status.application.oracle", oracleStatusApplication.get())
     if (oracleLancerPhase.isPresent) systemProperty("autoptu.lancer.phase.oracle", oracleLancerPhase.get())
     if (oraclePerkPhase.isPresent) systemProperty("autoptu.perk.phase.oracle", oraclePerkPhase.get())
+    if (oracleCombatStageHooks.isPresent) systemProperty("autoptu.combat.stage.hooks.oracle", oracleCombatStageHooks.get())
 }
 
 tasks.withType<JavaCompile>().configureEach {
