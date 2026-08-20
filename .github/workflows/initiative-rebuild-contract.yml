@@ -31,9 +31,10 @@ jobs:
           python3 tools/python/export_initiative_rebuild_contract.py
           --source-root python-oracle
           --output build/oracle/initiative-rebuild-contract.tsv
+          --source-output build/oracle/initiative-rebuild-source.py
 
       - name: Upload initiative rebuild contract
         uses: actions/upload-artifact@v4
         with:
           name: initiative-rebuild-contract
-          path: build/oracle/initiative-rebuild-contract.tsv
+          path: build/oracle/initiative-rebuild-*
