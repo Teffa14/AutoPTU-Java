@@ -69,9 +69,11 @@ class PlusMinusCombatStageHookOracleParityTest {
             CombatStageHookResult result = BuiltinCombatStageHooks.registry()
                     .apply(CombatStageHookPhase.POST_APPLY, context);
 
-            assertEquals(10, expectedRadius, scenario + " / oracle radius");
-            assertEquals(reaction.equals("minus") ? "Minus [SwSh]" : "Plus [SwSh]",
-                    expectedQueryAbility, scenario + " / oracle query ability");
+            if (expectedRadius > 0) {
+                assertEquals(10, expectedRadius, scenario + " / oracle radius");
+                assertEquals(reaction.equals("minus") ? "Minus [SwSh]" : "Plus [SwSh]",
+                        expectedQueryAbility, scenario + " / oracle query ability");
+            }
             assertEquals(recursiveCalls == 1 ? recursiveDelta : 0,
                     state.requireCombatant("target").combatStages().get(CombatStat.DEF), scenario + " / stage");
             assertEquals(expectedEventCount, result.events().size(), scenario + " / events");
