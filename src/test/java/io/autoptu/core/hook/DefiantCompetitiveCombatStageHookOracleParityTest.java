@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,14 +24,16 @@ class DefiantCompetitiveCombatStageHookOracleParityTest {
         String oracle = System.getProperty("autoptu.combat.stage.hooks.oracle", "").strip();
         assumeTrue(!oracle.isBlank(), "combat-stage hook oracle fixture not configured");
 
-        for (String line : Files.readAllLines(Path.of(oracle)).subList(1, Files.readAllLines(Path.of(oracle)).size())) {
+        List<String> lines = Files.readAllLines(Path.of(oracle));
+        for (String line : lines.subList(1, lines.size())) {
             if (line.isBlank()) continue;
             String[] fields = line.split("\\t", -1);
             if (fields.length <= 8 || fields[8].isBlank()) continue;
 
+            String reaction = fields[8];
+            if (!reaction.equals("defiant") && !reaction.equals("competitive")) continue;
             String scenario = fields[0];
             int appliedDelta = Integer.parseInt(fields[2]);
-            String reaction = fields[8];
             String attackerId = fields[9];
             String targetId = fields[10];
             String moveName = fields[11];
