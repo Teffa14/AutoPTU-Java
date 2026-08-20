@@ -46,6 +46,7 @@ public final class BattleRoundController {
         this.injuryHistory = Objects.requireNonNull(injuryHistory, "injuryHistory");
         this.turnState = Objects.requireNonNull(turnState, "turnState");
         if (turnState.currentActorId() != null) state.requireCombatant(turnState.currentActorId());
+        state.syncCurrentRoundFromLifecycle(initialRound);
     }
 
     public int round() { return round; }
@@ -111,6 +112,7 @@ public final class BattleRoundController {
     public RoundStartResult startRoundWithEvents() {
         int previousRound = round;
         round += 1;
+        state.syncCurrentRoundFromLifecycle(round);
         LifecycleHookResult result = lifecycleHooks.resolve(
                 LifecycleHookPoint.ROUND_START,
                 new LifecycleHookContext(state, damageHistory, injuryHistory, LifecycleHookPoint.ROUND_START, previousRound, round, "")
