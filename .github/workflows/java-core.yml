@@ -67,6 +67,7 @@ jobs:
           python3 -m py_compile tools/python/export_initiative_turn_fixtures.py
           python3 -m py_compile tools/python/export_pokemon_initiative_entry_fixtures.py
           python3 -m py_compile tools/python/export_initiative_round_modifier_fixtures.py
+          python3 -m py_compile tools/python/export_initiative_speed_ability_fixtures.py
 
       - name: Export Python oracle fixtures
         run: |
@@ -106,6 +107,7 @@ jobs:
           python3 tools/python/export_initiative_turn_fixtures.py --source-root python-oracle --output build/oracle/initiative-turn.tsv
           python3 tools/python/export_pokemon_initiative_entry_fixtures.py --source-root python-oracle --output build/oracle/pokemon-initiative-entry.tsv
           python3 tools/python/export_initiative_round_modifier_fixtures.py --source-root python-oracle --output build/oracle/initiative-round-modifier.tsv
+          python3 tools/python/export_initiative_speed_ability_fixtures.py --source-root python-oracle --output build/oracle/initiative-speed-ability.tsv
 
       - name: Run Java core and Python-oracle parity tests
         run: >-
@@ -146,3 +148,4 @@ jobs:
           -PoracleInitiativeTurn="$GITHUB_WORKSPACE/build/oracle/initiative-turn.tsv"
           -PoraclePokemonInitiativeEntry="$GITHUB_WORKSPACE/build/oracle/pokemon-initiative-entry.tsv"
           -PoracleInitiativeRoundModifier="$GITHUB_WORKSPACE/build/oracle/initiative-round-modifier.tsv"
+          -PoracleInitiativeSpeedAbility="$GITHUB_WORKSPACE/build/oracle/initiative-speed-ability.tsv"
