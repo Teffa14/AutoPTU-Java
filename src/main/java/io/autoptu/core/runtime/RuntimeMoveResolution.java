@@ -5,12 +5,15 @@ import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.hook.BuiltinDamageModifierHooks;
 import io.autoptu.core.hook.BuiltinEffectiveMoveHooks;
+import io.autoptu.core.hook.BuiltinPostDamageHooks;
 import io.autoptu.core.hook.DamageModifierHookContext;
 import io.autoptu.core.hook.DamageModifierHookRegistry;
 import io.autoptu.core.hook.DamageModifierHookResult;
 import io.autoptu.core.hook.EffectiveMoveHookContext;
 import io.autoptu.core.hook.EffectiveMoveHookRegistry;
 import io.autoptu.core.hook.EffectiveMoveHookResult;
+import io.autoptu.core.hook.PostDamageHookContext;
+import io.autoptu.core.hook.PostDamageHookRegistry;
 import io.autoptu.core.model.AttackModifier;
 import io.autoptu.core.model.CombatantStatProfile;
 import io.autoptu.core.model.GridCoord;
@@ -31,14 +34,17 @@ import java.util.Set;
 /**
  * Minecraft-facing direct-move entrypoint that derives effective combat stats,
  * evasion, accuracy stage, Sniper, No Guard, Blur, Probability Control, pre-damage
- * move transformations, STAB, type effectiveness, damage modifiers, and intrinsic
- * move metadata from authoritative runtime state before delegating to BattleRuntime.
+ * move transformations, STAB, type effectiveness, damage modifiers, post-result
+ * damage effects, and intrinsic move metadata from authoritative runtime state before
+ * delegating to BattleRuntime.
  */
 public final class RuntimeMoveResolution {
     private static final EffectiveMoveHookRegistry EFFECTIVE_MOVE_HOOKS =
             BuiltinEffectiveMoveHooks.standardRegistry();
     private static final DamageModifierHookRegistry DAMAGE_MODIFIER_HOOKS =
             BuiltinDamageModifierHooks.standardRegistry();
+    private static final PostDamageHookRegistry POST_DAMAGE_HOOKS =
+            BuiltinPostDamageHooks.standardRegistry();
 
     private RuntimeMoveResolution() {
     }
@@ -150,9 +156,21 @@ public final class RuntimeMoveResolution {
                 target.blur(), actor.probabilityControl(), effectiveDb, attackValue,
                 defenseValue, actor.sniper(), typeMultiplier, damageHooks.modifiers()
         );
-        return BattleRuntime.applyAuthoritativeMove(state, choice, move, actorSize, targetSize,
+        return BattleRuntime.applyAuthoritativeMove(
+                state, choice, move, actorSize, targetSize,
                 lineOfSightBlockers, source, rng, stateBoundInput,
-                combineEvents(effectiveMoveHooks.events(), damageHooks.events()));
+                combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
+                damage -> POST_DAMAGE_HOOKS.resolve(new PostDamageHookContext(
+                        state,
+                        choice.actorId(),
+                        choice.targetId(),
+                        actor,
+                        target,
+                        move,
+                        effectiveMetadata,
+                        damage
+                ))
+        );
     }
 
     private static EffectiveMoveHookResult authoritativeEffectiveMoveHooks(
