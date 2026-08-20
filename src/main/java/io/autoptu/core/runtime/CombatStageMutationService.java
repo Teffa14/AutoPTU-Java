@@ -42,10 +42,27 @@ public final class CombatStageMutationService {
             int requestedDelta,
             String effect
     ) {
+        return apply(attackerId, targetId, moveId, stat, requestedDelta, effect, CombatStageMutationOptions.NONE);
+    }
+
+    /**
+     * Internal recursive boundary used when Python suppresses a specific reaction
+     * while re-entering the same combat-stage pipeline.
+     */
+    public CombatStageMutationResult apply(
+            String attackerId,
+            String targetId,
+            String moveId,
+            CombatStat stat,
+            int requestedDelta,
+            String effect,
+            CombatStageMutationOptions options
+    ) {
         RuntimeCombatantState target = state.requireCombatant(required(targetId, "targetId"));
         String canonicalAttackerId = required(attackerId, "attackerId");
         state.requireCombatant(canonicalAttackerId);
         Objects.requireNonNull(stat, "stat");
+        CombatStageMutationOptions canonicalOptions = options == null ? CombatStageMutationOptions.NONE : options;
 
         int startingStage = target.combatStages().get(stat);
         int baseStage = target.combatStages().adjust(stat, requestedDelta);
@@ -59,7 +76,8 @@ public final class CombatStageMutationService {
                 stat,
                 requestedDelta,
                 baseAppliedDelta,
-                effect
+                effect,
+                canonicalOptions
         );
         CombatStageHookResult hookResult = hooks.apply(CombatStageHookPhase.POST_APPLY, context);
         int finalStage = target.combatStages().get(stat);
