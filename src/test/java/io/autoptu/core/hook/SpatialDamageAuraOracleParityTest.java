@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,7 +43,9 @@ class SpatialDamageAuraOracleParityTest {
             GridCoord holderPosition = new GridCoord(Integer.parseInt(c[5]), Integer.parseInt(c[6]));
             boolean active = Boolean.parseBoolean(c[7]);
             boolean fainted = Boolean.parseBoolean(c[8]);
-            String holderPrimaryType = c[9];
+            List<String> holderTypes = c[9].isBlank()
+                    ? List.of()
+                    : List.copyOf(Arrays.asList(c[9].split("\\|", -1)));
             String expectedSource = c[10];
             int expectedBonus = Integer.parseInt(c[11]);
             int expectedEvents = Integer.parseInt(c[12]);
@@ -56,7 +59,7 @@ class SpatialDamageAuraOracleParityTest {
                             holderPosition,
                             active,
                             fainted,
-                            holderPrimaryType,
+                            holderTypes,
                             name.equals("first_source_wins")
                     )
             );
@@ -81,7 +84,7 @@ class SpatialDamageAuraOracleParityTest {
             GridCoord holderPosition,
             boolean active,
             boolean fainted,
-            String holderPrimaryType,
+            List<String> holderTypes,
             boolean secondHolder
     ) {
         RuntimeCombatantState actor = combatant("actor", new GridCoord(1, 1), 20, List.of(), List.of("Normal"));
@@ -91,7 +94,7 @@ class SpatialDamageAuraOracleParityTest {
                 holderPosition,
                 fainted ? 0 : 20,
                 List.of(ability),
-                List.of(holderPrimaryType.isBlank() ? "Normal" : holderPrimaryType)
+                holderTypes.isEmpty() ? List.of("Normal") : holderTypes
         );
         List<RuntimeCombatantState> combatants = secondHolder
                 ? List.of(
@@ -103,7 +106,7 @@ class SpatialDamageAuraOracleParityTest {
                                 new GridCoord(2, 1),
                                 20,
                                 List.of(ability),
-                                List.of(holderPrimaryType.isBlank() ? "Normal" : holderPrimaryType)
+                                holderTypes.isEmpty() ? List.of("Normal") : holderTypes
                         )
                 )
                 : List.of(actor, target, holder);
