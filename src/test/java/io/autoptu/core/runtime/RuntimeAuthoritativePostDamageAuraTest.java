@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class RuntimeAuthoritativePostDamageAuraTest {
@@ -94,6 +95,84 @@ class RuntimeAuthoritativePostDamageAuraTest {
         assertEquals(blocked.damage(), blockedState.damageHistory().damageReceivedThisRound().get("target"));
     }
 
+    @Test
+    void auraStormErrataUsesCanonicalRoundInjuriesAndAuraBreakErrataInversion() {
+        BattleRuntimeState baseState = auraStormErrataState(false);
+        BattleRuntimeState errataState = auraStormErrataState(true);
+        baseState.injuryHistory().setCurrentInjuries("actor", 2);
+        errataState.injuryHistory().setCurrentInjuries("actor", 2);
+        new BattleRoundController(baseState, 4);
+        new BattleRoundController(errataState, 4);
+        errataState.requireCombatant("actor").temporaryEffects().add("aura_break_errata", Map.of(
+                "ability", "Aura Storm [Errata]",
+                "source_id", "breaker",
+                "expires_round", 4
+        ));
+
+        AppliedActionResult baseResult = RuntimeMoveResolution.applyUsingAuthoritativeCombatState(
+                baseState, choice("aura-strike"), auraMove(), "Medium", "Medium", Set.of(), "AI",
+                new PythonRandom(91), input(), false, false
+        );
+        AppliedActionResult errataResult = RuntimeMoveResolution.applyUsingAuthoritativeCombatState(
+                errataState, choice("aura-strike"), auraMove(), "Medium", "Medium", Set.of(), "AI",
+                new PythonRandom(91), input(), false, false
+        );
+
+        MoveResolvedEvent base = assertInstanceOf(MoveResolvedEvent.class, baseResult.events().getLast());
+        RuleEffectEvent breakEvent = assertInstanceOf(RuleEffectEvent.class, errataResult.events().get(0));
+        RuleEffectEvent stormEvent = assertInstanceOf(RuleEffectEvent.class, errataResult.events().get(1));
+        MoveResolvedEvent errata = assertInstanceOf(MoveResolvedEvent.class, errataResult.events().getLast());
+
+        assertEquals("Aura Break [Errata]", breakEvent.sourceName());
+        assertEquals("breaker", breakEvent.actorId());
+        assertEquals("actor", breakEvent.targetId());
+        assertEquals("damage_penalty", breakEvent.effect());
+        assertEquals(-6, breakEvent.amount());
+        assertEquals("Aura Storm [Errata]", stormEvent.sourceName());
+        assertEquals("actor", stormEvent.actorId());
+        assertEquals("target", stormEvent.targetId());
+        assertEquals("damage_penalty", stormEvent.effect());
+        assertEquals(-6, stormEvent.amount());
+        assertEquals(base.damage() - 6, errata.damage());
+        assertEquals(errata.damage(), errataState.damageHistory().damageReceivedThisRound().get("target"));
+        assertEquals(1, errataState.requireCombatant("actor").temporaryEffects().count("aura_break_errata"));
+    }
+
+    @Test
+    void expiredAuraBreakErrataIsClearedBeforeAuraStormErrataBonusIsApplied() {
+        BattleRuntimeState baseState = auraStormErrataState(false);
+        BattleRuntimeState errataState = auraStormErrataState(true);
+        baseState.injuryHistory().setCurrentInjuries("actor", 2);
+        errataState.injuryHistory().setCurrentInjuries("actor", 2);
+        new BattleRoundController(baseState, 4);
+        new BattleRoundController(errataState, 4);
+        errataState.requireCombatant("actor").temporaryEffects().add("aura_break_errata", Map.of(
+                "ability", "Aura Storm [Errata]",
+                "source_id", "old-breaker",
+                "expires_round", 3
+        ));
+
+        AppliedActionResult baseResult = RuntimeMoveResolution.applyUsingAuthoritativeCombatState(
+                baseState, choice("aura-strike"), auraMove(), "Medium", "Medium", Set.of(), "AI",
+                new PythonRandom(103), input(), false, false
+        );
+        AppliedActionResult errataResult = RuntimeMoveResolution.applyUsingAuthoritativeCombatState(
+                errataState, choice("aura-strike"), auraMove(), "Medium", "Medium", Set.of(), "AI",
+                new PythonRandom(103), input(), false, false
+        );
+
+        MoveResolvedEvent base = assertInstanceOf(MoveResolvedEvent.class, baseResult.events().getLast());
+        RuleEffectEvent stormEvent = assertInstanceOf(RuleEffectEvent.class, errataResult.events().get(0));
+        MoveResolvedEvent errata = assertInstanceOf(MoveResolvedEvent.class, errataResult.events().getLast());
+
+        assertEquals(2, errataResult.events().size());
+        assertEquals("Aura Storm [Errata]", stormEvent.sourceName());
+        assertEquals("damage_bonus", stormEvent.effect());
+        assertEquals(6, stormEvent.amount());
+        assertEquals(base.damage() + 6, errata.damage());
+        assertFalse(errataState.requireCombatant("actor").temporaryEffects().has("aura_break_errata"));
+    }
+
     private static BattleRuntimeState aquaState(boolean withAura) {
         CombatantStatProfile actorStats = stats(18, 10);
         CombatantStatProfile targetStats = stats(10, 10);
@@ -137,6 +216,22 @@ class RuntimeAuthoritativePostDamageAuraTest {
                         "actor", new CombatantAffiliationState("A", true),
                         "target", new CombatantAffiliationState("B", true));
         return battleState(combatants, affiliations);
+    }
+
+    private static BattleRuntimeState auraStormErrataState(boolean withAuraStormErrata) {
+        CombatantStatProfile actorStats = stats(18, 10);
+        CombatantStatProfile targetStats = stats(10, 10);
+        RuntimeCombatantState actor = combatant(
+                "actor", new GridCoord(1, 1), 100, 100, actorStats,
+                withAuraStormErrata ? List.of("Aura Storm [Errata]") : List.of());
+        RuntimeCombatantState target = combatant("target", new GridCoord(1, 0), 200, 200, targetStats, List.of());
+        return battleState(
+                List.of(actor, target),
+                Map.of(
+                        "actor", new CombatantAffiliationState("A", true),
+                        "target", new CombatantAffiliationState("B", true)
+                )
+        );
     }
 
     private static BattleRuntimeState battleState(
