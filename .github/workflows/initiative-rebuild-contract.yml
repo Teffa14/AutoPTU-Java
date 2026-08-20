@@ -1,0 +1,39 @@
+name: Initiative Rebuild Contract
+
+on:
+  pull_request:
+    paths:
+      - "tools/python/export_initiative_rebuild_contract.py"
+      - ".github/workflows/initiative-rebuild-contract.yml"
+      - "src/main/java/io/autoptu/core/runtime/**"
+      - "src/test/java/io/autoptu/core/runtime/**"
+  workflow_dispatch:
+
+jobs:
+  export-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Validate exporter
+        run: python3 -m py_compile tools/python/export_initiative_rebuild_contract.py
+
+      - name: Export initiative rebuild contract
+        run: >-
+          python3 tools/python/export_initiative_rebuild_contract.py
+          --source-root python-oracle
+          --output build/oracle/initiative-rebuild-contract.tsv
+
+      - name: Upload initiative rebuild contract
+        uses: actions/upload-artifact@v4
+        with:
+          name: initiative-rebuild-contract
+          path: build/oracle/initiative-rebuild-contract.tsv
