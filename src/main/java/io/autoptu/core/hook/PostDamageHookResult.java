@@ -5,10 +5,9 @@ import io.autoptu.core.event.BattleEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Ordered additive final-damage effects plus semantic playback events. */
+/** Ordered signed final-damage adjustments plus semantic playback events. */
 public record PostDamageHookResult(int flatDamageBonus, List<BattleEvent> events) {
     public PostDamageHookResult {
-        if (flatDamageBonus < 0) throw new IllegalArgumentException("flatDamageBonus cannot be negative");
         if (events == null || events.isEmpty()) {
             events = List.of();
         } else {
