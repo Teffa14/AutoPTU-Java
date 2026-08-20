@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze generic combat-stage hook dispatch and Simple reaction behavior."""
+"""Freeze generic combat-stage mutation/hook dispatch and Simple reaction behavior."""
 from __future__ import annotations
 
 import argparse
@@ -33,6 +33,19 @@ def main() -> int:
         "simple_reapplies_applied_delta": int('current + ctx.applied_delta' in reactions_source),
         "simple_clamps_stage": int('max(-6, min(6, current + ctx.applied_delta))' in reactions_source),
         "simple_emits_ability_event": int('"ability": "Simple"' in reactions_source and '"effect": "simple"' in reactions_source),
+        "defiant_reenters_authoritative_stage_apply": int(
+            'move_name == "defiant"' in reactions_source
+            and 'defiant_bonus = 2 + abs(ctx.applied_delta)' in reactions_source
+            and 'effect="defiant"' in reactions_source
+            and 'delta=defiant_bonus' in reactions_source
+            and 'ctx.battle._apply_combat_stage(' in reactions_source
+        ),
+        "competitive_reenters_authoritative_stage_apply": int(
+            'move_name == "competitive"' in reactions_source
+            and 'effect="competitive"' in reactions_source
+            and 'delta=2' in reactions_source
+            and 'ctx.battle._apply_combat_stage(' in reactions_source
+        ),
     }
     if not all(contracts.values()):
         raise RuntimeError(f"pinned oracle combat-stage hook contract changed: {contracts}")
