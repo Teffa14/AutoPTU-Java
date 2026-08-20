@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class SpatialDamageAuraOracleParityTest {
     @Test
-    void adjacentElementalBoostsMatchPinnedPythonOracle() throws IOException {
+    void spatialDamageAurasMatchPinnedPythonOracle() throws IOException {
         String oraclePath = System.getProperty("autoptu.spatial.damage.auras.oracle");
         if (oraclePath == null || oraclePath.isBlank()) return;
 
@@ -42,12 +42,23 @@ class SpatialDamageAuraOracleParityTest {
             GridCoord holderPosition = new GridCoord(Integer.parseInt(c[5]), Integer.parseInt(c[6]));
             boolean active = Boolean.parseBoolean(c[7]);
             boolean fainted = Boolean.parseBoolean(c[8]);
-            String expectedSource = c[9];
-            int expectedBonus = Integer.parseInt(c[10]);
-            int expectedEvents = Integer.parseInt(c[11]);
+            String holderPrimaryType = c[9];
+            String expectedSource = c[10];
+            int expectedBonus = Integer.parseInt(c[11]);
+            int expectedEvents = Integer.parseInt(c[12]);
 
             PostDamageHookResult result = BuiltinPostDamageHooks.standardRegistry().resolve(
-                    context(moveType, category, ability, holderTeam, holderPosition, active, fainted, name.equals("first_source_wins"))
+                    context(
+                            moveType,
+                            category,
+                            ability,
+                            holderTeam,
+                            holderPosition,
+                            active,
+                            fainted,
+                            holderPrimaryType,
+                            name.equals("first_source_wins")
+                    )
             );
 
             String actualSource = result.events().stream()
@@ -70,13 +81,31 @@ class SpatialDamageAuraOracleParityTest {
             GridCoord holderPosition,
             boolean active,
             boolean fainted,
+            String holderPrimaryType,
             boolean secondHolder
     ) {
-        RuntimeCombatantState actor = combatant("actor", new GridCoord(1, 1), 20, List.of());
-        RuntimeCombatantState target = combatant("target", new GridCoord(1, 0), 20, List.of());
-        RuntimeCombatantState holder = combatant("ally-1", holderPosition, fainted ? 0 : 20, List.of(ability));
+        RuntimeCombatantState actor = combatant("actor", new GridCoord(1, 1), 20, List.of(), List.of("Normal"));
+        RuntimeCombatantState target = combatant("target", new GridCoord(1, 0), 20, List.of(), List.of("Normal"));
+        RuntimeCombatantState holder = combatant(
+                "ally-1",
+                holderPosition,
+                fainted ? 0 : 20,
+                List.of(ability),
+                List.of(holderPrimaryType.isBlank() ? "Normal" : holderPrimaryType)
+        );
         List<RuntimeCombatantState> combatants = secondHolder
-                ? List.of(actor, target, holder, combatant("ally-2", new GridCoord(2, 1), 20, List.of(ability)))
+                ? List.of(
+                        actor,
+                        target,
+                        holder,
+                        combatant(
+                                "ally-2",
+                                new GridCoord(2, 1),
+                                20,
+                                List.of(ability),
+                                List.of(holderPrimaryType.isBlank() ? "Normal" : holderPrimaryType)
+                        )
+                )
                 : List.of(actor, target, holder);
         Map<String, CombatantAffiliationState> affiliations = secondHolder
                 ? Map.of(
@@ -101,7 +130,13 @@ class SpatialDamageAuraOracleParityTest {
         return new PostDamageHookContext(state, "actor", "target", actor, target, move, move.requireCombatProfile());
     }
 
-    private static RuntimeCombatantState combatant(String id, GridCoord position, int hp, List<String> abilities) {
+    private static RuntimeCombatantState combatant(
+            String id,
+            GridCoord position,
+            int hp,
+            List<String> abilities,
+            List<String> types
+    ) {
         return new RuntimeCombatantState(
                 id,
                 MovementProfile.walking(position, 4),
@@ -109,7 +144,7 @@ class SpatialDamageAuraOracleParityTest {
                 20,
                 new ActionBudget(),
                 null, null, 0, false, false, false, false,
-                List.of("Normal"), List.of(), abilities
+                types, List.of(), abilities
         );
     }
 }
