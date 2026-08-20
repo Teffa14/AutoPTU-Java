@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract a stable manifest for Python BattleState._build_initiative_order()."""
+"""Extract a stable manifest for Python initiative rebuild behavior."""
 from __future__ import annotations
 
 import argparse
@@ -30,6 +30,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--source-output", type=Path)
     args = parser.parse_args()
 
     source = args.source_root.resolve() / "auto_ptu" / "rules" / "battle_state.py"
@@ -70,6 +71,17 @@ def main() -> int:
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("\n".join(f"{kind}\t{value}" for kind, value in rows) + "\n", encoding="utf-8")
+
+    if args.source_output is not None:
+        helpers = [
+            method,
+            find_method(tree, "_initiative_entry_for_pokemon"),
+            find_method(tree, "_trainer_initiative_speed"),
+        ]
+        source_output = args.source_output.resolve()
+        source_output.parent.mkdir(parents=True, exist_ok=True)
+        source_output.write_text("\n\n".join(ast.unparse(item) for item in helpers) + "\n", encoding="utf-8")
+
     print(f"wrote {len(rows)} initiative rebuild contract rows to {output}")
     return 0
 
