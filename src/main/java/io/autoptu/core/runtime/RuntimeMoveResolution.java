@@ -5,12 +5,16 @@ import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.hook.BuiltinDamageModifierHooks;
 import io.autoptu.core.hook.BuiltinEffectiveMoveHooks;
+import io.autoptu.core.hook.BuiltinPostDamageHooks;
 import io.autoptu.core.hook.DamageModifierHookContext;
 import io.autoptu.core.hook.DamageModifierHookRegistry;
 import io.autoptu.core.hook.DamageModifierHookResult;
 import io.autoptu.core.hook.EffectiveMoveHookContext;
 import io.autoptu.core.hook.EffectiveMoveHookRegistry;
 import io.autoptu.core.hook.EffectiveMoveHookResult;
+import io.autoptu.core.hook.PostDamageHookContext;
+import io.autoptu.core.hook.PostDamageHookRegistry;
+import io.autoptu.core.hook.PostDamageHookResult;
 import io.autoptu.core.model.AttackModifier;
 import io.autoptu.core.model.CombatantStatProfile;
 import io.autoptu.core.model.GridCoord;
@@ -31,14 +35,17 @@ import java.util.Set;
 /**
  * Minecraft-facing direct-move entrypoint that derives effective combat stats,
  * evasion, accuracy stage, Sniper, No Guard, Blur, Probability Control, pre-damage
- * move transformations, STAB, type effectiveness, damage modifiers, and intrinsic
- * move metadata from authoritative runtime state before delegating to BattleRuntime.
+ * move transformations, STAB, type effectiveness, damage modifiers, post-damage
+ * ability effects, and intrinsic move metadata from authoritative runtime state
+ * before delegating to BattleRuntime.
  */
 public final class RuntimeMoveResolution {
     private static final EffectiveMoveHookRegistry EFFECTIVE_MOVE_HOOKS =
             BuiltinEffectiveMoveHooks.standardRegistry();
     private static final DamageModifierHookRegistry DAMAGE_MODIFIER_HOOKS =
             BuiltinDamageModifierHooks.standardRegistry();
+    private static final PostDamageHookRegistry POST_DAMAGE_HOOKS =
+            BuiltinPostDamageHooks.standardRegistry();
 
     private RuntimeMoveResolution() {
     }
@@ -145,6 +152,8 @@ public final class RuntimeMoveResolution {
         double typeMultiplier = authoritativeTypeMultiplier(effectiveMetadata, target, input.typeMultiplier());
         DamageModifierHookResult damageHooks = authoritativeDamageHooks(
                 state, choice, move, actor, target, effectiveMetadata);
+        PostDamageHookResult postDamageHooks = authoritativePostDamageHooks(
+                state, choice, move, actor, target, effectiveMetadata);
         MoveResolutionInput stateBoundInput = new MoveResolutionInput(
                 effectiveMetadata.ac(), evasion, actor.accuracyStage(), effectiveMetadata.critRange(), meleeNoGuard,
                 target.blur(), actor.probabilityControl(), effectiveDb, attackValue,
@@ -152,7 +161,7 @@ public final class RuntimeMoveResolution {
         );
         return BattleRuntime.applyAuthoritativeMove(state, choice, move, actorSize, targetSize,
                 lineOfSightBlockers, source, rng, stateBoundInput,
-                combineEvents(effectiveMoveHooks.events(), damageHooks.events()));
+                combineEvents(effectiveMoveHooks.events(), damageHooks.events()), postDamageHooks);
     }
 
     private static EffectiveMoveHookResult authoritativeEffectiveMoveHooks(
@@ -209,6 +218,25 @@ public final class RuntimeMoveResolution {
         DamageModifierHookResult hookResult = DAMAGE_MODIFIER_HOOKS.resolve(hookContext);
         resolved.addAll(hookResult.modifiers());
         return DamageModifierHookResult.of(resolved, hookResult.events());
+    }
+
+    private static PostDamageHookResult authoritativePostDamageHooks(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            MoveOption move,
+            RuntimeCombatantState actor,
+            RuntimeCombatantState target,
+            MoveCombatProfile metadata
+    ) {
+        return POST_DAMAGE_HOOKS.resolve(new PostDamageHookContext(
+                state,
+                choice.actorId(),
+                choice.targetId(),
+                actor,
+                target,
+                move,
+                metadata
+        ));
     }
 
     private static List<BattleEvent> combineEvents(
