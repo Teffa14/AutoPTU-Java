@@ -80,6 +80,13 @@ public final class BuiltinLifecycleHooks {
                         }
                 )
                 .register(
+                        "combatant-turn-start-effects",
+                        HookSource.SYSTEM,
+                        LifecycleHookPoint.TURN_START,
+                        500,
+                        phaseDispatcher
+                )
+                .register(
                         "combatant-phase-effects",
                         HookSource.SYSTEM,
                         LifecycleHookPoint.PHASE_CHANGE,
