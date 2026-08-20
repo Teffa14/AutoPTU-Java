@@ -46,6 +46,9 @@ class BattleStub:
     def _initiative_entry_for_pokemon(self, actor_id: str):
         return self._entry
 
+    def _room_effect_active(self, name: str) -> bool:
+        return False
+
     def in_trick_room(self) -> bool:
         return False
 
