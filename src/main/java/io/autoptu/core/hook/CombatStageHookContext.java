@@ -2,6 +2,7 @@ package io.autoptu.core.hook;
 
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.runtime.BattleRuntimeState;
+import io.autoptu.core.runtime.CombatStageMutationOptions;
 import io.autoptu.core.runtime.RuntimeCombatantState;
 
 import java.util.Objects;
@@ -10,7 +11,7 @@ import java.util.Objects;
  * Server-owned context passed to combat-stage reaction hooks after a stage change.
  *
  * Minecraft/Cobblemon may render the resulting events but cannot supply the current
- * stages, abilities, or applied delta used by this context.
+ * stages, abilities, applied delta, or recursive hook-suppression state used here.
  */
 public record CombatStageHookContext(
         BattleRuntimeState state,
@@ -20,7 +21,8 @@ public record CombatStageHookContext(
         CombatStat stat,
         int requestedDelta,
         int appliedDelta,
-        String effect
+        String effect,
+        CombatStageMutationOptions options
 ) {
     public CombatStageHookContext {
         state = Objects.requireNonNull(state, "state");
@@ -29,6 +31,21 @@ public record CombatStageHookContext(
         moveId = moveId == null ? "" : moveId.strip();
         stat = Objects.requireNonNull(stat, "stat");
         effect = effect == null ? "" : effect.strip();
+        options = options == null ? CombatStageMutationOptions.NONE : options;
+    }
+
+    public CombatStageHookContext(
+            BattleRuntimeState state,
+            String attackerId,
+            String targetId,
+            String moveId,
+            CombatStat stat,
+            int requestedDelta,
+            int appliedDelta,
+            String effect
+    ) {
+        this(state, attackerId, targetId, moveId, stat, requestedDelta, appliedDelta, effect,
+                CombatStageMutationOptions.NONE);
     }
 
     public RuntimeCombatantState attacker() {
@@ -37,6 +54,10 @@ public record CombatStageHookContext(
 
     public RuntimeCombatantState target() {
         return state.requireCombatant(targetId);
+    }
+
+    public boolean suppresses(String hookId) {
+        return options.suppresses(hookId);
     }
 
     private static String required(String value, String field) {
