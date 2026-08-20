@@ -31,4 +31,20 @@ class AbilityIdentityResolutionTest {
         assertFalse(AbilityIdentityResolution.matchesRegistration(
                 List.of("Mega Launcher [Errata]"), "No Guard"));
     }
+
+    @Test
+    void exactMatchingDoesNotTreatErrataAsBaseAbility() {
+        assertTrue(AbilityIdentityResolution.matchesExact(List.of(" Aura Break "), "aura break"));
+        assertFalse(AbilityIdentityResolution.matchesExact(List.of("Aura Break [Errata]"), "Aura Break"));
+    }
+
+    @Test
+    void exactMatchingPreservesPythonHugePurePowerErrataEquivalences() {
+        assertTrue(AbilityIdentityResolution.matchesExact(
+                List.of("Huge Power / Pure Power [Errata]"), "Huge Power [Errata]"));
+        assertTrue(AbilityIdentityResolution.matchesExact(
+                List.of("Pure Power [Errata]"), "Huge Power / Pure Power [Errata]"));
+        assertFalse(AbilityIdentityResolution.matchesExact(
+                List.of("Huge Power [Errata]"), "Pure Power [Errata]"));
+    }
 }
