@@ -38,6 +38,30 @@ class BattleRoundControllerTest {
     }
 
     @Test
+    void canonicalBattleStateTracksConfiguredRoundAndRoundStart() {
+        BattleRuntimeState state = state(combatant("actor"));
+        assertEquals(0, state.currentRound());
+
+        BattleRoundController rounds = new BattleRoundController(state, 4);
+        assertEquals(4, state.currentRound());
+        assertEquals(rounds.round(), state.currentRound());
+
+        rounds.startRound();
+        assertEquals(5, state.currentRound());
+        assertEquals(rounds.round(), state.currentRound());
+
+        rounds.startRound();
+        assertEquals(6, state.currentRound());
+        assertEquals(rounds.round(), state.currentRound());
+    }
+
+    @Test
+    void canonicalBattleRoundRejectsNegativeLifecycleState() {
+        BattleRuntimeState state = state(combatant("actor"));
+        assertThrows(IllegalArgumentException.class, () -> state.syncCurrentRoundFromLifecycle(-1));
+    }
+
+    @Test
     void roundStartDoesNotResetPokemonActionBuckets() {
         RuntimeCombatantState actor = combatant("actor");
         actor.actionBudget().markAction(ActionType.STANDARD, "used standard");
