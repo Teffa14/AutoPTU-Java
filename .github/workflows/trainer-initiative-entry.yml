@@ -1,0 +1,40 @@
+name: Trainer Initiative Entry Parity
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  trainer-initiative-entry:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Validate trainer initiative entry exporter
+        run: python3 -m py_compile tools/python/export_trainer_initiative_entry_fixtures.py
+
+      - name: Export trainer initiative entry fixtures
+        run: python3 tools/python/export_trainer_initiative_entry_fixtures.py --source-root python-oracle --output build/oracle/trainer-initiative-entry.tsv
+
+      - name: Run Java suite with trainer initiative entry parity
+        run: >-
+          gradle test --stacktrace
+          -PoracleTrainerInitiativeEntry="$GITHUB_WORKSPACE/build/oracle/trainer-initiative-entry.tsv"

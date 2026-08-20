@@ -60,6 +60,7 @@ val oracleInitiativeRoundModifier = providers.gradleProperty("oracleInitiativeRo
 val oracleInitiativeSpeedAbility = providers.gradleProperty("oracleInitiativeSpeedAbility")
 val oracleInitiativeAdditionalBonus = providers.gradleProperty("oracleInitiativeAdditionalBonus")
 val oracleTrainerInitiativeSpeed = providers.gradleProperty("oracleTrainerInitiativeSpeed")
+val oracleTrainerInitiativeEntry = providers.gradleProperty("oracleTrainerInitiativeEntry")
 
 tasks.test {
     useJUnitPlatform()
@@ -102,6 +103,7 @@ tasks.test {
     if (oracleInitiativeSpeedAbility.isPresent) systemProperty("autoptu.initiative.speed.ability.oracle", oracleInitiativeSpeedAbility.get())
     if (oracleInitiativeAdditionalBonus.isPresent) systemProperty("autoptu.initiative.additional.bonus.oracle", oracleInitiativeAdditionalBonus.get())
     if (oracleTrainerInitiativeSpeed.isPresent) systemProperty("autoptu.trainer.initiative.speed.oracle", oracleTrainerInitiativeSpeed.get())
+    if (oracleTrainerInitiativeEntry.isPresent) systemProperty("autoptu.trainer.initiative.entry.oracle", oracleTrainerInitiativeEntry.get())
 }
 
 tasks.withType<JavaCompile>().configureEach {
