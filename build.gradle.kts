@@ -53,6 +53,7 @@ val oraclePerkPhase = providers.gradleProperty("oraclePerkPhase")
 val oracleCombatStageHooks = providers.gradleProperty("oracleCombatStageHooks")
 val oracleSpatialDamageAuras = providers.gradleProperty("oracleSpatialDamageAuras")
 val oracleMoveKeyword = providers.gradleProperty("oracleMoveKeyword")
+val oracleAnalytic = providers.gradleProperty("oracleAnalytic")
 
 tasks.test {
     useJUnitPlatform()
@@ -88,6 +89,7 @@ tasks.test {
     if (oracleCombatStageHooks.isPresent) systemProperty("autoptu.combat.stage.hooks.oracle", oracleCombatStageHooks.get())
     if (oracleSpatialDamageAuras.isPresent) systemProperty("autoptu.spatial.damage.auras.oracle", oracleSpatialDamageAuras.get())
     if (oracleMoveKeyword.isPresent) systemProperty("autoptu.move.keyword.oracle", oracleMoveKeyword.get())
+    if (oracleAnalytic.isPresent) systemProperty("autoptu.analytic.oracle", oracleAnalytic.get())
 }
 
 tasks.withType<JavaCompile>().configureEach {
