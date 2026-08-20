@@ -39,10 +39,15 @@ public record AuraStormResolution(
             return NONE;
         }
         int bonus = 3 * injuries;
-        if (auraBreakErrataInverts) {
-            return new AuraStormResolution(-bonus, true, true);
-        }
-        return new AuraStormResolution(bonus, true, false);
+        AuraBreakErrataAdjustment adjusted = AuraBreakErrataAdjustment.fromResolvedInversion(
+                bonus,
+                auraBreakErrataInverts
+        );
+        return new AuraStormResolution(
+                adjusted.adjustedBonus(),
+                true,
+                adjusted.emitAuraBreakEvent()
+        );
     }
 
     private static void requireInjuries(int injuries) {
