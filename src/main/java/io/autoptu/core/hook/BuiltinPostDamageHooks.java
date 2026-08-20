@@ -24,6 +24,8 @@ public final class BuiltinPostDamageHooks {
                     BuiltinPostDamageHooks::spatialGeneralDamageAuras)
             .register("aura-storm", HookSource.ABILITY, 120,
                     BuiltinPostDamageHooks::auraStorm)
+            .register("aura-storm-errata", HookSource.ABILITY, 130,
+                    BuiltinPostDamageHooks::auraStormErrata)
             .build();
 
     private BuiltinPostDamageHooks() {
@@ -47,7 +49,7 @@ public final class BuiltinPostDamageHooks {
             String sourceId = firstAlliedSource(context, aura);
             if (sourceId == null) continue;
             bonus += aura.bonus();
-            events.add(damageBonusEvent(context, sourceId, aura.abilityName(), aura.bonus()));
+            events.add(damageRuleEvent(context, sourceId, context.actorId(), aura.abilityName(), "damage_bonus", aura.bonus(), context.target().hp()));
         }
         return new PostDamageHookResult(bonus, events);
     }
@@ -65,13 +67,13 @@ public final class BuiltinPostDamageHooks {
         String powerSpotSource = firstAlliedAbilitySource(context, "Power Spot", 2, false, moveType);
         if (powerSpotSource != null) {
             bonus += 5;
-            events.add(damageBonusEvent(context, powerSpotSource, "Power Spot", 5));
+            events.add(damageRuleEvent(context, powerSpotSource, context.actorId(), "Power Spot", "damage_bonus", 5, context.target().hp()));
         }
 
         String typeAuraSource = firstAlliedAbilitySource(context, "Type Aura", 3, true, moveType);
         if (typeAuraSource != null) {
             bonus += 5;
-            events.add(damageBonusEvent(context, typeAuraSource, "Type Aura", 5));
+            events.add(damageRuleEvent(context, typeAuraSource, context.actorId(), "Type Aura", "damage_bonus", 5, context.target().hp()));
         }
 
         return new PostDamageHookResult(bonus, events);
@@ -96,30 +98,85 @@ public final class BuiltinPostDamageHooks {
         }
         return new PostDamageHookResult(
                 resolution.damageBonus(),
-                List.of(damageBonusEvent(
+                List.of(damageRuleEvent(
                         context,
                         context.actorId(),
+                        context.target().combatantId(),
                         "Aura Storm",
-                        resolution.damageBonus()
+                        "damage_bonus",
+                        resolution.damageBonus(),
+                        context.target().hp()
                 ))
         );
     }
 
-    private static RuleEffectEvent damageBonusEvent(
+    private static PostDamageHookResult auraStormErrata(PostDamageHookContext context) {
+        if ("status".equalsIgnoreCase(context.metadata().damageCategory())) {
+            return PostDamageHookResult.empty();
+        }
+        boolean hasAuraStormErrata = AbilityIdentityResolution.matchesExact(
+                context.actor().abilities(), "Aura Storm [Errata]");
+        int injuries = context.state().injuryHistory().currentInjuries(context.actorId());
+        AuraStormResolution base = AuraStormResolution.errata(hasAuraStormErrata, injuries, false);
+        if (base.damageBonus() == 0 || !base.emitAuraStormEvent()) {
+            return PostDamageHookResult.empty();
+        }
+
+        AuraBreakErrataAdjustment adjustment = AuraBreakErrataAdjustment.resolve(
+                "Aura Storm [Errata]",
+                base.damageBonus(),
+                context.state().currentRound(),
+                context.actor().temporaryEffects().getAll("aura_break_errata")
+        );
+        if (adjustment.clearAuraBreakEffects()) {
+            context.actor().temporaryEffects().removeAll("aura_break_errata");
+        }
+
+        ArrayList<BattleEvent> events = new ArrayList<>();
+        if (adjustment.emitAuraBreakEvent()) {
+            String sourceId = adjustment.sourceId().isBlank() ? context.actorId() : adjustment.sourceId();
+            events.add(damageRuleEvent(
+                    context,
+                    sourceId,
+                    context.actorId(),
+                    "Aura Break [Errata]",
+                    "damage_penalty",
+                    -base.damageBonus(),
+                    context.actor().hp()
+            ));
+        }
+
+        int adjustedBonus = adjustment.adjustedBonus();
+        events.add(damageRuleEvent(
+                context,
+                context.actorId(),
+                context.target().combatantId(),
+                "Aura Storm [Errata]",
+                adjustedBonus > 0 ? "damage_bonus" : "damage_penalty",
+                adjustedBonus,
+                context.target().hp()
+        ));
+        return new PostDamageHookResult(adjustedBonus, events);
+    }
+
+    private static RuleEffectEvent damageRuleEvent(
             PostDamageHookContext context,
             String sourceId,
+            String targetId,
             String abilityName,
-            int amount
+            String effect,
+            int amount,
+            int actorHp
     ) {
         return new RuleEffectEvent(
                 "ability",
                 abilityName,
                 sourceId,
-                context.actorId(),
+                targetId,
                 context.move().moveId(),
-                "damage_bonus",
+                effect,
                 amount,
-                context.target().hp()
+                actorHp
         );
     }
 
