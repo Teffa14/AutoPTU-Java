@@ -28,10 +28,10 @@ public final class BattleRoundController {
     public BattleRoundController(BattleRuntimeState state) { this(state, 0, BuiltinLifecycleHooks.registry()); }
     public BattleRoundController(BattleRuntimeState state, int initialRound) { this(state, initialRound, BuiltinLifecycleHooks.registry()); }
     public BattleRoundController(BattleRuntimeState state, int initialRound, LifecycleHookRegistry lifecycleHooks) {
-        this(state, initialRound, lifecycleHooks, canonicalDamageHistory(state), new RoundInjuryHistoryState());
+        this(state, initialRound, lifecycleHooks, canonicalDamageHistory(state), canonicalInjuryHistory(state));
     }
     public BattleRoundController(BattleRuntimeState state, int initialRound, LifecycleHookRegistry lifecycleHooks, RoundDamageHistoryState damageHistory) {
-        this(state, initialRound, lifecycleHooks, damageHistory, new RoundInjuryHistoryState());
+        this(state, initialRound, lifecycleHooks, damageHistory, canonicalInjuryHistory(state));
     }
     public BattleRoundController(BattleRuntimeState state, int initialRound, LifecycleHookRegistry lifecycleHooks, RoundDamageHistoryState damageHistory, RoundInjuryHistoryState injuryHistory) {
         this(state, initialRound, lifecycleHooks, damageHistory, injuryHistory, new BattleTurnState());
@@ -146,5 +146,10 @@ public final class BattleRoundController {
     private static RoundDamageHistoryState canonicalDamageHistory(BattleRuntimeState state) {
         if (state == null) throw new IllegalArgumentException("state is required");
         return state.damageHistory();
+    }
+
+    private static RoundInjuryHistoryState canonicalInjuryHistory(BattleRuntimeState state) {
+        if (state == null) throw new IllegalArgumentException("state is required");
+        return state.injuryHistory();
     }
 }

@@ -25,6 +25,7 @@ public final class BattleRuntimeState {
     private final LinkedHashMap<String, TrainerRuntimeState> trainersById = new LinkedHashMap<>();
     private final LinkedHashMap<String, String> controllerByCombatant = new LinkedHashMap<>();
     private final RoundDamageHistoryState damageHistory = new RoundDamageHistoryState();
+    private final RoundInjuryHistoryState injuryHistory = new RoundInjuryHistoryState();
 
     public BattleRuntimeState(MovementGrid grid, List<RuntimeCombatantState> combatants) {
         this(grid, combatants, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
@@ -213,6 +214,11 @@ public final class BattleRuntimeState {
     /** Server-owned damage history shared by move resolution and round lifecycle. */
     public RoundDamageHistoryState damageHistory() {
         return damageHistory;
+    }
+
+    /** Server-owned current injury counts and round snapshots shared by runtime hooks and lifecycle. */
+    public RoundInjuryHistoryState injuryHistory() {
+        return injuryHistory;
     }
 
     public RuntimeCombatantState requireCombatant(String combatantId) {
