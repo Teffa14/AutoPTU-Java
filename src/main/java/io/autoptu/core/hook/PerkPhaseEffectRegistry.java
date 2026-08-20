@@ -40,9 +40,7 @@ public final class PerkPhaseEffectRegistry {
             Collection<String> trainerFeatures
     ) {
         Objects.requireNonNull(context, "context");
-        if (context.point() != LifecycleHookPoint.PHASE_CHANGE) {
-            throw new IllegalArgumentException("perk phase effects require PHASE_CHANGE context");
-        }
+        requireCombatantPhaseContext(context);
         if (context.actorId().isBlank()) return LifecycleHookResult.empty();
         TurnPhase phase = Objects.requireNonNull(context.phase(), "phase");
         Set<String> normalizedFeatures = normalizeFeatures(trainerFeatures);
@@ -63,6 +61,12 @@ public final class PerkPhaseEffectRegistry {
             if (result.pendingStatusSkip() != null) pending = result.pendingStatusSkip();
         }
         return new LifecycleHookResult(events, pending);
+    }
+
+    private static void requireCombatantPhaseContext(LifecycleHookContext context) {
+        if (context.point() == LifecycleHookPoint.PHASE_CHANGE) return;
+        if (context.point() == LifecycleHookPoint.TURN_START && context.phase() == TurnPhase.START) return;
+        throw new IllegalArgumentException("perk phase effects require PHASE_CHANGE or START TURN_START context");
     }
 
     private static Set<String> normalizeFeatures(Collection<String> trainerFeatures) {
