@@ -10,11 +10,14 @@ import io.autoptu.core.event.BattleEventFactory;
 import io.autoptu.core.event.MoveResolvedEvent;
 import io.autoptu.core.event.StatusSkipEvent;
 import io.autoptu.core.event.TrainerFeatureEvent;
+import io.autoptu.core.hook.PostDamageHookContext;
+import io.autoptu.core.hook.PostDamageHookRegistry;
 import io.autoptu.core.hook.PostDamageHookResult;
 import io.autoptu.core.model.AccuracyResult;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.DamageResult;
 import io.autoptu.core.model.GridCoord;
+import io.autoptu.core.model.MoveCombatProfile;
 import io.autoptu.core.model.ShiftApplicationResult;
 import io.autoptu.core.model.TurnPhase;
 import io.autoptu.core.random.PythonRandom;
@@ -43,13 +46,6 @@ public final class BattleRuntime {
         throw new IllegalArgumentException("unsupported battle choice: " + choice.getClass().getName());
     }
 
-    /**
-     * Resolve the Python StatusController pending status-skip path from canonical state.
-     *
-     * Trainer Feature bypasses are derived server-side before action buckets are consumed.
-     * Minecraft/Cobblemon receives only semantic playback events and cannot decide that a
-     * status skip is ignored.
-     */
     public static AppliedActionResult applyStatusSkip(
             BattleRuntimeState state,
             String actorId,
@@ -90,11 +86,6 @@ public final class BattleRuntime {
         );
     }
 
-    /**
-     * Resolve a move and prepend semantic rule-effect events derived from the same
-     * authoritative snapshot. The event list is playback output only and cannot alter
-     * legality, RNG, action economy, damage, or resulting state.
-     */
     public static AppliedActionResult applyAuthoritativeMove(
             BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
@@ -107,12 +98,6 @@ public final class BattleRuntime {
         );
     }
 
-    /**
-     * Preferred authoritative move path when effects adjust final damage after ordinary
-     * damage/type arithmetic. Signed post-damage adjustments apply only to successful hits,
-     * before HP mutation and damage-history recording. Their semantic events are emitted after
-     * pre-resolution rule events and before the final MoveResolvedEvent.
-     */
     public static AppliedActionResult applyAuthoritativeMove(
             BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
@@ -120,13 +105,51 @@ public final class BattleRuntime {
             List<? extends BattleEvent> preResolutionEvents,
             PostDamageHookResult postDamageHooks
     ) {
+        if (postDamageHooks == null) throw new IllegalArgumentException("postDamageHooks is required");
+        return applyAuthoritativeMoveInternal(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
+                rng, input, preResolutionEvents, postDamageHooks, null, null
+        );
+    }
+
+    /**
+     * Preferred move path for stateful post-result effects. The registry executes only after
+     * accuracy and ordinary DamageResolution have consumed the authoritative RNG. This matches
+     * Python post_result hook timing while keeping HP/history mutation downstream of the final
+     * signed damage adjustment.
+     */
+    public static AppliedActionResult applyAuthoritativeMove(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            PythonRandom rng, MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            PostDamageHookRegistry postDamageHookRegistry,
+            MoveCombatProfile effectiveMetadata
+    ) {
+        if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHookRegistry is required");
+        if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
+        return applyAuthoritativeMoveInternal(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
+                rng, input, preResolutionEvents, null, postDamageHookRegistry, effectiveMetadata
+        );
+    }
+
+    private static AppliedActionResult applyAuthoritativeMoveInternal(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            PythonRandom rng, MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            PostDamageHookResult precomputedPostDamageHooks,
+            PostDamageHookRegistry deferredPostDamageHooks,
+            MoveCombatProfile effectiveMetadata
+    ) {
         if (rng == null) throw new IllegalArgumentException("rng is required");
         if (input == null) throw new IllegalArgumentException("input is required");
-        if (postDamageHooks == null) throw new IllegalArgumentException("postDamageHooks is required");
 
         MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
 
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
+        RuntimeCombatantState target = state.requireCombatant(choice.targetId());
         int roll = rng.randIntInclusive(1, 20);
         AccuracyResult accuracy = Accuracy.resolve(input.accuracyCheck(roll, null));
         if (!accuracy.hit() && input.rerollOnMiss()) {
@@ -136,12 +159,27 @@ public final class BattleRuntime {
         }
 
         DamageResult damage = accuracy.hit() ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit())) : null;
+        PostDamageHookResult resolvedPostDamageHooks = precomputedPostDamageHooks == null
+                ? PostDamageHookResult.empty()
+                : precomputedPostDamageHooks;
+        if (accuracy.hit() && deferredPostDamageHooks != null) {
+            resolvedPostDamageHooks = deferredPostDamageHooks.resolve(new PostDamageHookContext(
+                    state,
+                    choice.actorId(),
+                    choice.targetId(),
+                    actor,
+                    target,
+                    move,
+                    effectiveMetadata,
+                    rng
+            ));
+        }
         if (accuracy.hit()) {
-            damage = applyPostDamageAdjustment(damage, postDamageHooks.flatDamageBonus());
+            damage = applyPostDamageAdjustment(damage, resolvedPostDamageHooks.flatDamageBonus());
         }
         AppliedActionResult result = applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
         if (accuracy.hit()) {
-            result = prependEvents(postDamageHooks.events(), result);
+            result = prependEvents(resolvedPostDamageHooks.events(), result);
         }
         actor.moveFrequencyUsage().recordUse(move);
         return prependEvents(preResolutionEvents, result);
@@ -197,7 +235,6 @@ public final class BattleRuntime {
         return new AppliedActionResult(List.of(event));
     }
 
-    /** Clear round-scoped EOT usage when the outer turn controller advances the round. */
     public static void resetRoundMoveFrequency(BattleRuntimeState state) {
         if (state == null) throw new IllegalArgumentException("state is required");
         for (String combatantId : state.combatantIds()) {
