@@ -10,6 +10,7 @@ import io.autoptu.core.event.BattleEventFactory;
 import io.autoptu.core.event.MoveResolvedEvent;
 import io.autoptu.core.event.StatusSkipEvent;
 import io.autoptu.core.event.TrainerFeatureEvent;
+import io.autoptu.core.hook.PostDamageHookResult;
 import io.autoptu.core.model.AccuracyResult;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.DamageResult;
@@ -28,6 +29,7 @@ import io.autoptu.core.rules.StatusSkipResolution;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 public final class BattleRuntime {
@@ -100,8 +102,30 @@ public final class BattleRuntime {
             PythonRandom rng, MoveResolutionInput input,
             List<? extends BattleEvent> preResolutionEvents
     ) {
+        return applyAuthoritativeMove(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers,
+                source, rng, input, preResolutionEvents, PostDamageHookResult::unchanged
+        );
+    }
+
+    /**
+     * Full authoritative direct-move pipeline with a post-damage seam.
+     *
+     * Python has rule families that alter the already-resolved damage result before HP
+     * mutation (for example adjacent damage auras). The resolver runs only on a hit,
+     * after DamageResolution and before applyResolvedMoveOutcome. Minecraft adapters do
+     * not participate in this stage and only receive its semantic events.
+     */
+    public static AppliedActionResult applyAuthoritativeMove(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            PythonRandom rng, MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            Function<DamageResult, PostDamageHookResult> postDamageResolver
+    ) {
         if (rng == null) throw new IllegalArgumentException("rng is required");
         if (input == null) throw new IllegalArgumentException("input is required");
+        if (postDamageResolver == null) throw new IllegalArgumentException("postDamageResolver is required");
 
         MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
 
@@ -115,9 +139,18 @@ public final class BattleRuntime {
         }
 
         DamageResult damage = accuracy.hit() ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit())) : null;
+        ArrayList<BattleEvent> beforeOutcomeEvents = new ArrayList<>();
+        if (preResolutionEvents != null) beforeOutcomeEvents.addAll(preResolutionEvents);
+        if (accuracy.hit()) {
+            PostDamageHookResult postDamage = postDamageResolver.apply(damage);
+            if (postDamage == null) throw new IllegalStateException("postDamageResolver returned null");
+            damage = postDamage.damage();
+            beforeOutcomeEvents.addAll(postDamage.events());
+        }
+
         AppliedActionResult result = applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
         actor.moveFrequencyUsage().recordUse(move);
-        return prependEvents(preResolutionEvents, result);
+        return prependEvents(beforeOutcomeEvents, result);
     }
 
     public static AppliedActionResult applyRevalidatedResolvedMoveOutcome(
