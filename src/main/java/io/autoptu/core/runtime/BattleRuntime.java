@@ -10,6 +10,7 @@ import io.autoptu.core.event.BattleEventFactory;
 import io.autoptu.core.event.MoveResolvedEvent;
 import io.autoptu.core.event.StatusSkipEvent;
 import io.autoptu.core.event.TrainerFeatureEvent;
+import io.autoptu.core.hook.PostDamageHookResult;
 import io.autoptu.core.model.AccuracyResult;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.DamageResult;
@@ -85,7 +86,7 @@ public final class BattleRuntime {
     ) {
         return applyAuthoritativeMove(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers,
-                source, rng, input, List.of()
+                source, rng, input, List.of(), PostDamageHookResult.empty()
         );
     }
 
@@ -100,8 +101,28 @@ public final class BattleRuntime {
             PythonRandom rng, MoveResolutionInput input,
             List<? extends BattleEvent> preResolutionEvents
     ) {
+        return applyAuthoritativeMove(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers,
+                source, rng, input, preResolutionEvents, PostDamageHookResult.empty()
+        );
+    }
+
+    /**
+     * Preferred authoritative move path when effects modify final damage after ordinary
+     * damage/type arithmetic. Post-damage bonuses apply only to successful hits, before
+     * HP mutation and damage-history recording. Their semantic events are emitted after
+     * pre-resolution rule events and before the final MoveResolvedEvent.
+     */
+    public static AppliedActionResult applyAuthoritativeMove(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            PythonRandom rng, MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            PostDamageHookResult postDamageHooks
+    ) {
         if (rng == null) throw new IllegalArgumentException("rng is required");
         if (input == null) throw new IllegalArgumentException("input is required");
+        if (postDamageHooks == null) throw new IllegalArgumentException("postDamageHooks is required");
 
         MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
 
@@ -115,7 +136,13 @@ public final class BattleRuntime {
         }
 
         DamageResult damage = accuracy.hit() ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit())) : null;
+        if (accuracy.hit()) {
+            damage = applyPostDamageBonus(damage, postDamageHooks.flatDamageBonus());
+        }
         AppliedActionResult result = applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
+        if (accuracy.hit()) {
+            result = prependEvents(postDamageHooks.events(), result);
+        }
         actor.moveFrequencyUsage().recordUse(move);
         return prependEvents(preResolutionEvents, result);
     }
@@ -176,6 +203,21 @@ public final class BattleRuntime {
         for (String combatantId : state.combatantIds()) {
             state.requireCombatant(combatantId).moveFrequencyUsage().resetRound();
         }
+    }
+
+    private static DamageResult applyPostDamageBonus(DamageResult damage, int flatDamageBonus) {
+        if (damage == null) throw new IllegalArgumentException("damage is required");
+        if (flatDamageBonus <= 0) return damage;
+        int finalDamage = Math.addExact(damage.damage(), flatDamageBonus);
+        return new DamageResult(
+                damage.dice(),
+                damage.baseRoll(),
+                damage.criticalExtraRoll(),
+                damage.damageRoll(),
+                damage.preModifierDamage(),
+                damage.preTypeDamage(),
+                finalDamage
+        );
     }
 
     private static AppliedActionResult prependEvents(
