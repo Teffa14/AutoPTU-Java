@@ -65,6 +65,7 @@ jobs:
           python3 -m py_compile tools/python/export_move_keyword_fixtures.py
           python3 -m py_compile tools/python/export_analytic_fixtures.py
           python3 -m py_compile tools/python/export_initiative_turn_fixtures.py
+          python3 -m py_compile tools/python/export_pokemon_initiative_entry_fixtures.py
 
       - name: Export Python oracle fixtures
         run: |
@@ -102,6 +103,7 @@ jobs:
           python3 tools/python/export_move_keyword_fixtures.py --source-root python-oracle --output build/oracle/move-keywords.tsv
           python3 tools/python/export_analytic_fixtures.py --source-root python-oracle --output build/oracle/analytic.tsv
           python3 tools/python/export_initiative_turn_fixtures.py --source-root python-oracle --output build/oracle/initiative-turn.tsv
+          python3 tools/python/export_pokemon_initiative_entry_fixtures.py --source-root python-oracle --output build/oracle/pokemon-initiative-entry.tsv
 
       - name: Run Java core and Python-oracle parity tests
         run: >-
@@ -140,3 +142,4 @@ jobs:
           -PoracleMoveKeyword="$GITHUB_WORKSPACE/build/oracle/move-keywords.tsv"
           -PoracleAnalytic="$GITHUB_WORKSPACE/build/oracle/analytic.tsv"
           -PoracleInitiativeTurn="$GITHUB_WORKSPACE/build/oracle/initiative-turn.tsv"
+          -PoraclePokemonInitiativeEntry="$GITHUB_WORKSPACE/build/oracle/pokemon-initiative-entry.tsv"
