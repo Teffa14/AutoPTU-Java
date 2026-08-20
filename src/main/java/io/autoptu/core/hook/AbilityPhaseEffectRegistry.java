@@ -33,9 +33,7 @@ public final class AbilityPhaseEffectRegistry {
 
     public LifecycleHookResult resolve(LifecycleHookContext context) {
         Objects.requireNonNull(context, "context");
-        if (context.point() != LifecycleHookPoint.PHASE_CHANGE) {
-            throw new IllegalArgumentException("ability phase effects require PHASE_CHANGE context");
-        }
+        requireCombatantPhaseContext(context);
         if (context.actorId().isBlank()) return LifecycleHookResult.empty();
         TurnPhase phase = Objects.requireNonNull(context.phase(), "phase");
         RuntimeCombatantState actor = context.state().requireCombatant(context.actorId());
@@ -54,6 +52,12 @@ public final class AbilityPhaseEffectRegistry {
             if (result.pendingStatusSkip() != null) pending = result.pendingStatusSkip();
         }
         return new LifecycleHookResult(events, pending);
+    }
+
+    private static void requireCombatantPhaseContext(LifecycleHookContext context) {
+        if (context.point() == LifecycleHookPoint.PHASE_CHANGE) return;
+        if (context.point() == LifecycleHookPoint.TURN_START && context.phase() == TurnPhase.START) return;
+        throw new IllegalArgumentException("ability phase effects require PHASE_CHANGE or START TURN_START context");
     }
 
     public record Registration(

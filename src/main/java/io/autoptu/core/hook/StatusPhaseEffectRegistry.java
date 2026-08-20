@@ -41,9 +41,7 @@ public final class StatusPhaseEffectRegistry {
 
     public LifecycleHookResult resolve(LifecycleHookContext context) {
         Objects.requireNonNull(context, "context");
-        if (context.point() != LifecycleHookPoint.PHASE_CHANGE) {
-            throw new IllegalArgumentException("status phase effects require PHASE_CHANGE context");
-        }
+        requireCombatantPhaseContext(context);
         if (context.actorId().isBlank()) {
             return LifecycleHookResult.empty();
         }
@@ -69,6 +67,12 @@ public final class StatusPhaseEffectRegistry {
             }
         }
         return new LifecycleHookResult(events, pending);
+    }
+
+    private static void requireCombatantPhaseContext(LifecycleHookContext context) {
+        if (context.point() == LifecycleHookPoint.PHASE_CHANGE) return;
+        if (context.point() == LifecycleHookPoint.TURN_START && context.phase() == TurnPhase.START) return;
+        throw new IllegalArgumentException("status phase effects require PHASE_CHANGE or START TURN_START context");
     }
 
     public record Registration(

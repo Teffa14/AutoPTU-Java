@@ -1,5 +1,7 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.event.RuleEffectEvent;
+import io.autoptu.core.event.StatusSkipEvent;
 import io.autoptu.core.event.TurnStartedEvent;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.GridCoord;
@@ -19,6 +21,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,6 +49,8 @@ class InitiativeTurnLifecycleOracleParityTest {
         assertEquals("1", fixtures.get("logs_turn_start"));
         assertEquals("1", fixtures.get("runs_start_phase_effects"));
         assertEquals("1", fixtures.get("consumes_pending_status_skip"));
+        assertEquals("1", fixtures.get("turn_start_precedes_start_effects"));
+        assertEquals("1", fixtures.get("start_effects_precede_pending_skip"));
     }
 
     @Test
@@ -86,6 +91,36 @@ class InitiativeTurnLifecycleOracleParityTest {
         assertEquals(3, event.round());
         assertEquals(3, event.initiativeIndex());
         assertEquals(TurnPhase.START, event.phase());
+    }
+
+    @Test
+    void startEffectsAndPendingSkipResolveBeforeDecisionWindow() {
+        RuntimeCombatantState actor = combatant("actor", 20);
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(actor),
+                Map.of("actor", Set.of("Flinch")),
+                Map.of(),
+                Map.of(),
+                Map.of("actor", CombatantAffiliationState.active("blue"))
+        );
+        BattleRoundController controller = new BattleRoundController(state, 3);
+        controller.replaceInitiativeOrder(List.of("actor"));
+
+        InitiativeTurnAdvanceResult result = controller.advanceInitiativeTurn();
+
+        assertTrue(result.hasActor());
+        assertEquals(3, result.events().size());
+        assertInstanceOf(TurnStartedEvent.class, result.events().get(0));
+        RuleEffectEvent flinch = assertInstanceOf(RuleEffectEvent.class, result.events().get(1));
+        assertEquals("status", flinch.sourceKind());
+        assertEquals("flinch", flinch.sourceName());
+        assertEquals("flinch", flinch.effect());
+        StatusSkipEvent skip = assertInstanceOf(StatusSkipEvent.class, result.events().get(2));
+        assertEquals("actor", skip.actorId());
+        assertEquals(TurnPhase.START, skip.phase());
+        assertFalse(actor.actionBudget().hasActionAvailable(ActionType.STANDARD));
+        assertFalse(actor.actionBudget().hasActionAvailable(ActionType.SHIFT));
     }
 
     @Test

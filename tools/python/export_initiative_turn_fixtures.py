@@ -35,6 +35,17 @@ def calls(method: ast.FunctionDef, name: str) -> bool:
     )
 
 
+def call_line(method: ast.FunctionDef, name: str) -> int | None:
+    lines = [
+        node.lineno
+        for node in ast.walk(method)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == name
+    ]
+    return min(lines) if lines else None
+
+
 def reads_attribute(method: ast.FunctionDef, name: str) -> bool:
     return any(isinstance(node, ast.Attribute) and node.attr == name for node in ast.walk(method))
 
@@ -66,7 +77,8 @@ def assigns_phase_start(method: ast.FunctionDef) -> bool:
     return False
 
 
-def logs_event_type(method: ast.FunctionDef, event_type: str) -> bool:
+def log_event_line(method: ast.FunctionDef, event_type: str) -> int | None:
+    lines: list[int] = []
     for node in ast.walk(method):
         if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
             continue
@@ -79,8 +91,16 @@ def logs_event_type(method: ast.FunctionDef, event_type: str) -> bool:
                 and isinstance(value, ast.Constant)
                 and value.value == event_type
             ):
-                return True
-    return False
+                lines.append(node.lineno)
+    return min(lines) if lines else None
+
+
+def logs_event_type(method: ast.FunctionDef, event_type: str) -> bool:
+    return log_event_line(method, event_type) is not None
+
+
+def ordered(*lines: int | None) -> bool:
+    return all(line is not None for line in lines) and list(lines) == sorted(lines)
 
 
 def main() -> int:
@@ -92,6 +112,10 @@ def main() -> int:
     source = args.source_root.resolve() / "auto_ptu" / "rules" / "battle_state.py"
     tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
     method = find_method(tree, "advance_turn")
+
+    turn_start_line = log_event_line(method, "turn_start")
+    start_effects_line = call_line(method, "_run_phase_effects")
+    pending_skip_line = call_line(method, "_consume_pending_status_skip")
 
     fixtures = [
         ("increments_cursor_before_selection", has_augmented_index(method)),
@@ -105,6 +129,8 @@ def main() -> int:
         ("logs_turn_start", logs_event_type(method, "turn_start")),
         ("runs_start_phase_effects", calls(method, "_run_phase_effects")),
         ("consumes_pending_status_skip", calls(method, "_consume_pending_status_skip")),
+        ("turn_start_precedes_start_effects", ordered(turn_start_line, start_effects_line)),
+        ("start_effects_precede_pending_skip", ordered(start_effects_line, pending_skip_line)),
     ]
 
     output = args.output.resolve()
