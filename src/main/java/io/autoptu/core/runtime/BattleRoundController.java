@@ -73,9 +73,10 @@ public final class BattleRoundController {
      *
      * Python increments _initiative_index before reading a slot, skips invalid/inactive
      * combatants, resets only actions_taken for the selected combatant, then assigns the
-     * current actor and START phase. This bounded Java slice mirrors that behavior within
-     * the already-materialized current-round order. Automatic round rollover and trainer
-     * initiative entries remain lifecycle work for a later slice because rebuilding a new
+     * current actor and START phase. Before returning the decision window Python runs the
+     * START phase effects and consumes any resulting pending status skip. Java mirrors that
+     * order through the generic TURN_START lifecycle seam. Automatic round rollover and
+     * trainer initiative entries remain separate lifecycle work because rebuilding a new
      * round requires authoritative initiative rolls and trainer action state.
      */
     public InitiativeTurnAdvanceResult advanceInitiativeTurn() {
@@ -100,13 +101,43 @@ public final class BattleRoundController {
 
             actor.actionBudget().resetConsumedActions();
             turnState.beginTurn(actorId);
-            TurnStartedEvent event = new TurnStartedEvent(
+            ArrayList<BattleEvent> events = new ArrayList<>();
+            events.add(new TurnStartedEvent(
                     actorId,
                     round,
                     TurnPhase.START,
                     progress.cursor()
+            ));
+
+            LifecycleHookResult startResult = lifecycleHooks.resolve(
+                    LifecycleHookPoint.TURN_START,
+                    new LifecycleHookContext(
+                            state,
+                            damageHistory,
+                            injuryHistory,
+                            LifecycleHookPoint.TURN_START,
+                            round,
+                            round,
+                            actorId,
+                            TurnPhase.START
+                    )
             );
-            return InitiativeTurnAdvanceResult.actor(actorId, progress.cursor(), List.of(event));
+            events.addAll(startResult.events());
+            PendingStatusSkipRequest pending = startResult.pendingStatusSkip();
+            if (pending != null) {
+                events.addAll(BattleRuntime.applyStatusSkip(
+                        state,
+                        actorId,
+                        pending.status(),
+                        pending.phase(),
+                        pending.reason()
+                ).events());
+            }
+            return InitiativeTurnAdvanceResult.actor(
+                    actorId,
+                    progress.cursor(),
+                    List.copyOf(events)
+            );
         }
 
         progress.setCursorFromLifecycle(order.size());
