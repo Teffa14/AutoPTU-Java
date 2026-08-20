@@ -98,7 +98,7 @@ def main() -> int:
 
     rows = [
         "name\tmove_type\tcategory\tability\tholder_team\tholder_x\tholder_y\tactive\tfainted\t"
-        "holder_primary_type\texpected_source\texpected_bonus\texpected_events"
+        "holder_types\texpected_source\texpected_bonus\texpected_events"
     ]
     for (
         name,
@@ -165,7 +165,7 @@ def main() -> int:
             holder_pos[1],
             active,
             fainted,
-            holder_types[0] if holder_types else "",
+            "|".join(holder_types),
             source,
             bonus,
             len(events),
