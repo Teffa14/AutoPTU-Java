@@ -60,6 +60,7 @@ jobs:
           python3 -m py_compile tools/python/export_status_application_fixtures.py
           python3 -m py_compile tools/python/export_lancer_phase_fixtures.py
           python3 -m py_compile tools/python/export_perk_phase_registry_fixtures.py
+          python3 -m py_compile tools/python/export_combat_stage_hook_fixtures.py
 
       - name: Export Python oracle fixtures
         run: |
@@ -92,6 +93,7 @@ jobs:
           python3 tools/python/export_status_application_fixtures.py --source-root python-oracle --output build/oracle/status-application.tsv
           python3 tools/python/export_lancer_phase_fixtures.py --source-root python-oracle --output build/oracle/lancer-phase.tsv
           python3 tools/python/export_perk_phase_registry_fixtures.py --source-root python-oracle --output build/oracle/perk-phase.tsv
+          python3 tools/python/export_combat_stage_hook_fixtures.py --source-root python-oracle --output build/oracle/combat-stage-hooks.tsv
 
       - name: Run Java core and Python-oracle parity tests
         run: >-
@@ -125,3 +127,4 @@ jobs:
           -PoracleStatusApplication="$GITHUB_WORKSPACE/build/oracle/status-application.tsv"
           -PoracleLancerPhase="$GITHUB_WORKSPACE/build/oracle/lancer-phase.tsv"
           -PoraclePerkPhase="$GITHUB_WORKSPACE/build/oracle/perk-phase.tsv"
+          -PoracleCombatStageHooks="$GITHUB_WORKSPACE/build/oracle/combat-stage-hooks.tsv"
