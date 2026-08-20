@@ -2,6 +2,7 @@ package io.autoptu.core.hook;
 
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.event.RuleEffectEvent;
+import io.autoptu.core.rules.AbilityIdentityResolution;
 import io.autoptu.core.runtime.RuntimeCombatantState;
 import io.autoptu.core.runtime.SpatialAbilityQuery;
 
@@ -21,6 +22,8 @@ public final class BuiltinPostDamageHooks {
                     BuiltinPostDamageHooks::adjacentElementalBoosts)
             .register("spatial-general-damage-auras", HookSource.ABILITY, 110,
                     BuiltinPostDamageHooks::spatialGeneralDamageAuras)
+            .register("aura-storm", HookSource.ABILITY, 120,
+                    BuiltinPostDamageHooks::auraStorm)
             .build();
 
     private BuiltinPostDamageHooks() {
@@ -72,6 +75,34 @@ public final class BuiltinPostDamageHooks {
         }
 
         return new PostDamageHookResult(bonus, events);
+    }
+
+    private static PostDamageHookResult auraStorm(PostDamageHookContext context) {
+        if ("status".equalsIgnoreCase(context.metadata().damageCategory())) {
+            return PostDamageHookResult.empty();
+        }
+        boolean hasAuraStorm = AbilityIdentityResolution.matchesExact(context.actor().abilities(), "Aura Storm");
+        boolean hasAuraKeyword = context.move().spec().hasKeyword("Aura");
+        int injuries = context.state().injuryHistory().currentInjuries(context.actorId());
+        List<String> blockers = AuraBreakBlockerQuery.blockers(context.state(), context.actorId());
+        AuraStormResolution resolution = AuraStormResolution.normal(
+                hasAuraStorm,
+                hasAuraKeyword,
+                injuries,
+                !blockers.isEmpty()
+        );
+        if (resolution.damageBonus() == 0 || !resolution.emitAuraStormEvent()) {
+            return PostDamageHookResult.empty();
+        }
+        return new PostDamageHookResult(
+                resolution.damageBonus(),
+                List.of(damageBonusEvent(
+                        context,
+                        context.actorId(),
+                        "Aura Storm",
+                        resolution.damageBonus()
+                ))
+        );
     }
 
     private static RuleEffectEvent damageBonusEvent(

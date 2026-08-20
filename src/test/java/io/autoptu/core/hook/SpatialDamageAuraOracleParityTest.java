@@ -51,6 +51,22 @@ class SpatialDamageAuraOracleParityTest {
             int expectedEvents = Integer.parseInt(c[12]);
             String variant = c.length > 13 ? c[13] : "spatial";
 
+            if ("blocker".equals(variant)) {
+                List<String> blockers = AuraBreakBlockerQuery.blockers(
+                        blockerState(
+                                ability,
+                                holderTeam,
+                                active,
+                                fainted,
+                                name.equals("aura_break_preserves_first_blocker")
+                        ),
+                        "actor"
+                );
+                assertEquals(expectedEvents, blockers.size(), name + " blocker count");
+                assertEquals(expectedSource, blockers.isEmpty() ? "" : blockers.getFirst(), name + " first blocker");
+                continue;
+            }
+
             if ("spatial".equals(variant)) {
                 PostDamageHookResult result = BuiltinPostDamageHooks.standardRegistry().resolve(
                         context(
@@ -117,6 +133,38 @@ class SpatialDamageAuraOracleParityTest {
         org.junit.jupiter.api.Assertions.assertThrows(
                 IllegalArgumentException.class,
                 () -> AuraStormResolution.errata(true, -1, false)
+        );
+    }
+
+    private static BattleRuntimeState blockerState(
+            String ability,
+            String holderTeam,
+            boolean active,
+            boolean fainted,
+            boolean secondBlocker
+    ) {
+        RuntimeCombatantState actor = combatant("actor", new GridCoord(1, 1), 20, List.of(), List.of("Normal"));
+        RuntimeCombatantState first = combatant(
+                "breaker-1", new GridCoord(5, 5), fainted ? 0 : 20, List.of(ability), List.of("Normal"));
+        List<RuntimeCombatantState> combatants = secondBlocker
+                ? List.of(
+                        actor,
+                        first,
+                        combatant("breaker-2", new GridCoord(0, 5), 20, List.of("Aura Break"), List.of("Normal"))
+                )
+                : List.of(actor, first);
+        Map<String, CombatantAffiliationState> affiliations = secondBlocker
+                ? Map.of(
+                        "actor", new CombatantAffiliationState("A", true),
+                        "breaker-1", new CombatantAffiliationState(holderTeam, active),
+                        "breaker-2", new CombatantAffiliationState("B", true))
+                : Map.of(
+                        "actor", new CombatantAffiliationState("A", true),
+                        "breaker-1", new CombatantAffiliationState(holderTeam, active));
+        return new BattleRuntimeState(
+                new MovementGrid(12, 12, Set.of(), Map.of()),
+                combatants,
+                Map.of(), Map.of(), Map.of(), affiliations, Map.of(), Map.of()
         );
     }
 

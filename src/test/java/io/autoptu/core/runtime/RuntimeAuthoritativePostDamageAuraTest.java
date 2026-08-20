@@ -28,15 +28,15 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 class RuntimeAuthoritativePostDamageAuraTest {
     @Test
     void adjacentAquaBoostAddsFiveAfterOrdinaryDamageAndBeforeHpHistory() {
-        BattleRuntimeState boostedState = state(true);
-        BattleRuntimeState baseState = state(false);
+        BattleRuntimeState boostedState = aquaState(true);
+        BattleRuntimeState baseState = aquaState(false);
 
         AppliedActionResult boostedResult = RuntimeMoveResolution.applyUsingAuthoritativeCombatState(
-                boostedState, choice(), waterMove(), "Medium", "Medium", Set.of(), "AI",
+                boostedState, choice("water-strike"), waterMove(), "Medium", "Medium", Set.of(), "AI",
                 new PythonRandom(41), input(), false, false
         );
         AppliedActionResult baseResult = RuntimeMoveResolution.applyUsingAuthoritativeCombatState(
-                baseState, choice(), waterMove(), "Medium", "Medium", Set.of(), "AI",
+                baseState, choice("water-strike"), waterMove(), "Medium", "Medium", Set.of(), "AI",
                 new PythonRandom(41), input(), false, false
         );
 
@@ -57,40 +57,50 @@ class RuntimeAuthoritativePostDamageAuraTest {
         );
     }
 
-    private static BattleRuntimeState state(boolean withAura) {
+    @Test
+    void auraStormUsesCanonicalInjuriesAndGlobalEnemyAuraBreakSuppressesIt() {
+        BattleRuntimeState baseState = auraStormState(false, false);
+        BattleRuntimeState stormState = auraStormState(true, false);
+        BattleRuntimeState blockedState = auraStormState(true, true);
+        baseState.injuryHistory().setCurrentInjuries("actor", 2);
+        stormState.injuryHistory().setCurrentInjuries("actor", 2);
+        blockedState.injuryHistory().setCurrentInjuries("actor", 2);
+
+        AppliedActionResult baseResult = RuntimeMoveResolution.applyUsingAuthoritativeCombatState(
+                baseState, choice("aura-strike"), auraMove(), "Medium", "Medium", Set.of(), "AI",
+                new PythonRandom(77), input(), false, false
+        );
+        AppliedActionResult stormResult = RuntimeMoveResolution.applyUsingAuthoritativeCombatState(
+                stormState, choice("aura-strike"), auraMove(), "Medium", "Medium", Set.of(), "AI",
+                new PythonRandom(77), input(), false, false
+        );
+        AppliedActionResult blockedResult = RuntimeMoveResolution.applyUsingAuthoritativeCombatState(
+                blockedState, choice("aura-strike"), auraMove(), "Medium", "Medium", Set.of(), "AI",
+                new PythonRandom(77), input(), false, false
+        );
+
+        MoveResolvedEvent base = assertInstanceOf(MoveResolvedEvent.class, baseResult.events().getLast());
+        RuleEffectEvent auraEvent = assertInstanceOf(RuleEffectEvent.class, stormResult.events().get(0));
+        MoveResolvedEvent storm = assertInstanceOf(MoveResolvedEvent.class, stormResult.events().getLast());
+        MoveResolvedEvent blocked = assertInstanceOf(MoveResolvedEvent.class, blockedResult.events().getLast());
+
+        assertEquals("Aura Storm", auraEvent.sourceName());
+        assertEquals("actor", auraEvent.actorId());
+        assertEquals(9, auraEvent.amount());
+        assertEquals(base.damage() + 9, storm.damage());
+        assertEquals(base.damage(), blocked.damage());
+        assertEquals(1, blockedResult.events().size());
+        assertEquals(storm.damage(), stormState.damageHistory().damageReceivedThisRound().get("target"));
+        assertEquals(blocked.damage(), blockedState.damageHistory().damageReceivedThisRound().get("target"));
+    }
+
+    private static BattleRuntimeState aquaState(boolean withAura) {
         CombatantStatProfile actorStats = stats(18, 10);
         CombatantStatProfile targetStats = stats(10, 10);
-        RuntimeCombatantState actor = new RuntimeCombatantState(
-                "actor",
-                MovementProfile.walking(new GridCoord(1, 1), 4),
-                100,
-                100,
-                new ActionBudget(),
-                actorStats,
-                new EvasionProfile(actorStats, 0, 0, 0, false, false),
-                0, false, false, false, false,
-                List.of("Normal"), List.of(), List.of()
-        );
-        RuntimeCombatantState target = new RuntimeCombatantState(
-                "target",
-                MovementProfile.walking(new GridCoord(1, 0), 4),
-                200,
-                200,
-                new ActionBudget(),
-                targetStats,
-                new EvasionProfile(targetStats, 0, 0, 0, false, false),
-                0, false, false, false, false,
-                List.of("Normal"), List.of(), List.of()
-        );
-        RuntimeCombatantState ally = new RuntimeCombatantState(
-                "ally",
-                MovementProfile.walking(new GridCoord(2, 1), 4),
-                100,
-                100,
-                new ActionBudget(),
-                null, null, 0, false, false, false, false,
-                List.of("Normal"), List.of(), List.of("Aqua Boost")
-        );
+        RuntimeCombatantState actor = combatant("actor", new GridCoord(1, 1), 100, 100, actorStats, List.of());
+        RuntimeCombatantState target = combatant("target", new GridCoord(1, 0), 200, 200, targetStats, List.of());
+        RuntimeCombatantState ally = combatant(
+                "ally", new GridCoord(2, 1), 100, 100, null, List.of("Aqua Boost"));
 
         List<RuntimeCombatantState> combatants = withAura ? List.of(actor, target, ally) : List.of(actor, target);
         Map<String, CombatantAffiliationState> affiliations = withAura
@@ -102,10 +112,62 @@ class RuntimeAuthoritativePostDamageAuraTest {
                         "actor", new CombatantAffiliationState("A", true),
                         "target", new CombatantAffiliationState("B", true));
 
+        return battleState(combatants, affiliations);
+    }
+
+    private static BattleRuntimeState auraStormState(boolean withAuraStorm, boolean withAuraBreak) {
+        CombatantStatProfile actorStats = stats(18, 10);
+        CombatantStatProfile targetStats = stats(10, 10);
+        RuntimeCombatantState actor = combatant(
+                "actor", new GridCoord(1, 1), 100, 100, actorStats,
+                withAuraStorm ? List.of("Aura Storm") : List.of());
+        RuntimeCombatantState target = combatant("target", new GridCoord(1, 0), 200, 200, targetStats, List.of());
+        RuntimeCombatantState breaker = combatant(
+                "breaker", new GridCoord(5, 5), 100, 100, null, List.of("Aura Break"));
+
+        List<RuntimeCombatantState> combatants = withAuraBreak
+                ? List.of(actor, target, breaker)
+                : List.of(actor, target);
+        Map<String, CombatantAffiliationState> affiliations = withAuraBreak
+                ? Map.of(
+                        "actor", new CombatantAffiliationState("A", true),
+                        "target", new CombatantAffiliationState("B", true),
+                        "breaker", new CombatantAffiliationState("B", true))
+                : Map.of(
+                        "actor", new CombatantAffiliationState("A", true),
+                        "target", new CombatantAffiliationState("B", true));
+        return battleState(combatants, affiliations);
+    }
+
+    private static BattleRuntimeState battleState(
+            List<RuntimeCombatantState> combatants,
+            Map<String, CombatantAffiliationState> affiliations
+    ) {
         return new BattleRuntimeState(
                 new MovementGrid(6, 6, Set.of(), Map.of()),
                 combatants,
                 Map.of(), Map.of(), Map.of(), affiliations, Map.of(), Map.of()
+        );
+    }
+
+    private static RuntimeCombatantState combatant(
+            String id,
+            GridCoord position,
+            int hp,
+            int maxHp,
+            CombatantStatProfile stats,
+            List<String> abilities
+    ) {
+        return new RuntimeCombatantState(
+                id,
+                MovementProfile.walking(position, 4),
+                hp,
+                maxHp,
+                new ActionBudget(),
+                stats,
+                stats == null ? null : new EvasionProfile(stats, 0, 0, 0, false, false),
+                0, false, false, false, false,
+                List.of("Normal"), List.of(), abilities
         );
     }
 
@@ -116,9 +178,9 @@ class RuntimeAuthoritativePostDamageAuraTest {
         );
     }
 
-    private static MoveChoice choice() {
+    private static MoveChoice choice(String moveId) {
         return new MoveChoice(
-                "actor", "water-strike", ChoiceTargetMode.COMBATANT, "target",
+                "actor", moveId, ChoiceTargetMode.COMBATANT, "target",
                 new GridCoord(1, 0), ActionType.STANDARD
         );
     }
@@ -128,6 +190,14 @@ class RuntimeAuthoritativePostDamageAuraTest {
                 "water-strike",
                 new MoveSpec("Melee", "Melee", 1, 1, null, null, "Melee"),
                 new MoveCombatProfile(null, 6, 20, "physical", "Water")
+        );
+    }
+
+    private static MoveOption auraMove() {
+        return MoveOption.standard(
+                "aura-strike",
+                new MoveSpec("Melee", "Melee", 1, 1, null, null, "Melee", List.of("Aura")),
+                new MoveCombatProfile(null, 6, 20, "physical", "Psychic")
         );
     }
 
