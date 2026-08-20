@@ -17,6 +17,7 @@ def main() -> int:
 
     sys.path.insert(0, str(Path(args.source_root).resolve()))
     from auto_ptu.data_models import MoveSpec
+    from auto_ptu.rules import BattleState
     from auto_ptu.rules.hooks.ability_hooks import AbilityHookContext
     from auto_ptu.rules.hooks.abilities.aura_adjacent_bonuses import (
         _adjacent_aura_sources,
@@ -50,6 +51,9 @@ def main() -> int:
             self.spec = Spec(list(types or ["Normal"]))
             self.injuries = injuries
             self._temporary_effects = list(temporary_effects or [])
+
+        def ability_names(self):
+            return [self.ability] if self.ability else []
 
         def has_ability(self, name):
             return self.ability.strip().lower() == str(name).strip().lower()
@@ -96,8 +100,6 @@ def main() -> int:
         def _aura_break_blockers(self, *args, **kwargs):
             return ["blocker"] if self.aura_break_blocked else []
 
-    # The Java post-damage contract only accepts damaging MoveCombatProfile values.
-    # Python's Status guard remains upstream of this seam and is not weakened here.
     spatial_cases = [
         ("water_adjacent", "Water", "Special", "Aqua Boost", "A", (1, 2), True, False, ["Normal"], False, None),
         ("fire_adjacent", "Fire", "Physical", "Ignition Boost", "A", (2, 1), True, False, ["Normal"], False, None),
@@ -182,6 +184,36 @@ def main() -> int:
         rows.append("\t".join(map(str, [
             name, move_type, category, ability, holder_team, holder_pos[0], holder_pos[1], active, fainted,
             "|".join(holder_types), source, bonus, len(events), "spatial", "", "", 0, False, False,
+        ])))
+
+    blocker_cases = [
+        ("aura_break_enemy_active", "Aura Break", "B", True, False, False, "breaker-1", 1),
+        ("aura_break_same_team", "Aura Break", "A", True, False, False, "", 0),
+        ("aura_break_inactive_enemy", "Aura Break", "B", False, False, False, "", 0),
+        ("aura_break_fainted_enemy", "Aura Break", "B", True, True, False, "", 0),
+        ("aura_break_errata_is_not_base", "Aura Break [Errata]", "B", True, False, False, "", 0),
+        ("aura_break_preserves_first_blocker", "Aura Break", "B", True, False, True, "breaker-1", 2),
+    ]
+    for name, ability, team, active, fainted, second_blocker, expected_source, expected_count in blocker_cases:
+        pokemon = {
+            "actor": Mon(position=(1, 1), team="A"),
+            "breaker-1": Mon(
+                position=(5, 5), ability=ability, team=team, active=active, fainted=fainted
+            ),
+        }
+        if second_blocker:
+            pokemon["breaker-2"] = Mon(position=(9, 9), ability="Aura Break", team="B")
+        battle = Battle(pokemon)
+        # Execute the real pinned BattleState implementation against the minimal state it reads.
+        blockers = BattleState._aura_break_blockers(battle, "actor")
+        source = blockers[0] if blockers else ""
+        if source != expected_source or len(blockers) != expected_count:
+            raise AssertionError(
+                f"{name}: expected blockers ({expected_source!r}, {expected_count}), got {blockers!r}"
+            )
+        rows.append("\t".join(map(str, [
+            name, "", "Special", ability, team, 5, 5, active, fainted, "Normal",
+            source, 0, len(blockers), "blocker", "", "", 0, False, False,
         ])))
 
     aura_cases = [
