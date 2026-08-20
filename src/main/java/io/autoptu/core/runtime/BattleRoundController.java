@@ -15,6 +15,7 @@ import io.autoptu.core.rules.PhaseSequence;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /** Server-owned round and turn-phase lifecycle for the headless battle runtime. */
 public final class BattleRoundController {
@@ -63,6 +64,32 @@ public final class BattleRoundController {
     /** Server lifecycle boundary for the current Python-compatible initiative cursor. */
     public void setInitiativeCursor(int cursor) {
         state.initiativeProgress().setCursorFromLifecycle(cursor);
+    }
+
+    /**
+     * Select and begin the next eligible Pokemon turn from the canonical current-round order.
+     *
+     * Python advance_turn increments the cursor before reading an entry, skips missing,
+     * fainted, or inactive Pokemon, resets that Pokemon's consumed actions, and starts it
+     * in START. Trainer initiative entries and next-round initiative rebuild are separate
+     * contracts and are deliberately not approximated here.
+     */
+    public Optional<String> beginNextCombatantTurnWithinCurrentOrder() {
+        while (true) {
+            Optional<String> candidate = state.initiativeProgress().advanceWithinCurrentOrderFromLifecycle();
+            if (candidate.isEmpty()) {
+                turnState.clearToStart();
+                return Optional.empty();
+            }
+            String actorId = candidate.get();
+            RuntimeCombatantState combatant = state.combatants().get(actorId);
+            if (combatant == null || combatant.hp() <= 0 || !state.isActive(actorId)) {
+                continue;
+            }
+            combatant.actionBudget().resetConsumedActions();
+            turnState.beginTurn(actorId);
+            return Optional.of(actorId);
+        }
     }
 
     public void beginTurn(String actorId) {
