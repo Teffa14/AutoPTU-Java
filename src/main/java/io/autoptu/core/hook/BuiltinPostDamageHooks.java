@@ -32,6 +32,8 @@ public final class BuiltinPostDamageHooks {
                     BuiltinPostDamageHooks::auraStorm)
             .register("aura-storm-errata", HookSource.ABILITY, 130,
                     BuiltinPostDamageHooks::auraStormErrata)
+            .register("analytic", HookSource.ABILITY, 140,
+                    BuiltinPostDamageHooks::analytic)
             .build();
 
     private BuiltinPostDamageHooks() {
@@ -158,6 +160,62 @@ public final class BuiltinPostDamageHooks {
                 context.actorId(),
                 context.target().combatantId(),
                 "Aura Storm [Errata]",
+                adjustedBonus > 0 ? "damage_bonus" : "damage_penalty",
+                adjustedBonus,
+                context.target().hp()
+        ));
+        return new PostDamageHookResult(adjustedBonus, events);
+    }
+
+    private static PostDamageHookResult analytic(PostDamageHookContext context) {
+        if (!AbilityIdentityResolution.matchesExact(context.actor().abilities(), "Analytic")) {
+            return PostDamageHookResult.empty();
+        }
+
+        boolean damagingMove = !"status".equalsIgnoreCase(context.metadata().damageCategory());
+        boolean defenderHasActionsTaken = !context.target().actionBudget().consumedActions().isEmpty();
+        int initiativeIndex = context.state().initiativeProgress().cursor();
+        int defenderInitiativeIndex = context.state().initiativeProgress().actorIndex(context.targetId());
+        AnalyticResolution resolution = AnalyticResolution.resolve(
+                damagingMove,
+                defenderHasActionsTaken,
+                initiativeIndex,
+                defenderInitiativeIndex
+        );
+        if (resolution.damageBonus() == 0) {
+            return PostDamageHookResult.empty();
+        }
+
+        AuraBreakErrataAdjustment adjustment = AuraBreakErrataAdjustment.resolve(
+                "Analytic",
+                resolution.damageBonus(),
+                context.state().currentRound(),
+                context.actor().temporaryEffects().getAll("aura_break_errata")
+        );
+        if (adjustment.clearAuraBreakEffects()) {
+            context.actor().temporaryEffects().removeAll("aura_break_errata");
+        }
+
+        ArrayList<BattleEvent> events = new ArrayList<>();
+        if (adjustment.emitAuraBreakEvent()) {
+            String sourceId = adjustment.sourceId().isBlank() ? context.actorId() : adjustment.sourceId();
+            events.add(damageRuleEvent(
+                    context,
+                    sourceId,
+                    context.actorId(),
+                    "Aura Break [Errata]",
+                    "damage_penalty",
+                    -resolution.damageBonus(),
+                    context.actor().hp()
+            ));
+        }
+
+        int adjustedBonus = adjustment.adjustedBonus();
+        events.add(damageRuleEvent(
+                context,
+                context.actorId(),
+                context.targetId(),
+                "Analytic",
                 adjustedBonus > 0 ? "damage_bonus" : "damage_penalty",
                 adjustedBonus,
                 context.target().hp()
