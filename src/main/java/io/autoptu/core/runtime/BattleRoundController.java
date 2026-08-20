@@ -53,6 +53,17 @@ public final class BattleRoundController {
     public RoundDamageHistoryState damageHistory() { return damageHistory; }
     public RoundInjuryHistoryState injuryHistory() { return injuryHistory; }
     public BattleTurnState turnState() { return turnState; }
+    public InitiativeProgressState initiativeProgress() { return state.initiativeProgress(); }
+
+    /** Server lifecycle boundary for a freshly rebuilt deterministic initiative order. */
+    public void replaceInitiativeOrder(List<String> orderedActorIds) {
+        state.initiativeProgress().replaceOrderFromLifecycle(orderedActorIds);
+    }
+
+    /** Server lifecycle boundary for the current Python-compatible initiative cursor. */
+    public void setInitiativeCursor(int cursor) {
+        state.initiativeProgress().setCursorFromLifecycle(cursor);
+    }
 
     public void beginTurn(String actorId) {
         state.requireCombatant(actorId);
@@ -113,6 +124,7 @@ public final class BattleRoundController {
         int previousRound = round;
         round += 1;
         state.syncCurrentRoundFromLifecycle(round);
+        state.initiativeProgress().resetCursorFromLifecycle();
         LifecycleHookResult result = lifecycleHooks.resolve(
                 LifecycleHookPoint.ROUND_START,
                 new LifecycleHookContext(state, damageHistory, injuryHistory, LifecycleHookPoint.ROUND_START, previousRound, round, "")
