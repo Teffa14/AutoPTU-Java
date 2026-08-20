@@ -65,6 +65,7 @@ def main() -> int:
         ctx = SimpleNamespace(
             events=events,
             target=target,
+            stat="atk",
             applied_delta=applied_delta,
             target_id="target",
             move=SimpleNamespace(name="Test Move"),
