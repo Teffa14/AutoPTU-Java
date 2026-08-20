@@ -49,31 +49,75 @@ class SpatialDamageAuraOracleParityTest {
             String expectedSource = c[10];
             int expectedBonus = Integer.parseInt(c[11]);
             int expectedEvents = Integer.parseInt(c[12]);
+            String variant = c.length > 13 ? c[13] : "spatial";
 
-            PostDamageHookResult result = BuiltinPostDamageHooks.standardRegistry().resolve(
-                    context(
-                            moveType,
-                            category,
-                            ability,
-                            holderTeam,
-                            holderPosition,
-                            active,
-                            fainted,
-                            holderTypes,
-                            name.equals("first_source_wins")
+            if ("spatial".equals(variant)) {
+                PostDamageHookResult result = BuiltinPostDamageHooks.standardRegistry().resolve(
+                        context(
+                                moveType,
+                                category,
+                                ability,
+                                holderTeam,
+                                holderPosition,
+                                active,
+                                fainted,
+                                holderTypes,
+                                name.equals("first_source_wins")
+                        )
+                );
+
+                String actualSource = result.events().stream()
+                        .filter(RuleEffectEvent.class::isInstance)
+                        .map(RuleEffectEvent.class::cast)
+                        .map(RuleEffectEvent::actorId)
+                        .findFirst()
+                        .orElse("");
+                assertEquals(expectedBonus, result.flatDamageBonus(), name + " final damage bonus");
+                assertEquals(expectedEvents, result.events().size(), name + " event count");
+                assertEquals(expectedSource, actualSource, name + " selected source");
+                continue;
+            }
+
+            String actorAbility = c[14];
+            List<String> moveKeywords = c[15].isBlank()
+                    ? List.of()
+                    : List.copyOf(Arrays.asList(c[15].split("\\|", -1)));
+            int injuries = Integer.parseInt(c[16]);
+            boolean auraBreakBlocked = Boolean.parseBoolean(c[17]);
+            boolean auraBreakErrataInverts = Boolean.parseBoolean(c[18]);
+
+            AuraStormResolution resolution = "errata".equals(variant)
+                    ? AuraStormResolution.errata(
+                            "Aura Storm [Errata]".equalsIgnoreCase(actorAbility),
+                            injuries,
+                            auraBreakErrataInverts
                     )
-            );
+                    : AuraStormResolution.normal(
+                            "Aura Storm".equalsIgnoreCase(actorAbility),
+                            moveKeywords.stream().anyMatch(keyword -> "Aura".equalsIgnoreCase(keyword.strip())),
+                            injuries,
+                            auraBreakBlocked
+                    );
 
-            String actualSource = result.events().stream()
-                    .filter(RuleEffectEvent.class::isInstance)
-                    .map(RuleEffectEvent.class::cast)
-                    .map(RuleEffectEvent::actorId)
-                    .findFirst()
-                    .orElse("");
-            assertEquals(expectedBonus, result.flatDamageBonus(), name + " final damage bonus");
-            assertEquals(expectedEvents, result.events().size(), name + " event count");
-            assertEquals(expectedSource, actualSource, name + " selected source");
+            int actualEvents = (resolution.emitAuraStormEvent() ? 1 : 0)
+                    + (resolution.emitAuraBreakEvent() ? 1 : 0);
+            String actualSource = resolution.emitAuraStormEvent() ? "actor" : "";
+            assertEquals(expectedBonus, resolution.damageBonus(), name + " Aura Storm damage bonus");
+            assertEquals(expectedEvents, actualEvents, name + " Aura Storm event count");
+            assertEquals(expectedSource, actualSource, name + " Aura Storm source");
         }
+    }
+
+    @Test
+    void auraStormRejectsImpossibleNegativeInjuries() {
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> AuraStormResolution.normal(true, true, -1, false)
+        );
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> AuraStormResolution.errata(true, -1, false)
+        );
     }
 
     private static PostDamageHookContext context(
