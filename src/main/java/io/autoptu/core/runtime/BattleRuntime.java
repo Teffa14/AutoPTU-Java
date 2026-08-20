@@ -1,88 +1,43 @@
 package io.autoptu.core.runtime;
 
-import io.autoptu.core.action.BattleChoice;
 import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
-import io.autoptu.core.action.ShiftChoice;
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.event.BattleEventFactory;
 import io.autoptu.core.event.MoveResolvedEvent;
 import io.autoptu.core.event.StatusSkipEvent;
 import io.autoptu.core.event.TrainerFeatureEvent;
 import io.autoptu.core.hook.PostDamageHookResult;
-import io.autoptu.core.model.AccuracyResult;
 import io.autoptu.core.model.ActionType;
-import io.autoptu.core.model.DamageResult;
 import io.autoptu.core.model.GridCoord;
-import io.autoptu.core.model.ShiftApplicationResult;
-import io.autoptu.core.model.TurnPhase;
 import io.autoptu.core.random.PythonRandom;
 import io.autoptu.core.rules.Accuracy;
+import io.autoptu.core.rules.AccuracyResult;
 import io.autoptu.core.rules.ActionBudget;
 import io.autoptu.core.rules.DamageResolution;
-import io.autoptu.core.rules.Movement;
-import io.autoptu.core.rules.ShiftApplication;
+import io.autoptu.core.rules.DamageResult;
 import io.autoptu.core.rules.StatusSkipExceptionResolution;
-import io.autoptu.core.rules.StatusSkipResolution;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Predicate;
 
+/** Stateful authoritative battle runtime for applying validated actions. */
 public final class BattleRuntime {
-    private BattleRuntime() {}
-
-    public static AppliedActionResult applyAction(BattleRuntimeState state, BattleChoice choice, Predicate<GridCoord> canFit) {
-        if (state == null) throw new IllegalArgumentException("state is required");
-        if (choice == null) throw new IllegalArgumentException("choice is required");
-        RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
-        if (choice instanceof ShiftChoice shiftChoice) return applyShift(state, actor, shiftChoice, canFit);
-        if (choice instanceof MoveChoice) throw new UnsupportedOperationException("MoveChoice requires authoritative move context; use applyAuthoritativeMove");
-        throw new IllegalArgumentException("unsupported battle choice: " + choice.getClass().getName());
+    private BattleRuntime() {
     }
 
-    /**
-     * Resolve the Python StatusController pending status-skip path from canonical state.
-     *
-     * Trainer Feature bypasses are derived server-side before action buckets are consumed.
-     * Minecraft/Cobblemon receives only semantic playback events and cannot decide that a
-     * status skip is ignored.
-     */
-    public static AppliedActionResult applyStatusSkip(
+    public static AppliedActionResult applyAction(
             BattleRuntimeState state,
-            String actorId,
-            String status,
-            TurnPhase phase,
-            String reason
-    ) {
-        if (state == null) throw new IllegalArgumentException("state is required");
-        if (actorId == null || actorId.isBlank()) throw new IllegalArgumentException("actorId is required");
-        if (phase == null) throw new IllegalArgumentException("phase is required");
-
-        RuntimeCombatantState actor = state.requireCombatant(actorId);
-        StatusSkipFeatureState featureState = state.statusSkipFeatures(actorId);
-        StatusSkipExceptionResolution.Result exception = StatusSkipExceptionResolution.resolve(
-                status,
-                featureState.signatureModification(),
-                featureState.signatureMove(),
-                featureState.duelistsManualIgnoreStatus()
-        );
-        if (!exception.skipTurn()) {
-            TrainerFeatureEvent event = trainerFeatureEvent(actor, status, exception);
-            return new AppliedActionResult(List.of(event));
-        }
-
-        StatusSkipResolution.apply(actor.actionBudget());
-        StatusSkipEvent event = new StatusSkipEvent(actor.combatantId(), status, phase, reason);
-        return new AppliedActionResult(List.of(event));
-    }
-
-    public static AppliedActionResult applyAuthoritativeMove(
-            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
-            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
-            PythonRandom rng, MoveResolutionInput input
+            MoveChoice choice,
+            MoveOption move,
+            String actorSize,
+            String targetSize,
+            Set<GridCoord> lineOfSightBlockers,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput input
     ) {
         return applyAuthoritativeMove(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers,
@@ -90,33 +45,33 @@ public final class BattleRuntime {
         );
     }
 
-    /**
-     * Resolve a move and prepend semantic rule-effect events derived from the same
-     * authoritative snapshot. The event list is playback output only and cannot alter
-     * legality, RNG, action economy, damage, or resulting state.
-     */
     public static AppliedActionResult applyAuthoritativeMove(
-            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
-            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
-            PythonRandom rng, MoveResolutionInput input,
-            List<? extends BattleEvent> preResolutionEvents
+            BattleRuntimeState state,
+            MoveChoice choice,
+            MoveOption move,
+            String actorSize,
+            String targetSize,
+            Set<GridCoord> lineOfSightBlockers,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput input
     ) {
         return applyAuthoritativeMove(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers,
-                source, rng, input, preResolutionEvents, PostDamageHookResult.empty()
+                source, rng, input, List.of(), PostDamageHookResult.empty()
         );
     }
 
-    /**
-     * Preferred authoritative move path when effects modify final damage after ordinary
-     * damage/type arithmetic. Post-damage bonuses apply only to successful hits, before
-     * HP mutation and damage-history recording. Their semantic events are emitted after
-     * pre-resolution rule events and before the final MoveResolvedEvent.
-     */
     public static AppliedActionResult applyAuthoritativeMove(
-            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
-            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
-            PythonRandom rng, MoveResolutionInput input,
+            BattleRuntimeState state,
+            MoveChoice choice,
+            MoveOption move,
+            String actorSize,
+            String targetSize,
+            Set<GridCoord> lineOfSightBlockers,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput input,
             List<? extends BattleEvent> preResolutionEvents,
             PostDamageHookResult postDamageHooks
     ) {
@@ -137,7 +92,7 @@ public final class BattleRuntime {
 
         DamageResult damage = accuracy.hit() ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit())) : null;
         if (accuracy.hit()) {
-            damage = applyPostDamageBonus(damage, postDamageHooks.flatDamageBonus());
+            damage = applyPostDamageAdjustment(damage, postDamageHooks.flatDamageBonus());
         }
         AppliedActionResult result = applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
         if (accuracy.hit()) {
@@ -197,6 +152,29 @@ public final class BattleRuntime {
         return new AppliedActionResult(List.of(event));
     }
 
+    public static AppliedActionResult applyStatusSkip(
+            BattleRuntimeState state,
+            String actorId,
+            String status,
+            String phase,
+            String reason
+    ) {
+        if (state == null) throw new IllegalArgumentException("state is required");
+        RuntimeCombatantState actor = state.requireCombatant(actorId);
+        StatusSkipExceptionResolution.Result exception = StatusSkipExceptionResolution.resolve(
+                status,
+                state.statusSkipFeatureState(actorId)
+        );
+        if (exception.ignored()) {
+            return new AppliedActionResult(List.of(trainerFeatureEvent(actor, status, exception)));
+        }
+
+        StatusSkipResolution.Result skip = StatusSkipResolution.consume(actor.actionBudget());
+        return new AppliedActionResult(List.of(new StatusSkipEvent(
+                actorId, status, phase, reason, skip.standardConsumed(), skip.shiftConsumed(), actor.hp()
+        )));
+    }
+
     /** Clear round-scoped EOT usage when the outer turn controller advances the round. */
     public static void resetRoundMoveFrequency(BattleRuntimeState state) {
         if (state == null) throw new IllegalArgumentException("state is required");
@@ -205,10 +183,11 @@ public final class BattleRuntime {
         }
     }
 
-    private static DamageResult applyPostDamageBonus(DamageResult damage, int flatDamageBonus) {
+    private static DamageResult applyPostDamageAdjustment(DamageResult damage, int flatDamageAdjustment) {
         if (damage == null) throw new IllegalArgumentException("damage is required");
-        if (flatDamageBonus <= 0) return damage;
-        int finalDamage = Math.addExact(damage.damage(), flatDamageBonus);
+        if (flatDamageAdjustment == 0) return damage;
+        int adjusted = Math.addExact(damage.damage(), flatDamageAdjustment);
+        int finalDamage = Math.max(0, adjusted);
         return new DamageResult(
                 damage.dice(),
                 damage.baseRoll(),
@@ -248,20 +227,7 @@ public final class BattleRuntime {
                     actor.combatantId(), "Duelist's Manual", "ignore_status_skip",
                     "", status, actor.hp()
             );
-            case NONE -> throw new IllegalStateException("status skip exception expected");
+            case NONE -> throw new IllegalStateException("ignored status skip requires a feature exception");
         };
-    }
-
-    private static AppliedActionResult applyShift(
-            BattleRuntimeState state, RuntimeCombatantState actor,
-            ShiftChoice choice, Predicate<GridCoord> canFit
-    ) {
-        Set<GridCoord> legalDestinations = Movement.legalShiftTiles(state.grid(), actor.movementProfile(), 0, canFit);
-        ShiftApplicationResult result = ShiftApplication.apply(
-                actor.combatantId(), actor.position(), choice.destination(),
-                legalDestinations, actor.actionBudget()
-        );
-        actor.moveTo(result.position());
-        return new AppliedActionResult(List.of(result.event()));
     }
 }
