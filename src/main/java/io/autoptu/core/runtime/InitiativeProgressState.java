@@ -3,6 +3,7 @@ package io.autoptu.core.runtime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Server-owned initiative order and cursor used by stateful battle rules.
@@ -31,6 +32,27 @@ public final class InitiativeProgressState {
     public boolean cursorPassed(String actorId) {
         int actorIndex = actorIndex(actorId);
         return cursor >= 0 && actorIndex >= 0 && cursor > actorIndex;
+    }
+
+    /**
+     * Advance to the next entry in the current canonical order.
+     *
+     * Python advance_turn increments _initiative_index before reading the entry. This
+     * method intentionally stops at end-of-order; rebuilding the next round belongs to
+     * the round lifecycle and must not be approximated with a stale order.
+     */
+    Optional<String> advanceWithinCurrentOrderFromLifecycle() {
+        int next = cursor + 1;
+        if (next >= orderedActorIds.size()) {
+            cursor = orderedActorIds.size();
+            return Optional.empty();
+        }
+        cursor = next;
+        return Optional.of(orderedActorIds.get(cursor));
+    }
+
+    public boolean currentOrderExhausted() {
+        return orderedActorIds.isEmpty() || cursor >= orderedActorIds.size();
     }
 
     /** Runtime/lifecycle mutation boundary. */
