@@ -75,9 +75,9 @@ public final class BattleRoundController {
      * combatants, resets only actions_taken for the selected combatant, then assigns the
      * current actor and START phase. Before returning the decision window Python runs the
      * START phase effects and consumes any resulting pending status skip. Java mirrors that
-     * order through the generic TURN_START lifecycle seam. Automatic round rollover and
-     * trainer initiative entries remain separate lifecycle work because rebuilding a new
-     * round requires authoritative initiative rolls and trainer action state.
+     * order through the generic TURN_START lifecycle seam. Automatic round rollover remains
+     * on the explicit core-owned rebuild boundary below because the complete Python
+     * initiative-entry formula is not yet ported.
      */
     public InitiativeTurnAdvanceResult advanceInitiativeTurn() {
         if (turnState.currentActorId() != null) {
@@ -142,6 +142,69 @@ public final class BattleRoundController {
 
         progress.setCursorFromLifecycle(order.size());
         return InitiativeTurnAdvanceResult.exhausted(order.size());
+    }
+
+    /**
+     * Python advance_turn() calls start_round() when the initiative cursor reaches the end,
+     * rebuilds initiative as part of that round transition, and then continues selecting the
+     * next actor. This boundary mirrors that lifecycle without pretending the full Python
+     * initiative formula is already available in Java.
+     *
+     * The rebuilder is a core rules service. It receives only authoritative BattleRuntimeState
+     * after ROUND_START has completed. The current bounded contract accepts combatant IDs only;
+     * trainer initiative slots and special initiative entries remain explicit follow-up work.
+     */
+    public InitiativeTurnAdvanceResult advanceInitiativeTurnWithRollover(
+            InitiativeRoundRebuilder rebuilder
+    ) {
+        Objects.requireNonNull(rebuilder, "rebuilder");
+        if (turnState.currentActorId() != null) {
+            throw new IllegalStateException("End the active turn before advancing initiative.");
+        }
+
+        ArrayList<BattleEvent> accumulatedEvents = new ArrayList<>();
+        InitiativeTurnAdvanceResult current = advanceInitiativeTurn();
+        accumulatedEvents.addAll(current.events());
+        if (current.hasActor()) {
+            return InitiativeTurnAdvanceResult.actor(
+                    current.actorId(),
+                    current.initiativeIndex(),
+                    accumulatedEvents
+            );
+        }
+
+        RoundStartResult roundStart = startRoundWithEvents();
+        accumulatedEvents.addAll(roundStart.events());
+        List<String> rebuiltOrder = rebuilder.rebuildOrder(state, round);
+        if (rebuiltOrder == null) {
+            throw new IllegalStateException("initiative rebuilder returned null order");
+        }
+
+        for (String actorId : rebuiltOrder) {
+            if (actorId == null || actorId.isBlank()) {
+                throw new IllegalArgumentException("initiative rebuilder returned blank actor id");
+            }
+            state.requireCombatant(actorId.strip());
+        }
+        replaceInitiativeOrder(rebuiltOrder);
+
+        if (rebuiltOrder.isEmpty()) {
+            return InitiativeTurnAdvanceResult.exhausted(-1, accumulatedEvents);
+        }
+
+        InitiativeTurnAdvanceResult nextRound = advanceInitiativeTurn();
+        accumulatedEvents.addAll(nextRound.events());
+        if (nextRound.hasActor()) {
+            return InitiativeTurnAdvanceResult.actor(
+                    nextRound.actorId(),
+                    nextRound.initiativeIndex(),
+                    accumulatedEvents
+            );
+        }
+        return InitiativeTurnAdvanceResult.exhausted(
+                nextRound.initiativeIndex(),
+                accumulatedEvents
+        );
     }
 
     public void beginTurn(String actorId) {
