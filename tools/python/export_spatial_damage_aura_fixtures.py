@@ -54,6 +54,8 @@ def main() -> int:
         def _aura_break_blockers(self, *args, **kwargs):
             return []
 
+    # The Java post-damage contract only accepts damaging MoveCombatProfile values.
+    # Python's Status guard remains upstream of this seam and is not weakened here.
     cases = [
         ("water_adjacent", "Water", "Special", "Aqua Boost", "A", (1, 2), True, False, None),
         ("fire_adjacent", "Fire", "Physical", "Ignition Boost", "A", (2, 1), True, False, None),
@@ -63,7 +65,6 @@ def main() -> int:
         ("too_far", "Water", "Special", "Aqua Boost", "A", (3, 1), True, False, None),
         ("inactive_holder", "Water", "Special", "Aqua Boost", "A", (1, 2), False, False, None),
         ("fainted_holder", "Water", "Special", "Aqua Boost", "A", (1, 2), True, True, None),
-        ("status_move", "Water", "Status", "Aqua Boost", "A", (1, 2), True, False, None),
         ("first_source_wins", "Water", "Special", "Aqua Boost", "A", (1, 2), True, False, "ally-1"),
     ]
 
