@@ -45,7 +45,7 @@ class RuntimeAuthoritativePostDamageAuraTest {
         MoveResolvedEvent boosted = assertInstanceOf(MoveResolvedEvent.class, boostedResult.events().get(1));
         MoveResolvedEvent base = assertInstanceOf(MoveResolvedEvent.class, baseResult.events().getLast());
 
-        assertEquals("Aqua Boost", auraEvent.ruleName());
+        assertEquals("Aqua Boost", auraEvent.sourceName());
         assertEquals("ally", auraEvent.actorId());
         assertEquals(5, auraEvent.amount());
         assertEquals(base.damage() + 5, boosted.damage());
