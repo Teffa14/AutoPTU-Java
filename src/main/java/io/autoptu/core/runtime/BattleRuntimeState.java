@@ -26,6 +26,7 @@ public final class BattleRuntimeState {
     private final LinkedHashMap<String, String> controllerByCombatant = new LinkedHashMap<>();
     private final RoundDamageHistoryState damageHistory = new RoundDamageHistoryState();
     private final RoundInjuryHistoryState injuryHistory = new RoundInjuryHistoryState();
+    private final InitiativeProgressState initiativeProgress = new InitiativeProgressState();
     private int currentRound;
 
     public BattleRuntimeState(MovementGrid grid, List<RuntimeCombatantState> combatants) {
@@ -233,6 +234,11 @@ public final class BattleRuntimeState {
     /** Server-owned current injury counts and round snapshots shared by runtime hooks and lifecycle. */
     public RoundInjuryHistoryState injuryHistory() {
         return injuryHistory;
+    }
+
+    /** Server-owned initiative order/cursor shared by lifecycle and stateful ability hooks. */
+    public InitiativeProgressState initiativeProgress() {
+        return initiativeProgress;
     }
 
     public RuntimeCombatantState requireCombatant(String combatantId) {
