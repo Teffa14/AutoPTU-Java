@@ -18,10 +18,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -154,6 +157,81 @@ class InitiativeTurnLifecycleOracleParityTest {
         assertEquals(1, exhausted.initiativeIndex());
         assertEquals(1, controller.initiativeProgress().cursor());
         assertEquals(0, controller.round());
+    }
+
+    @Test
+    void rolloverStartsRoundRebuildsInitiativeAndContinuesToNextActor() {
+        RuntimeCombatantState first = combatant("first", 20);
+        RuntimeCombatantState second = combatant("second", 20);
+        BattleRuntimeState state = state(List.of(first, second), Map.of());
+        BattleRoundController controller = new BattleRoundController(state, 3);
+        controller.replaceInitiativeOrder(List.of("first"));
+
+        controller.advanceInitiativeTurn();
+        controller.endTurn();
+
+        AtomicReference<BattleRuntimeState> observedState = new AtomicReference<>();
+        AtomicInteger observedRound = new AtomicInteger(-1);
+        InitiativeTurnAdvanceResult result = controller.advanceInitiativeTurnWithRollover((runtime, round) -> {
+            observedState.set(runtime);
+            observedRound.set(round);
+            assertEquals(4, runtime.currentRound());
+            assertEquals(-1, runtime.initiativeProgress().cursor());
+            return List.of("second", "first");
+        });
+
+        assertSame(state, observedState.get());
+        assertEquals(4, observedRound.get());
+        assertEquals(4, controller.round());
+        assertEquals(4, state.currentRound());
+        assertEquals(List.of("second", "first"), state.initiativeProgress().orderedActorIds());
+        assertEquals(0, state.initiativeProgress().cursor());
+        assertEquals("second", result.actorId());
+        assertEquals(0, result.initiativeIndex());
+        assertFalse(result.roundExhausted());
+        TurnStartedEvent event = assertInstanceOf(TurnStartedEvent.class, result.events().getLast());
+        assertEquals("second", event.actorId());
+        assertEquals(4, event.round());
+        assertEquals(0, event.initiativeIndex());
+    }
+
+    @Test
+    void emptyRebuiltOrderEndsAfterAuthoritativeRoundStart() {
+        RuntimeCombatantState actor = combatant("actor", 20);
+        BattleRuntimeState state = state(List.of(actor), Map.of());
+        BattleRoundController controller = new BattleRoundController(state, 7);
+        controller.replaceInitiativeOrder(List.of("actor"));
+
+        controller.advanceInitiativeTurn();
+        controller.endTurn();
+        InitiativeTurnAdvanceResult exhausted = controller.advanceInitiativeTurnWithRollover((runtime, round) -> List.of());
+
+        assertFalse(exhausted.hasActor());
+        assertTrue(exhausted.roundExhausted());
+        assertEquals(-1, exhausted.initiativeIndex());
+        assertEquals(8, controller.round());
+        assertEquals(8, state.currentRound());
+        assertEquals(List.of(), state.initiativeProgress().orderedActorIds());
+        assertEquals(-1, state.initiativeProgress().cursor());
+        assertEquals(null, controller.turnState().currentActorId());
+        assertEquals(TurnPhase.START, controller.turnState().phase());
+    }
+
+    @Test
+    void rolloverRebuilderCannotInjectUnknownCombatantIdentity() {
+        RuntimeCombatantState actor = combatant("actor", 20);
+        BattleRoundController controller = new BattleRoundController(state(List.of(actor), Map.of()), 2);
+        controller.replaceInitiativeOrder(List.of("actor"));
+
+        controller.advanceInitiativeTurn();
+        controller.endTurn();
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> controller.advanceInitiativeTurnWithRollover((runtime, round) -> List.of("forged-client-id"))
+        );
+        assertEquals(3, controller.round());
+        assertEquals(3, controller.initiativeProgress().cursor() == -1 ? controller.round() : -1);
     }
 
     private static BattleRuntimeState state(
