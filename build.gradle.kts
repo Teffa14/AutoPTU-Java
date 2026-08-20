@@ -55,6 +55,7 @@ val oracleSpatialDamageAuras = providers.gradleProperty("oracleSpatialDamageAura
 val oracleMoveKeyword = providers.gradleProperty("oracleMoveKeyword")
 val oracleAnalytic = providers.gradleProperty("oracleAnalytic")
 val oracleInitiativeTurn = providers.gradleProperty("oracleInitiativeTurn")
+val oraclePokemonInitiativeEntry = providers.gradleProperty("oraclePokemonInitiativeEntry")
 
 tasks.test {
     useJUnitPlatform()
@@ -92,6 +93,7 @@ tasks.test {
     if (oracleMoveKeyword.isPresent) systemProperty("autoptu.move.keyword.oracle", oracleMoveKeyword.get())
     if (oracleAnalytic.isPresent) systemProperty("autoptu.analytic.oracle", oracleAnalytic.get())
     if (oracleInitiativeTurn.isPresent) systemProperty("autoptu.initiative.turn.oracle", oracleInitiativeTurn.get())
+    if (oraclePokemonInitiativeEntry.isPresent) systemProperty("autoptu.pokemon.initiative.entry.oracle", oraclePokemonInitiativeEntry.get())
 }
 
 tasks.withType<JavaCompile>().configureEach {
