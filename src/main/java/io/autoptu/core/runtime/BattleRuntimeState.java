@@ -26,6 +26,7 @@ public final class BattleRuntimeState {
     private final LinkedHashMap<String, String> controllerByCombatant = new LinkedHashMap<>();
     private final RoundDamageHistoryState damageHistory = new RoundDamageHistoryState();
     private final RoundInjuryHistoryState injuryHistory = new RoundInjuryHistoryState();
+    private int currentRound;
 
     public BattleRuntimeState(MovementGrid grid, List<RuntimeCombatantState> combatants) {
         this(grid, combatants, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
@@ -209,6 +210,19 @@ public final class BattleRuntimeState {
 
     public MovementGrid grid() {
         return grid;
+    }
+
+    /** Server-owned battle round shared by lifecycle and all rule-hook contexts. */
+    public int currentRound() {
+        return currentRound;
+    }
+
+    /** Runtime-package lifecycle boundary; adapters must not advance battle time directly. */
+    void syncCurrentRoundFromLifecycle(int currentRound) {
+        if (currentRound < 0) {
+            throw new IllegalArgumentException("currentRound cannot be negative");
+        }
+        this.currentRound = currentRound;
     }
 
     /** Server-owned damage history shared by move resolution and round lifecycle. */
