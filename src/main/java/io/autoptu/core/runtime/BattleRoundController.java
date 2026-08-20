@@ -3,6 +3,7 @@ package io.autoptu.core.runtime;
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.event.PhaseChangedEvent;
 import io.autoptu.core.event.TurnEndedEvent;
+import io.autoptu.core.event.TurnStartedEvent;
 import io.autoptu.core.hook.BuiltinLifecycleHooks;
 import io.autoptu.core.hook.LifecycleHookContext;
 import io.autoptu.core.hook.LifecycleHookPoint;
@@ -14,6 +15,7 @@ import io.autoptu.core.rules.PhaseSequence;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /** Server-owned round and turn-phase lifecycle for the headless battle runtime. */
@@ -63,6 +65,52 @@ public final class BattleRoundController {
     /** Server lifecycle boundary for the current Python-compatible initiative cursor. */
     public void setInitiativeCursor(int cursor) {
         state.initiativeProgress().setCursorFromLifecycle(cursor);
+    }
+
+    /**
+     * Advance the canonical initiative cursor to the next active, conscious combatant in
+     * the current round and open that combatant's START phase.
+     *
+     * Python increments _initiative_index before reading a slot, skips invalid/inactive
+     * combatants, resets only actions_taken for the selected combatant, then assigns the
+     * current actor and START phase. This bounded Java slice mirrors that behavior within
+     * the already-materialized current-round order. Automatic round rollover and trainer
+     * initiative entries remain lifecycle work for a later slice because rebuilding a new
+     * round requires authoritative initiative rolls and trainer action state.
+     */
+    public InitiativeTurnAdvanceResult advanceInitiativeTurn() {
+        if (turnState.currentActorId() != null) {
+            throw new IllegalStateException("End the active turn before advancing initiative.");
+        }
+
+        InitiativeProgressState progress = state.initiativeProgress();
+        List<String> order = progress.orderedActorIds();
+        Map<String, RuntimeCombatantState> combatants = state.combatants();
+        int candidateIndex = progress.cursor() + 1;
+
+        while (candidateIndex < order.size()) {
+            progress.setCursorFromLifecycle(candidateIndex);
+            String actorId = order.get(candidateIndex);
+            RuntimeCombatantState actor = combatants.get(actorId);
+            candidateIndex += 1;
+
+            if (actor == null || actor.hp() <= 0 || !state.isActive(actorId)) {
+                continue;
+            }
+
+            actor.actionBudget().resetConsumedActions();
+            turnState.beginTurn(actorId);
+            TurnStartedEvent event = new TurnStartedEvent(
+                    actorId,
+                    round,
+                    TurnPhase.START,
+                    progress.cursor()
+            );
+            return InitiativeTurnAdvanceResult.actor(actorId, progress.cursor(), List.of(event));
+        }
+
+        progress.setCursorFromLifecycle(order.size());
+        return InitiativeTurnAdvanceResult.exhausted(order.size());
     }
 
     public void beginTurn(String actorId) {
