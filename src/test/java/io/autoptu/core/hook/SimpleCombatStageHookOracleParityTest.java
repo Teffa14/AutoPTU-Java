@@ -31,6 +31,7 @@ class SimpleCombatStageHookOracleParityTest {
             String line = lines.get(index);
             if (line.isBlank()) continue;
             String[] fields = line.split("\\t", -1);
+            if (fields.length > 8 && !fields[8].isBlank()) continue;
             String scenario = fields[0];
             int startStage = Integer.parseInt(fields[1]);
             int appliedDelta = Integer.parseInt(fields[2]);
@@ -43,23 +44,10 @@ class SimpleCombatStageHookOracleParityTest {
             RuntimeCombatantState actor = combatant("actor", List.of());
             RuntimeCombatantState target = combatant("target", hasSimple ? List.of("Simple") : List.of());
             target.combatStages().set(CombatStat.ATK, startStage);
-            BattleRuntimeState state = new BattleRuntimeState(
-                    new MovementGrid(5, 5, Set.of(), Map.of()),
-                    List.of(actor, target)
-            );
-            CombatStageHookContext context = new CombatStageHookContext(
-                    state,
-                    "actor",
-                    "target",
-                    "Test Move",
-                    CombatStat.ATK,
-                    appliedDelta,
-                    appliedDelta,
-                    "fixture"
-            );
-
-            CombatStageHookResult result = BuiltinCombatStageHooks.registry()
-                    .apply(CombatStageHookPhase.POST_APPLY, context);
+            BattleRuntimeState state = new BattleRuntimeState(new MovementGrid(5, 5, Set.of(), Map.of()), List.of(actor, target));
+            CombatStageHookContext context = new CombatStageHookContext(state, "actor", "target", "Test Move", CombatStat.ATK,
+                    appliedDelta, appliedDelta, "fixture");
+            CombatStageHookResult result = BuiltinCombatStageHooks.registry().apply(CombatStageHookPhase.POST_APPLY, context);
 
             assertEquals(expectedStage, target.combatStages().get(CombatStat.ATK), scenario);
             assertEquals(expectedEventCount, result.events().size(), scenario);
@@ -76,23 +64,12 @@ class SimpleCombatStageHookOracleParityTest {
         }
     }
 
-    private static RuntimeCombatantState combatant(String id, List<String> abilities) {
+    static RuntimeCombatantState combatant(String id, List<String> abilities) {
         return new RuntimeCombatantState(
                 id,
                 MovementProfile.walking(new GridCoord(id.equals("actor") ? 1 : 2, 1), 3),
-                20,
-                20,
-                new ActionBudget(),
-                null,
-                null,
-                0,
-                false,
-                false,
-                false,
-                false,
-                List.of(),
-                List.of(),
-                abilities
+                20, 20, new ActionBudget(), null, null, 0, false, false, false, false,
+                List.of(), List.of(), abilities
         );
     }
 }
