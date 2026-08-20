@@ -108,9 +108,9 @@ public final class BattleRuntime {
     }
 
     /**
-     * Preferred authoritative move path when effects modify final damage after ordinary
-     * damage/type arithmetic. Post-damage bonuses apply only to successful hits, before
-     * HP mutation and damage-history recording. Their semantic events are emitted after
+     * Preferred authoritative move path when effects adjust final damage after ordinary
+     * damage/type arithmetic. Signed post-damage adjustments apply only to successful hits,
+     * before HP mutation and damage-history recording. Their semantic events are emitted after
      * pre-resolution rule events and before the final MoveResolvedEvent.
      */
     public static AppliedActionResult applyAuthoritativeMove(
@@ -137,7 +137,7 @@ public final class BattleRuntime {
 
         DamageResult damage = accuracy.hit() ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit())) : null;
         if (accuracy.hit()) {
-            damage = applyPostDamageBonus(damage, postDamageHooks.flatDamageBonus());
+            damage = applyPostDamageAdjustment(damage, postDamageHooks.flatDamageBonus());
         }
         AppliedActionResult result = applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
         if (accuracy.hit()) {
@@ -205,10 +205,10 @@ public final class BattleRuntime {
         }
     }
 
-    private static DamageResult applyPostDamageBonus(DamageResult damage, int flatDamageBonus) {
+    private static DamageResult applyPostDamageAdjustment(DamageResult damage, int flatDamageAdjustment) {
         if (damage == null) throw new IllegalArgumentException("damage is required");
-        if (flatDamageBonus <= 0) return damage;
-        int finalDamage = Math.addExact(damage.damage(), flatDamageBonus);
+        if (flatDamageAdjustment == 0) return damage;
+        int finalDamage = Math.max(0, Math.addExact(damage.damage(), flatDamageAdjustment));
         return new DamageResult(
                 damage.dice(),
                 damage.baseRoll(),
