@@ -1,12 +1,14 @@
 package io.autoptu.core.runtime;
 
 /**
- * Remaining server-owned semantic inputs needed to project one Pokemon into the
+ * Remaining semantic compatibility inputs for projecting one Pokemon into the
  * parity-tested initiative-entry pipeline.
  *
- * Weather, terrain, Tailwind and grounded state are intentionally absent from the
- * canonical record because they belong to BattleRuntimeState. Minecraft/Cobblemon
- * adapters must never calculate the resulting initiative order.
+ * Weather, terrain, Tailwind, grounded state, Trainer modifier, Agility Training,
+ * Hardened Initiative, Parental Bond child state, and initiative-zero state are all
+ * derived from BattleRuntimeState. Minecraft/Cobblemon adapters must never calculate
+ * those results. Rider Agility Training doubling remains the one authoritative field
+ * here until mount/rider relationships are represented canonically.
  */
 public record RuntimeInitiativePokemonContext(
         int trainerModifier,
