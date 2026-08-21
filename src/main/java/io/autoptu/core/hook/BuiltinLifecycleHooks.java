@@ -1,6 +1,7 @@
 package io.autoptu.core.hook;
 
 import io.autoptu.core.runtime.BattleRuntime;
+import io.autoptu.core.runtime.DelayedHitRoundLifecycleHook;
 import io.autoptu.core.runtime.FieldRoundLifecycleHook;
 import io.autoptu.core.runtime.RuntimeCombatantState;
 
@@ -41,6 +42,13 @@ public final class BuiltinLifecycleHooks {
                         LifecycleHookPoint.ROUND_START,
                         10,
                         new FieldRoundLifecycleHook()
+                )
+                .register(
+                        "round-delayed-hit-maturity",
+                        HookSource.MOVE,
+                        LifecycleHookPoint.ROUND_START,
+                        20,
+                        new DelayedHitRoundLifecycleHook()
                 )
                 .register(
                         "round-move-frequency-reset",
