@@ -88,6 +88,11 @@ def main() -> int:
     forwarded = keyword_names_for_call(resolve_delayed_hits, "resolve_move_targets")
     position_forces_tile = target_position_forces_tile(resolve_delayed_hits)
 
+    print("--- PINNED resolve_delayed_hits ---")
+    print(inspect.getsource(resolve_delayed_hits))
+    print("--- PINNED BattleState.resolve_move_targets ---")
+    print(inspect.getsource(BattleState.resolve_move_targets))
+
     # These checks intentionally fail the exporter if Python changes the
     # execution boundary. Java must then be reviewed rather than silently
     # preserving an obsolete assumption.
