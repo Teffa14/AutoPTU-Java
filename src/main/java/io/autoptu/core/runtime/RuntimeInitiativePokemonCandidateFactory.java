@@ -7,32 +7,28 @@ import io.autoptu.core.rules.InitiativeAdditionalBonusResolution;
 import io.autoptu.core.rules.InitiativePokemonCandidate;
 import io.autoptu.core.rules.InitiativeSpeedAbilityResolution;
 import io.autoptu.core.rules.PokemonInitiativeEntryResolution;
+import io.autoptu.core.rules.RiderAgilityTrainingResolution;
 import io.autoptu.core.rules.StatResolution;
 import io.autoptu.core.rules.StatusStatResolution;
+
+import java.util.List;
 
 /**
  * Internal adapter from authoritative battle state to the parity-tested Pokemon
  * initiative contracts.
  *
  * Combat stages, statuses, HP, abilities, temporary effects, injuries, Trainer
- * identity/modifier/skills and environmental inputs are read from BattleRuntimeState.
- * The transitional context remains authoritative only for rider Agility Training
- * doubling until mount/rider relationships are represented canonically.
+ * identity/modifier/skills, environment and mounted relationships are read from
+ * BattleRuntimeState. No PTU initiative result is accepted from Minecraft/Cobblemon.
  */
 public final class RuntimeInitiativePokemonCandidateFactory {
     private RuntimeInitiativePokemonCandidateFactory() {
     }
 
-    public static InitiativePokemonCandidate fromState(
-            BattleRuntimeState state,
-            String actorId,
-            RuntimeInitiativePokemonContext context
-    ) {
+    /** Preferred server-authoritative boundary. */
+    public static InitiativePokemonCandidate fromState(BattleRuntimeState state, String actorId) {
         if (state == null) {
             throw new IllegalArgumentException("state is required");
-        }
-        if (context == null) {
-            throw new IllegalArgumentException("initiative context is required");
         }
 
         RuntimeCombatantState actor = state.requireCombatant(actorId);
@@ -67,11 +63,26 @@ public final class RuntimeInitiativePokemonCandidateFactory {
                 trainer == null ? 0 : trainer.skillRank("intimidate")
         );
 
+        List<String> riderFeatureActors = state.combatantIds().stream()
+                .filter(id -> state.hasCanonicalTrainer(id))
+                .filter(id -> state.requireTrainerForCombatant(id).hasTrainerFeature("Rider"))
+                .toList();
+        List<String> agilityTrainingActors = state.combatantIds().stream()
+                .filter(id -> state.requireCombatant(id).temporaryEffects().has("agility_training"))
+                .toList();
+        boolean riderAgilityTrainingDoubled = RiderAgilityTrainingResolution.doubled(
+                actorId,
+                environment.mountedPairs(),
+                state.combatantIds(),
+                riderFeatureActors,
+                agilityTrainingActors
+        );
+
         int additionalBonus = InitiativeAdditionalBonusResolution.resolve(
                 resolvedSpeed,
                 actor.abilities(),
                 agilityTraining,
-                context.riderAgilityTrainingDoubled(),
+                riderAgilityTrainingDoubled,
                 hardenedInitiativeBonus
         );
 
@@ -98,5 +109,18 @@ public final class RuntimeInitiativePokemonCandidateFactory {
                 actor.temporaryEffects().entriesInInsertionOrder(),
                 actor.abilities()
         );
+    }
+
+    /**
+     * Transitional compatibility boundary. All fields in the legacy context are ignored;
+     * initiative is derived from BattleRuntimeState only.
+     */
+    @Deprecated
+    public static InitiativePokemonCandidate fromState(
+            BattleRuntimeState state,
+            String actorId,
+            RuntimeInitiativePokemonContext ignoredContext
+    ) {
+        return fromState(state, actorId);
     }
 }
