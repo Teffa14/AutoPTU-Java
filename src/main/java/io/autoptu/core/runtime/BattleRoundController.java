@@ -152,11 +152,21 @@ public final class BattleRoundController {
     }
 
     /**
+     * Default rollover path for production callers. The controller rebuilds initiative only from
+     * canonical BattleRuntimeState via the authoritative rebuilder; adapters never provide an
+     * initiative order or a rebuilder implementation.
+     */
+    public InitiativeTurnAdvanceResult advanceInitiativeTurnWithRollover() {
+        return advanceInitiativeTurnWithRollover(InitiativeRoundRebuilder.authoritative());
+    }
+
+    /**
      * Python advance_turn() calls start_round() when the initiative cursor reaches the end,
      * rebuilds initiative as part of that round transition, and then continues selecting the
-     * next actor. This boundary mirrors that lifecycle while the fully autonomous rebuilder is
-     * still being assembled from parity-tested components.
+     * next actor. This overload remains injectable for parity tests and migration only; normal
+     * runtime callers should use {@link #advanceInitiativeTurnWithRollover()}.
      */
+    @Deprecated
     public InitiativeTurnAdvanceResult advanceInitiativeTurnWithRollover(
             InitiativeRoundRebuilder rebuilder
     ) {
