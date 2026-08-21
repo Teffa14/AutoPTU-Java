@@ -108,7 +108,7 @@ public final class BattleRuntime {
         if (postDamageHooks == null) throw new IllegalArgumentException("postDamageHooks is required");
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
-                rng, input, preResolutionEvents, postDamageHooks, null, null
+                rng, input, preResolutionEvents, postDamageHooks, null, null, true
         );
     }
 
@@ -130,7 +130,48 @@ public final class BattleRuntime {
         if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
-                rng, input, preResolutionEvents, null, postDamageHookRegistry, effectiveMetadata
+                rng, input, preResolutionEvents, null, postDamageHookRegistry, effectiveMetadata, true
+        );
+    }
+
+    /**
+     * Executes a matured delayed hit through the same accuracy, damage, RNG, post-result,
+     * HP, history, and event pipeline as an ordinary move without spending action economy or
+     * move frequency a second time. The scheduling action already owned that bookkeeping in
+     * the pinned Python oracle.
+     *
+     * <p>This boundary currently supports combatant-target delayed hits. TILE resolution is
+     * intentionally left to a later slice because it requires area/target expansion parity.</p>
+     */
+    public static AppliedActionResult applyDelayedAuthoritativeMove(
+            BattleRuntimeState state,
+            DelayedHitBinding binding,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            PostDamageHookRegistry postDamageHookRegistry,
+            MoveCombatProfile effectiveMetadata
+    ) {
+        if (binding == null) throw new IllegalArgumentException("binding is required");
+        if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHookRegistry is required");
+        if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
+        requireDelayedCombatantBinding(state, binding);
+        return applyAuthoritativeMoveInternal(
+                state,
+                binding.choice(),
+                binding.move(),
+                "",
+                "",
+                Set.of(),
+                source,
+                rng,
+                input,
+                preResolutionEvents,
+                null,
+                postDamageHookRegistry,
+                effectiveMetadata,
+                false
         );
     }
 
@@ -141,12 +182,17 @@ public final class BattleRuntime {
             List<? extends BattleEvent> preResolutionEvents,
             PostDamageHookResult precomputedPostDamageHooks,
             PostDamageHookRegistry deferredPostDamageHooks,
-            MoveCombatProfile effectiveMetadata
+            MoveCombatProfile effectiveMetadata,
+            boolean spendOrdinaryMoveResources
     ) {
         if (rng == null) throw new IllegalArgumentException("rng is required");
         if (input == null) throw new IllegalArgumentException("input is required");
 
-        MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
+        if (spendOrdinaryMoveResources) {
+            MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
+        } else {
+            requireDelayedCombatantChoice(state, choice, move);
+        }
 
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
@@ -177,11 +223,14 @@ public final class BattleRuntime {
         if (accuracy.hit()) {
             damage = applyPostDamageAdjustment(damage, resolvedPostDamageHooks.flatDamageBonus());
         }
-        AppliedActionResult result = applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
+        AppliedActionResult result = applyResolvedMoveOutcomeInternal(
+                state, choice, source, accuracy, damage, spendOrdinaryMoveResources);
         if (accuracy.hit()) {
             result = prependEvents(resolvedPostDamageHooks.events(), result);
         }
-        actor.moveFrequencyUsage().recordUse(move);
+        if (spendOrdinaryMoveResources) {
+            actor.moveFrequencyUsage().recordUse(move);
+        }
         return prependEvents(preResolutionEvents, result);
     }
 
@@ -200,6 +249,17 @@ public final class BattleRuntime {
             BattleRuntimeState state, MoveChoice choice, String source,
             AccuracyResult accuracy, DamageResult damage
     ) {
+        return applyResolvedMoveOutcomeInternal(state, choice, source, accuracy, damage, true);
+    }
+
+    private static AppliedActionResult applyResolvedMoveOutcomeInternal(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            String source,
+            AccuracyResult accuracy,
+            DamageResult damage,
+            boolean spendAction
+    ) {
         if (state == null) throw new IllegalArgumentException("state is required");
         if (choice == null) throw new IllegalArgumentException("choice is required");
         if (accuracy == null) throw new IllegalArgumentException("accuracy is required");
@@ -212,14 +272,14 @@ public final class BattleRuntime {
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
         ActionBudget budget = actor.actionBudget();
         ActionType actionType = choice.actionType();
-        if (!budget.hasActionAvailable(actionType) && budget.extraCount(actionType) <= 0) {
+        if (spendAction && !budget.hasActionAvailable(actionType) && budget.extraCount(actionType) <= 0) {
             throw new IllegalStateException(actionType.value() + " action is already consumed");
         }
 
         int previousHp = target.hp();
         int resolvedDamage = accuracy.hit() ? Math.max(0, damage.damage()) : 0;
         int nextHp = Math.max(0, previousHp - resolvedDamage);
-        if (!budget.consume(actionType, choice.moveId())) {
+        if (spendAction && !budget.consume(actionType, choice.moveId())) {
             throw new IllegalStateException(actionType.value() + " action is already consumed");
         }
         target.setHp(nextHp);
@@ -240,6 +300,28 @@ public final class BattleRuntime {
         for (String combatantId : state.combatantIds()) {
             state.requireCombatant(combatantId).moveFrequencyUsage().resetRound();
         }
+    }
+
+    private static void requireDelayedCombatantBinding(BattleRuntimeState state, DelayedHitBinding binding) {
+        if (state == null) throw new IllegalArgumentException("state is required");
+        requireDelayedCombatantChoice(state, binding.choice(), binding.move());
+        if (!binding.entry().attackerId().equals(binding.choice().actorId())) {
+            throw new IllegalArgumentException("delayed attacker does not match bound choice");
+        }
+    }
+
+    private static void requireDelayedCombatantChoice(BattleRuntimeState state, MoveChoice choice, MoveOption move) {
+        if (state == null) throw new IllegalArgumentException("state is required");
+        if (choice == null) throw new IllegalArgumentException("choice is required");
+        if (move == null) throw new IllegalArgumentException("move is required");
+        if (choice.targetMode() != ChoiceTargetMode.COMBATANT || choice.targetId().isBlank()) {
+            throw new IllegalArgumentException("delayed move execution currently requires a combatant target");
+        }
+        if (!choice.moveId().equals(move.moveId())) {
+            throw new IllegalArgumentException("move metadata does not match delayed choice moveId");
+        }
+        state.requireCombatant(choice.actorId());
+        state.requireCombatant(choice.targetId());
     }
 
     private static DamageResult applyPostDamageAdjustment(DamageResult damage, int flatDamageAdjustment) {
