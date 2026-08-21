@@ -35,7 +35,7 @@ def call_names(source: str) -> set[str]:
     return result
 
 
-def reachable_rng_users(root_function, module_functions: dict[str, object]) -> list[str]:
+def reachable_rng_users(root_function, module_functions: dict[str, object]) -> tuple[list[str], list[str]]:
     queue: deque[tuple[str, object]] = deque([(root_function.__name__, root_function)])
     visited: set[str] = set()
     rng_users: list[str] = []
@@ -53,7 +53,7 @@ def reachable_rng_users(root_function, module_functions: dict[str, object]) -> l
             if candidate is not None and called not in visited:
                 queue.append((called, candidate))
 
-    return sorted(rng_users)
+    return sorted(rng_users), sorted(visited)
 
 
 def main() -> int:
@@ -70,6 +70,7 @@ def main() -> int:
     from auto_ptu.rules.controllers.phase_controller import PhaseController
 
     resolve_move_action = getattr(battle_state_module, "resolve_move_action")
+    move_action_source = safe_source(resolve_move_action)
     target_source = safe_source(BattleState.resolve_move_targets)
     start_round_source = safe_source(PhaseController.start_round)
 
@@ -77,7 +78,7 @@ def main() -> int:
         name: function
         for name, function in inspect.getmembers(battle_state_module, predicate=inspect.isfunction)
     }
-    reachable_rng = reachable_rng_users(resolve_move_action, module_functions)
+    reachable_rng, visited = reachable_rng_users(resolve_move_action, module_functions)
     all_rng_users = sorted(
         {
             name
@@ -94,6 +95,15 @@ def main() -> int:
     move_reaches_battle_rng = bool(reachable_rng)
     target_feeds_move_action = "resolve_move_action" in target_source
     delayed_receives_battle = "resolve_delayed_hits" in start_round_source and "self.battle" in start_round_source
+
+    if not move_reaches_battle_rng:
+        print("RNG_CONTRACT_DIAGNOSTIC")
+        print("resolve_move_action signature:", inspect.signature(resolve_move_action))
+        print("direct calls:", ",".join(sorted(call_names(move_action_source))))
+        print("visited module functions:", ",".join(visited))
+        print("known rng users:", ",".join(all_rng_users))
+        print("resolve_move_action source:")
+        print(move_action_source)
 
     # Fail loudly if Python moves these responsibilities. Java must then review
     # the lifecycle/RNG boundary instead of preserving an obsolete assumption.
