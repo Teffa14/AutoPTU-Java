@@ -99,6 +99,17 @@ def cases():
             ],
         },
         {
+            "name": "trainer_registry_without_pokemon",
+            "round": 2,
+            "trainers": [
+                {"id": "t1", "speed": 18},
+                {"id": "t2", "speed": 40},
+            ],
+            "pokemon": [
+                {"id": "p1", "trainer": "t1", "speed": 10, "total": 10},
+            ],
+        },
+        {
             "name": "trick_room_mixed_order",
             "round": 2,
             "trick_room": True,
