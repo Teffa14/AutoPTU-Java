@@ -1,0 +1,182 @@
+package io.autoptu.core.runtime;
+
+import io.autoptu.core.model.CombatStat;
+import io.autoptu.core.model.CombatantStatProfile;
+import io.autoptu.core.model.GridCoord;
+import io.autoptu.core.model.MovementGrid;
+import io.autoptu.core.model.MovementProfile;
+import io.autoptu.core.rules.ActionBudget;
+import io.autoptu.core.rules.InitiativeAdditionalBonusResolution;
+import io.autoptu.core.rules.InitiativePokemonCandidate;
+import io.autoptu.core.rules.InitiativeSpeedAbilityResolution;
+import io.autoptu.core.rules.PokemonInitiativeEntryResolution;
+import io.autoptu.core.rules.StatResolution;
+import io.autoptu.core.rules.StatusStatResolution;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class RuntimeInitiativePokemonCandidateFactoryTest {
+    @Test
+    void projectsCanonicalRuntimeStateThroughParityTestedInitiativeResolvers() {
+        RuntimeCombatantState actor = combatant(
+                "actor",
+                12,
+                List.of("Slush Rush", "Early Bird [Errata]")
+        );
+        actor.temporaryEffects().add("initiative_bonus", Map.of("amount", 3, "expires_round", 2));
+
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(actor),
+                Map.of("actor", List.of("Paralyzed"))
+        );
+        state.syncCurrentRoundFromLifecycle(2);
+        state.putTrainer(new TrainerRuntimeState("trainer", List.of(), 3));
+        state.bindController("actor", "trainer");
+
+        RuntimeInitiativePokemonContext context = new RuntimeInitiativePokemonContext(
+                2,
+                true,
+                "Hail",
+                "",
+                true,
+                false,
+                false,
+                0,
+                false,
+                false
+        );
+
+        InitiativePokemonCandidate actual = RuntimeInitiativePokemonCandidateFactory.fromState(
+                state,
+                "actor",
+                context
+        );
+
+        int statSpeed = StatResolution.speed(StatusStatResolution.apply(
+                actor.effectiveStatProfile(),
+                state.statuses("actor")
+        ));
+        int abilitySpeed = InitiativeSpeedAbilityResolution.resolve(
+                statSpeed,
+                actor.hp(),
+                actor.maxHp(),
+                context.weather(),
+                context.terrainName(),
+                context.grounded(),
+                actor.abilities()
+        );
+        int additional = InitiativeAdditionalBonusResolution.resolve(
+                abilitySpeed,
+                actor.abilities(),
+                false,
+                false,
+                0
+        );
+        var expected = PokemonInitiativeEntryResolution.resolve(
+                "actor",
+                "trainer",
+                abilitySpeed,
+                2,
+                false,
+                true,
+                2,
+                actor.temporaryEffects().entriesInInsertionOrder(),
+                additional,
+                false
+        );
+
+        assertEquals(expected, actual.baseEntry());
+        assertTrue(actual.active());
+        assertFalse(actual.fainted());
+        assertEquals(actor.abilities(), actual.abilities());
+        assertEquals(actor.temporaryEffects().entriesInInsertionOrder(), actual.temporaryEffects());
+    }
+
+    @Test
+    void derivesBashedFaintedAndParentalBondFilteringInputsFromCanonicalState() {
+        RuntimeCombatantState actor = combatant("actor", 10, List.of());
+        actor.setHp(0);
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(actor),
+                Map.of("actor", List.of("Bashed")),
+                Map.of(),
+                Map.of(),
+                Map.of("actor", CombatantAffiliationState.active("team-a"))
+        );
+
+        RuntimeInitiativePokemonContext context = new RuntimeInitiativePokemonContext(
+                99, true, "Hail", "Electric Terrain", true,
+                true, true, 99, true, false
+        );
+        InitiativePokemonCandidate candidate = RuntimeInitiativePokemonCandidateFactory.fromState(
+                state,
+                "actor",
+                context
+        );
+
+        assertEquals(0, candidate.baseEntry().speed());
+        assertEquals(0, candidate.baseEntry().total());
+        assertTrue(candidate.fainted());
+        assertTrue(candidate.parentalBondChild());
+    }
+
+    @Test
+    void missingAuthoritativeStatProfileFailsBeforeProducingCandidate() {
+        RuntimeCombatantState actor = new RuntimeCombatantState(
+                "actor",
+                MovementProfile.walking(new GridCoord(1, 1), 4),
+                20,
+                20,
+                new ActionBudget()
+        );
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(actor)
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> RuntimeInitiativePokemonCandidateFactory.fromState(
+                        state,
+                        "actor",
+                        RuntimeInitiativePokemonContext.neutral()
+                )
+        );
+    }
+
+    private static RuntimeCombatantState combatant(String id, int speed, List<String> abilities) {
+        CombatantStatProfile stats = new CombatantStatProfile(
+                Map.of(CombatStat.SPD, speed),
+                Map.of(),
+                Map.of(),
+                Set.of()
+        );
+        return new RuntimeCombatantState(
+                id,
+                MovementProfile.walking(new GridCoord(1, 1), 4),
+                20,
+                20,
+                new ActionBudget(),
+                stats,
+                null,
+                0,
+                false,
+                false,
+                false,
+                false,
+                List.of(),
+                List.of(),
+                abilities
+        );
+    }
+}
