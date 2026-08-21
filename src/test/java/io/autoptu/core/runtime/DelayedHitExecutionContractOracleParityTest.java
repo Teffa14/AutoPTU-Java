@@ -14,10 +14,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DelayedHitExecutionContractOracleParityTest {
     @Test
     void delayedHitsBypassOrdinaryMoveActionEntrypoint() throws IOException {
-        String fixturePath = System.getProperty("autoptu.delayed.hit.execution.oracle");
-        Assumptions.assumeTrue(fixturePath != null && !fixturePath.isBlank());
+        String fixturePath = System.getProperty(
+                "autoptu.delayed.hit.execution.oracle",
+                "build/oracle/delayed-hit-execution.tsv"
+        );
+        Path fixture = Path.of(fixturePath);
+        Assumptions.assumeTrue(Files.exists(fixture));
 
-        String line = Files.readAllLines(Path.of(fixturePath)).stream()
+        String line = Files.readAllLines(fixture).stream()
                 .filter(value -> value != null && !value.isBlank())
                 .findFirst()
                 .orElseThrow();
