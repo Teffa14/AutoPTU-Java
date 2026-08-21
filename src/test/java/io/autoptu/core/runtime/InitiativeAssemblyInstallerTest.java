@@ -51,6 +51,28 @@ class InitiativeAssemblyInstallerTest {
     }
 
     @Test
+    void installsCanonicalTrainerAndPokemonSlotsTogether() {
+        RuntimeCombatantState pokemon = combatant("pokemon");
+        BattleRuntimeState state = state(pokemon);
+        state.putTrainer(new TrainerRuntimeState("trainer", List.of(), 5));
+
+        InitiativeOrderAssemblyResult assembly = new InitiativeOrderAssemblyResult(
+                List.of(
+                        new InitiativeEntry("trainer", "trainer", 30, 0, 0, 30),
+                        new InitiativeEntry("pokemon", "trainer", 20, 0, 0, 20)
+                ),
+                Map.of()
+        );
+
+        assertEquals(
+                List.of("trainer", "pokemon"),
+                InitiativeAssemblyInstaller.install(state, assembly)
+        );
+        assertEquals(List.of("trainer", "pokemon"), state.initiativeProgress().orderedActorIds());
+        assertEquals(-1, state.initiativeProgress().cursor());
+    }
+
+    @Test
     void invalidOrderFailsBeforeAnyCleanupMutation() {
         RuntimeCombatantState actor = combatant("actor");
         actor.temporaryEffects().add("initiative_penalty", Map.of("amount", -3));

@@ -14,8 +14,8 @@ import java.util.Map;
  * state mutation, applies those cleanup requests to server-owned temporary effects, and
  * installs the canonical initiative order with the cursor reset to -1.
  *
- * Trainer initiative slots remain intentionally unsupported by the current turn runner.
- * They fail closed here instead of being silently skipped as if they were Pokemon turns.
+ * Python initiative_order may contain both Pokemon combatants and Trainer actors. Trainer
+ * identity is resolved from the server-owned trainer registry, never from Minecraft.
  */
 public final class InitiativeAssemblyInstaller {
     private InitiativeAssemblyInstaller() {
@@ -38,9 +38,11 @@ public final class InitiativeAssemblyInstaller {
         // clear temporary effects before failing to install its order.
         for (InitiativeEntry entry : assembly.orderedEntries()) {
             String actorId = entry.actorId();
-            if (!state.combatants().containsKey(actorId)) {
+            boolean pokemonActor = state.combatants().containsKey(actorId);
+            boolean trainerActor = isKnownTrainer(state, actorId);
+            if (!pokemonActor && !trainerActor) {
                 throw new IllegalArgumentException(
-                        "initiative entry is not an executable Pokemon combatant: " + actorId
+                        "initiative entry references unknown Pokemon/Trainer actor: " + actorId
                 );
             }
         }
@@ -65,5 +67,14 @@ public final class InitiativeAssemblyInstaller {
 
         state.initiativeProgress().replaceOrderFromLifecycle(orderedActorIds);
         return orderedActorIds;
+    }
+
+    private static boolean isKnownTrainer(BattleRuntimeState state, String actorId) {
+        try {
+            state.requireTrainer(actorId);
+            return true;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 }
