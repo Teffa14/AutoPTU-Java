@@ -1,6 +1,7 @@
 package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.MoveOption;
+import io.autoptu.core.event.TurnStartedEvent;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveSpec;
@@ -16,6 +17,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -108,6 +110,47 @@ class BattleRoundControllerTest {
         assertNull(rounds.turnState().currentActorId());
         assertEquals(TurnPhase.START, rounds.turnState().phase());
         assertTrue(rounds.endTurn().isEmpty());
+    }
+
+    @Test
+    void trainerInitiativeSlotResetsTrainerActionsAndOpensStartTurn() {
+        RuntimeCombatantState pokemon = combatant("pokemon");
+        BattleRuntimeState state = state(pokemon);
+        TrainerRuntimeState trainer = new TrainerRuntimeState("trainer", List.of(), 5);
+        trainer.actionBudget().markAction(ActionType.STANDARD, "stale trainer action");
+        state.putTrainer(trainer);
+        state.initiativeProgress().replaceOrderFromLifecycle(List.of("trainer", "pokemon"));
+
+        BattleRoundController rounds = new BattleRoundController(state, 3);
+        InitiativeTurnAdvanceResult result = rounds.advanceInitiativeTurn();
+
+        assertTrue(result.hasActor());
+        assertEquals("trainer", result.actorId());
+        assertEquals(0, result.initiativeIndex());
+        assertEquals("trainer", rounds.turnState().currentActorId());
+        assertEquals(TurnPhase.START, rounds.turnState().phase());
+        assertTrue(trainer.actionBudget().hasActionAvailable(ActionType.STANDARD));
+        assertEquals(1, result.events().size());
+        TurnStartedEvent event = assertInstanceOf(TurnStartedEvent.class, result.events().getFirst());
+        assertEquals("trainer", event.actorId());
+        assertEquals(3, event.round());
+        assertEquals(TurnPhase.START, event.phase());
+    }
+
+    @Test
+    void mixedInitiativeContinuesFromTrainerToPokemonWithoutSkippingSlot() {
+        RuntimeCombatantState pokemon = combatant("pokemon");
+        BattleRuntimeState state = state(pokemon);
+        state.putTrainer(new TrainerRuntimeState("trainer", List.of(), 5));
+        state.initiativeProgress().replaceOrderFromLifecycle(List.of("trainer", "pokemon"));
+        BattleRoundController rounds = new BattleRoundController(state, 2);
+
+        assertEquals("trainer", rounds.advanceInitiativeTurn().actorId());
+        rounds.endTurn();
+        InitiativeTurnAdvanceResult pokemonTurn = rounds.advanceInitiativeTurn();
+
+        assertEquals("pokemon", pokemonTurn.actorId());
+        assertEquals(1, pokemonTurn.initiativeIndex());
     }
 
     @Test
