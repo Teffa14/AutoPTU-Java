@@ -1,15 +1,13 @@
 package io.autoptu.core.runtime;
 
 /**
- * Remaining semantic compatibility inputs for projecting one Pokemon into the
- * parity-tested initiative-entry pipeline.
+ * Legacy compatibility inputs for callers compiled against older initiative boundaries.
  *
- * Weather, terrain, Tailwind, grounded state, Trainer modifier, Agility Training,
- * Hardened Initiative, Parental Bond child state, and initiative-zero state are all
- * derived from BattleRuntimeState. Minecraft/Cobblemon adapters must never calculate
- * those results. Rider Agility Training doubling remains the one authoritative field
- * here until mount/rider relationships are represented canonically.
+ * All PTU initiative inputs are now derived from BattleRuntimeState by the preferred
+ * RuntimeInitiativePokemonCandidateFactory boundary. These fields are retained only to
+ * preserve source compatibility while callers migrate; they are not authoritative.
  */
+@Deprecated
 public record RuntimeInitiativePokemonContext(
         int trainerModifier,
         boolean agilityTraining,
@@ -20,8 +18,7 @@ public record RuntimeInitiativePokemonContext(
 ) {
     /**
      * Transitional constructor for callers compiled against the pre-environment-state
-     * boundary. Environment arguments are deliberately ignored; the runtime reads the
-     * canonical BattleEnvironmentState instead.
+     * boundary. Every argument is compatibility-only and ignored by the preferred runtime path.
      */
     @Deprecated
     public RuntimeInitiativePokemonContext(
