@@ -39,4 +39,5 @@ jobs:
       - name: Run field progression parity tests
         run: |
           gradle test --stacktrace \
-            --tests io.autoptu.core.runtime.FieldRoundProgressionOracleParityTest
+            --tests io.autoptu.core.runtime.FieldRoundProgressionOracleParityTest \
+            --tests io.autoptu.core.runtime.FieldRoundLifecycleOracleParityTest
