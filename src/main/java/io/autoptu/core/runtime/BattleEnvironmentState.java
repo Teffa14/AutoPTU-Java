@@ -1,10 +1,13 @@
 package io.autoptu.core.runtime;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -25,6 +28,9 @@ public final class BattleEnvironmentState {
     private final Map<String, String> mountedPairs;
     private final boolean trickRoomOrdering;
     private final boolean leagueBattleOrdering;
+    private final FieldEffectEntry terrainEffect;
+    private final List<FieldEffectEntry> zoneEffects;
+    private final List<FieldEffectEntry> roomEffects;
 
     public BattleEnvironmentState(
             String weather,
@@ -53,6 +59,32 @@ public final class BattleEnvironmentState {
             Map<String, String> mountedPairs,
             boolean trickRoomOrdering,
             boolean leagueBattleOrdering
+    ) {
+        this(
+                weather,
+                terrainName,
+                tailwindTeams,
+                groundedByCombatant,
+                mountedPairs,
+                trickRoomOrdering,
+                leagueBattleOrdering,
+                null,
+                List.of(),
+                List.of()
+        );
+    }
+
+    private BattleEnvironmentState(
+            String weather,
+            String terrainName,
+            Collection<String> tailwindTeams,
+            Map<String, Boolean> groundedByCombatant,
+            Map<String, String> mountedPairs,
+            boolean trickRoomOrdering,
+            boolean leagueBattleOrdering,
+            FieldEffectEntry terrainEffect,
+            Collection<FieldEffectEntry> zoneEffects,
+            Collection<FieldEffectEntry> roomEffects
     ) {
         this.weather = normalizeText(weather);
         this.terrainName = normalizeText(terrainName);
@@ -100,6 +132,10 @@ public final class BattleEnvironmentState {
         this.mountedPairs = Collections.unmodifiableMap(pairs);
         this.trickRoomOrdering = trickRoomOrdering;
         this.leagueBattleOrdering = leagueBattleOrdering;
+        validateKind(terrainEffect, FieldEffectKind.TERRAIN);
+        this.terrainEffect = terrainEffect;
+        this.zoneEffects = copyAndValidate(zoneEffects, FieldEffectKind.ZONE);
+        this.roomEffects = copyAndValidate(roomEffects, FieldEffectKind.ROOM);
     }
 
     public static BattleEnvironmentState neutral() {
@@ -152,6 +188,67 @@ public final class BattleEnvironmentState {
     /** True when the authoritative battle format uses League trainer-first initiative ordering. */
     public boolean leagueBattleOrdering() {
         return leagueBattleOrdering;
+    }
+
+    /** Duration-bearing terrain entry advanced by ROUND_START lifecycle, if present. */
+    public Optional<FieldEffectEntry> terrainEffect() {
+        return Optional.ofNullable(terrainEffect);
+    }
+
+    /** Ordered server-owned zone entries advanced before rooms and delayed attacks. */
+    public List<FieldEffectEntry> zoneEffects() {
+        return zoneEffects;
+    }
+
+    /** Ordered server-owned room entries advanced before delayed attacks. */
+    public List<FieldEffectEntry> roomEffects() {
+        return roomEffects;
+    }
+
+    /**
+     * Returns the next immutable environment snapshot after canonical field progression.
+     * The visible terrain name follows the duration-bearing terrain entry when one exists.
+     */
+    public BattleEnvironmentState withFieldEffects(
+            FieldEffectEntry terrainEffect,
+            Collection<FieldEffectEntry> zoneEffects,
+            Collection<FieldEffectEntry> roomEffects
+    ) {
+        String nextTerrainName = terrainEffect == null ? "" : terrainEffect.name();
+        return new BattleEnvironmentState(
+                weather,
+                nextTerrainName,
+                tailwindTeams,
+                groundedByCombatant,
+                mountedPairs,
+                trickRoomOrdering,
+                leagueBattleOrdering,
+                terrainEffect,
+                zoneEffects,
+                roomEffects
+        );
+    }
+
+    private static List<FieldEffectEntry> copyAndValidate(
+            Collection<FieldEffectEntry> entries,
+            FieldEffectKind expectedKind
+    ) {
+        ArrayList<FieldEffectEntry> copied = new ArrayList<>();
+        if (entries == null) return List.of();
+        for (FieldEffectEntry entry : entries) {
+            if (entry == null) continue;
+            validateKind(entry, expectedKind);
+            copied.add(entry);
+        }
+        return List.copyOf(copied);
+    }
+
+    private static void validateKind(FieldEffectEntry entry, FieldEffectKind expectedKind) {
+        if (entry != null && entry.kind() != expectedKind) {
+            throw new IllegalArgumentException(
+                    "expected " + expectedKind.wireName() + " entry but got " + entry.kind().wireName()
+            );
+        }
     }
 
     private static String normalizeText(String value) {
