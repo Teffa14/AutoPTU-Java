@@ -41,11 +41,7 @@ class RuntimeInitiativeOrderAssemblyTest {
         ));
         state.bindController("pokemon", "trainer");
 
-        InitiativeOrderAssemblyResult assembly = RuntimeInitiativeOrderAssembly.fromState(
-                state,
-                false,
-                false
-        );
+        InitiativeOrderAssemblyResult assembly = RuntimeInitiativeOrderAssembly.fromState(state);
 
         assertEquals(List.of("trainer", "pokemon"), assembly.orderedActorIds());
         assertEquals(List.of("initiative_penalty"), assembly.temporaryEffectFamiliesToClear().get("pokemon"));
@@ -83,12 +79,12 @@ class RuntimeInitiativeOrderAssemblyTest {
         assertEquals(List.of("bound-trainer", "unbound-trainer"), state.trainerIds());
         assertEquals(
                 List.of("unbound-trainer", "bound-trainer", "pokemon"),
-                RuntimeInitiativeOrderAssembly.fromState(state, false, false).orderedActorIds()
+                RuntimeInitiativeOrderAssembly.fromState(state).orderedActorIds()
         );
     }
 
     @Test
-    void trickRoomOrderingIsAppliedOnlyByTheCoreAssemblyBoundary() {
+    void trickRoomOrderingComesFromCanonicalEnvironmentState() {
         RuntimeCombatantState pokemon = combatant("pokemon", 10);
         BattleRuntimeState state = new BattleRuntimeState(
                 new MovementGrid(6, 6, Set.of(), Map.of()),
@@ -104,10 +100,52 @@ class RuntimeInitiativeOrderAssemblyTest {
                 "team-a"
         ));
         state.bindController("pokemon", "trainer");
+        state.syncEnvironmentFromRuntime(new BattleEnvironmentState(
+                "",
+                "",
+                Set.of(),
+                Map.of(),
+                Map.of(),
+                true,
+                false
+        ));
 
         assertEquals(
                 List.of("pokemon", "trainer"),
-                RuntimeInitiativeOrderAssembly.fromState(state, true, false).orderedActorIds()
+                RuntimeInitiativeOrderAssembly.fromState(state).orderedActorIds()
+        );
+    }
+
+    @Test
+    void leagueOrderingComesFromCanonicalEnvironmentState() {
+        RuntimeCombatantState pokemon = combatant("pokemon", 100);
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(pokemon)
+        );
+        state.putTrainer(new TrainerRuntimeState(
+                "trainer",
+                List.of(),
+                3,
+                0,
+                Map.of(),
+                5,
+                "team-a"
+        ));
+        state.bindController("pokemon", "trainer");
+        state.syncEnvironmentFromRuntime(new BattleEnvironmentState(
+                "",
+                "",
+                Set.of(),
+                Map.of(),
+                Map.of(),
+                false,
+                true
+        ));
+
+        assertEquals(
+                List.of("trainer", "pokemon"),
+                RuntimeInitiativeOrderAssembly.fromState(state).orderedActorIds()
         );
     }
 
