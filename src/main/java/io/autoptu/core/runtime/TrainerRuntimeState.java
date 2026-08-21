@@ -1,5 +1,7 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.rules.ActionBudget;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -10,7 +12,7 @@ import java.util.Map;
 /**
  * Mutable server-owned trainer state shared by combatants controlled by one trainer.
  *
- * Trainer Feature ownership, skills, AP, and initiative inputs are PTU rule state.
+ * Trainer Feature ownership, skills, AP, action state, and initiative inputs are PTU rule state.
  * Minecraft/Cobblemon may render them, but adapters must not supply these values while
  * battle rules are resolving.
  */
@@ -18,6 +20,7 @@ public final class TrainerRuntimeState {
     private final String trainerId;
     private final LinkedHashMap<String, String> featuresByNormalizedName = new LinkedHashMap<>();
     private final LinkedHashMap<String, Integer> skillRanksByNormalizedName = new LinkedHashMap<>();
+    private final ActionBudget actionBudget = new ActionBudget();
     private final int initiativeModifier;
     private final Integer explicitInitiativeSpeed;
     private final String teamId;
@@ -118,6 +121,16 @@ public final class TrainerRuntimeState {
 
     public Map<String, Integer> skillRanks() {
         return Map.copyOf(skillRanksByNormalizedName);
+    }
+
+    /** Server-owned Trainer action buckets, mirroring Python TrainerState.actions_taken. */
+    public ActionBudget actionBudget() {
+        return actionBudget;
+    }
+
+    /** Python TrainerState.reset_actions(): clear only the current action-use map. */
+    public void resetActions() {
+        actionBudget.resetConsumedActions();
     }
 
     public int ap() {
