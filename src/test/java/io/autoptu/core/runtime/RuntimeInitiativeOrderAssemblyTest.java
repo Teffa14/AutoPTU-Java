@@ -54,6 +54,40 @@ class RuntimeInitiativeOrderAssemblyTest {
     }
 
     @Test
+    void includesCanonicalTrainerWithoutBoundPokemonLikePythonTrainerRegistry() {
+        RuntimeCombatantState pokemon = combatant("pokemon", 10);
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(pokemon)
+        );
+        state.putTrainer(new TrainerRuntimeState(
+                "bound-trainer",
+                List.of(),
+                3,
+                0,
+                Map.of(),
+                30,
+                "team-a"
+        ));
+        state.putTrainer(new TrainerRuntimeState(
+                "unbound-trainer",
+                List.of(),
+                3,
+                0,
+                Map.of(),
+                40,
+                "team-b"
+        ));
+        state.bindController("pokemon", "bound-trainer");
+
+        assertEquals(List.of("bound-trainer", "unbound-trainer"), state.trainerIds());
+        assertEquals(
+                List.of("unbound-trainer", "bound-trainer", "pokemon"),
+                RuntimeInitiativeOrderAssembly.fromState(state, false, false).orderedActorIds()
+        );
+    }
+
+    @Test
     void trickRoomOrderingIsAppliedOnlyByTheCoreAssemblyBoundary() {
         RuntimeCombatantState pokemon = combatant("pokemon", 10);
         BattleRuntimeState state = new BattleRuntimeState(
