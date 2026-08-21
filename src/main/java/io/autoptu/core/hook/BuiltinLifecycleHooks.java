@@ -1,6 +1,7 @@
 package io.autoptu.core.hook;
 
 import io.autoptu.core.runtime.BattleRuntime;
+import io.autoptu.core.runtime.FieldRoundLifecycleHook;
 import io.autoptu.core.runtime.RuntimeCombatantState;
 
 import java.util.List;
@@ -34,6 +35,13 @@ public final class BuiltinLifecycleHooks {
                 .build();
 
         return LifecycleHookRegistry.builder()
+                .register(
+                        "round-field-progression",
+                        HookSource.TERRAIN,
+                        LifecycleHookPoint.ROUND_START,
+                        10,
+                        new FieldRoundLifecycleHook()
+                )
                 .register(
                         "round-move-frequency-reset",
                         HookSource.SYSTEM,
