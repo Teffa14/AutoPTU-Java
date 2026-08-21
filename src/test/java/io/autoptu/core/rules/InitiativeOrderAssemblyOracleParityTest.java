@@ -67,6 +67,10 @@ final class InitiativeOrderAssemblyOracleParityTest {
                             candidate(entry("p2", "t1", 20, 20))
                     )
             );
+            case "trainer_registry_without_pokemon" -> new CaseInput(
+                    List.of(entry("t1", "t1", 18, 18), entry("t2", "t2", 40, 40)),
+                    List.of(candidate(entry("p1", "t1", 10, 10)))
+            );
             case "league_trainers_stay_first" -> new CaseInput(
                     List.of(entry("t1", "t1", 5, 5), entry("t2", "t2", 50, 50)),
                     List.of(

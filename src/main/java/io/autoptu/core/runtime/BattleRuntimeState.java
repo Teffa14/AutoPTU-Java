@@ -385,6 +385,11 @@ public final class BattleRuntimeState {
         }
     }
 
+    /** Stable canonical Trainer insertion order, including Trainers without bound combatants. */
+    public List<String> trainerIds() {
+        return List.copyOf(trainersById.keySet());
+    }
+
     /** Bind a combatant to the trainer/controller that owns its Trainer Features and AP. */
     public void bindController(String combatantId, String trainerId) {
         requireKnownCombatant(combatantId, "combatant controller");
