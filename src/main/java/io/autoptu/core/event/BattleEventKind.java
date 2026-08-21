@@ -7,6 +7,7 @@ public enum BattleEventKind {
     STATUS_SKIP("status_skip"),
     TRAINER_FEATURE("trainer_feature"),
     RULE_EFFECT("rule_effect"),
+    FIELD_EFFECT("field_effect"),
     PHASE_CHANGE("phase"),
     TURN_START("turn_start"),
     TURN_END("turn_end");
