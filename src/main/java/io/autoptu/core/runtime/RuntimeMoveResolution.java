@@ -136,6 +136,95 @@ public final class RuntimeMoveResolution {
                 state, choice, move, actor, target, metadata);
         MoveCombatProfile effectiveMetadata = effectiveMoveHooks.profile();
 
+        MoveResolutionInput stateBoundInput = authoritativeStateBoundInput(
+                state,
+                choice,
+                move,
+                actor,
+                target,
+                effectiveMetadata,
+                input,
+                ignorePositiveAttackStage,
+                ignorePositiveDefenseStage
+        );
+        DamageModifierHookResult damageHooks = authoritativeDamageHooks(
+                state, choice, move, actor, target, effectiveMetadata);
+        stateBoundInput = withModifiers(stateBoundInput, damageHooks.modifiers());
+        return BattleRuntime.applyAuthoritativeMove(state, choice, move, actorSize, targetSize,
+                lineOfSightBlockers, source, rng, stateBoundInput,
+                combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
+                POST_DAMAGE_HOOKS, effectiveMetadata);
+    }
+
+    /**
+     * Preferred matured delayed-hit boundary for combatant targets.
+     *
+     * The delayed entry only preserves attacker, move and target identity. Effective move
+     * metadata, stats, evasion, accuracy stage, status projections, STAB, type effectiveness,
+     * damage modifiers and post-result hooks are re-derived from the current authoritative
+     * BattleRuntimeState before the hit resolves. The scheduling action already spent action
+     * economy and move frequency, so BattleRuntime executes this path without spending them
+     * again.
+     */
+    public static AppliedActionResult applyDelayedUsingAuthoritativeCombatState(
+            BattleRuntimeState state,
+            DelayedHitBinding binding,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput legacyInput,
+            boolean ignorePositiveAttackStage,
+            boolean ignorePositiveDefenseStage
+    ) {
+        if (state == null) throw new IllegalArgumentException("state is required");
+        if (binding == null) throw new IllegalArgumentException("binding is required");
+        if (legacyInput == null) throw new IllegalArgumentException("legacyInput is required");
+        MoveChoice choice = binding.choice();
+        MoveOption move = binding.move();
+        MoveCombatProfile metadata = move.requireCombatProfile();
+        RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
+        RuntimeCombatantState target = state.requireCombatant(choice.targetId());
+
+        EffectiveMoveHookResult effectiveMoveHooks = authoritativeEffectiveMoveHooks(
+                state, choice, move, actor, target, metadata);
+        MoveCombatProfile effectiveMetadata = effectiveMoveHooks.profile();
+        MoveResolutionInput stateBoundInput = authoritativeStateBoundInput(
+                state,
+                choice,
+                move,
+                actor,
+                target,
+                effectiveMetadata,
+                legacyInput,
+                ignorePositiveAttackStage,
+                ignorePositiveDefenseStage
+        );
+        DamageModifierHookResult damageHooks = authoritativeDamageHooks(
+                state, choice, move, actor, target, effectiveMetadata);
+        stateBoundInput = withModifiers(stateBoundInput, damageHooks.modifiers());
+
+        return BattleRuntime.applyDelayedAuthoritativeMove(
+                state,
+                binding,
+                source,
+                rng,
+                stateBoundInput,
+                combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
+                POST_DAMAGE_HOOKS,
+                effectiveMetadata
+        );
+    }
+
+    private static MoveResolutionInput authoritativeStateBoundInput(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            MoveOption move,
+            RuntimeCombatantState actor,
+            RuntimeCombatantState target,
+            MoveCombatProfile effectiveMetadata,
+            MoveResolutionInput legacyInput,
+            boolean ignorePositiveAttackStage,
+            boolean ignorePositiveDefenseStage
+    ) {
         CombatantStatProfile actorStats = StatusStatResolution.apply(
                 actor.effectiveStatProfile(), state.statuses(choice.actorId()));
         CombatantStatProfile targetStats = StatusStatResolution.apply(
@@ -147,18 +236,23 @@ public final class RuntimeMoveResolution {
         int defenseValue = StatResolution.defensive(targetStats, effectiveMetadata.damageCategory(), ignorePositiveDefenseStage);
         boolean meleeNoGuard = isMelee(move) && (actor.noGuard() || target.noGuard());
         int effectiveDb = authoritativeStabDamageBase(move, effectiveMetadata, actor);
-        double typeMultiplier = authoritativeTypeMultiplier(effectiveMetadata, target, input.typeMultiplier());
-        DamageModifierHookResult damageHooks = authoritativeDamageHooks(
-                state, choice, move, actor, target, effectiveMetadata);
-        MoveResolutionInput stateBoundInput = new MoveResolutionInput(
+        double typeMultiplier = authoritativeTypeMultiplier(effectiveMetadata, target, legacyInput.typeMultiplier());
+        return new MoveResolutionInput(
                 effectiveMetadata.ac(), evasion, actor.accuracyStage(), effectiveMetadata.critRange(), meleeNoGuard,
                 target.blur(), actor.probabilityControl(), effectiveDb, attackValue,
-                defenseValue, actor.sniper(), typeMultiplier, damageHooks.modifiers()
+                defenseValue, actor.sniper(), typeMultiplier, List.of()
         );
-        return BattleRuntime.applyAuthoritativeMove(state, choice, move, actorSize, targetSize,
-                lineOfSightBlockers, source, rng, stateBoundInput,
-                combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
-                POST_DAMAGE_HOOKS, effectiveMetadata);
+    }
+
+    private static MoveResolutionInput withModifiers(
+            MoveResolutionInput input,
+            List<AttackModifier> modifiers
+    ) {
+        return new MoveResolutionInput(
+                input.moveAc(), input.evasion(), input.accuracyStage(), input.critRange(),
+                input.meleeNoGuard(), input.blurApplies(), input.rerollOnMiss(), input.effectiveDb(),
+                input.attackValue(), input.defenseValue(), input.sniper(), input.typeMultiplier(), modifiers
+        );
     }
 
     private static EffectiveMoveHookResult authoritativeEffectiveMoveHooks(
