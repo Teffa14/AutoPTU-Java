@@ -33,12 +33,14 @@ class DelayedHitExecutionContractOracleParityTest {
         assertTrue(asBool(parts[3]), "target_id must be forwarded");
         assertTrue(asBool(parts[4]), "target_position must be forwarded");
         assertTrue(asBool(parts[5]), "resolve_move_targets must re-enter resolve_move_action");
+        assertTrue(asBool(parts[6]), "a stored target_position must force Tile targeting");
 
         DelayedHitExecutionPolicy policy = DelayedHitExecutionPolicy.targetResolution();
         assertEquals(DelayedHitExecutionPolicy.EntryPoint.TARGET_RESOLUTION, policy.entryPoint());
         assertEquals(asBool(parts[3]), policy.forwardsTargetId());
         assertEquals(asBool(parts[4]), policy.forwardsTargetPosition());
         assertEquals(asBool(parts[5]), policy.targetResolutionReentersMoveAction());
+        assertEquals(asBool(parts[6]), policy.targetPositionForcesTile());
     }
 
     private static boolean asBool(String raw) {
