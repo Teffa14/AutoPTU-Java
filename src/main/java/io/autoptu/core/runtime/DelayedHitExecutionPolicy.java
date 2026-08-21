@@ -6,9 +6,8 @@ package io.autoptu.core.runtime;
  * <p>The pinned Python oracle sends due delayed hits first to target resolution. That
  * resolver then re-enters the ordinary move-action resolver. Keeping both steps explicit
  * prevents Java from inventing a lower-level execution path whose action/frequency
- * semantics could diverge from Python. When a delayed entry carries a target position,
- * Python also changes the copied move to Tile targeting before target resolution, even
- * if a target id is present.</p>
+ * semantics could diverge from Python. Both stored target id and target position are
+ * forwarded unchanged; target resolution does not rewrite the move into Tile targeting.</p>
  */
 public record DelayedHitExecutionPolicy(
         EntryPoint entryPoint,
@@ -24,7 +23,7 @@ public record DelayedHitExecutionPolicy(
     }
 
     public static DelayedHitExecutionPolicy targetResolution() {
-        return new DelayedHitExecutionPolicy(EntryPoint.TARGET_RESOLUTION, true, true, true, true);
+        return new DelayedHitExecutionPolicy(EntryPoint.TARGET_RESOLUTION, true, true, true, false);
     }
 
     public enum EntryPoint {
