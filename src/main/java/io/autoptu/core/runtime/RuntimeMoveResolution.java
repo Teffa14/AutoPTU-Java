@@ -15,9 +15,9 @@ import io.autoptu.core.hook.EffectiveMoveHookResult;
 import io.autoptu.core.hook.PostDamageHookRegistry;
 import io.autoptu.core.model.AttackModifier;
 import io.autoptu.core.model.CombatantStatProfile;
+import io.autoptu.core.model.EvasionProfile;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveCombatProfile;
-import io.autoptu.core.model.EvasionProfile;
 import io.autoptu.core.random.PythonRandom;
 import io.autoptu.core.rules.EvasionResolution;
 import io.autoptu.core.rules.PtuTables;
@@ -124,6 +124,34 @@ public final class RuntimeMoveResolution {
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source, PythonRandom rng,
             MoveResolutionInput input, boolean ignorePositiveAttackStage, boolean ignorePositiveDefenseStage
     ) {
+        return applyUsingAuthoritativeCombatStateInternal(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source, rng,
+                input, ignorePositiveAttackStage, ignorePositiveDefenseStage, false
+        );
+    }
+
+    /**
+     * Mature delayed-hit boundary. It derives every PTU combat value from the same canonical
+     * runtime state and uses the same RNG/hook pipeline as an ordinary move, while delegating
+     * resource bookkeeping to BattleRuntime's delayed-trigger policy.
+     */
+    public static AppliedActionResult applyDelayedUsingAuthoritativeCombatState(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source, PythonRandom rng,
+            MoveResolutionInput input, boolean ignorePositiveAttackStage, boolean ignorePositiveDefenseStage
+    ) {
+        return applyUsingAuthoritativeCombatStateInternal(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source, rng,
+                input, ignorePositiveAttackStage, ignorePositiveDefenseStage, true
+        );
+    }
+
+    private static AppliedActionResult applyUsingAuthoritativeCombatStateInternal(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source, PythonRandom rng,
+            MoveResolutionInput input, boolean ignorePositiveAttackStage,
+            boolean ignorePositiveDefenseStage, boolean delayedTrigger
+    ) {
         if (state == null) throw new IllegalArgumentException("state is required");
         if (choice == null) throw new IllegalArgumentException("choice is required");
         if (move == null) throw new IllegalArgumentException("move is required");
@@ -155,10 +183,17 @@ public final class RuntimeMoveResolution {
                 target.blur(), actor.probabilityControl(), effectiveDb, attackValue,
                 defenseValue, actor.sniper(), typeMultiplier, damageHooks.modifiers()
         );
-        return BattleRuntime.applyAuthoritativeMove(state, choice, move, actorSize, targetSize,
-                lineOfSightBlockers, source, rng, stateBoundInput,
-                combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
-                POST_DAMAGE_HOOKS, effectiveMetadata);
+        List<BattleEvent> preResolutionEvents = combineEvents(effectiveMoveHooks.events(), damageHooks.events());
+        if (delayedTrigger) {
+            return BattleRuntime.applyDelayedAuthoritativeMove(
+                    state, choice, move, actorSize, targetSize, lineOfSightBlockers, source, rng,
+                    stateBoundInput, preResolutionEvents, POST_DAMAGE_HOOKS, effectiveMetadata
+            );
+        }
+        return BattleRuntime.applyAuthoritativeMove(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source, rng,
+                stateBoundInput, preResolutionEvents, POST_DAMAGE_HOOKS, effectiveMetadata
+        );
     }
 
     private static EffectiveMoveHookResult authoritativeEffectiveMoveHooks(
