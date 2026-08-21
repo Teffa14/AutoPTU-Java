@@ -14,6 +14,8 @@ import java.util.Set;
  * this server-owned state rather than live world/entity claims. Grounded defaults to
  * true for legacy/headless fixtures that have not materialized an explicit value yet.
  * Mounted pairs preserve Python BattleState insertion order as riderId -> mountId.
+ * Initiative ordering modes live here so Trick Room and League ordering cannot be
+ * supplied ad hoc by the renderer/controller when a round is rebuilt.
  */
 public final class BattleEnvironmentState {
     private final String weather;
@@ -21,6 +23,8 @@ public final class BattleEnvironmentState {
     private final Set<String> tailwindTeams;
     private final Map<String, Boolean> groundedByCombatant;
     private final Map<String, String> mountedPairs;
+    private final boolean trickRoomOrdering;
+    private final boolean leagueBattleOrdering;
 
     public BattleEnvironmentState(
             String weather,
@@ -28,7 +32,7 @@ public final class BattleEnvironmentState {
             Collection<String> tailwindTeams,
             Map<String, Boolean> groundedByCombatant
     ) {
-        this(weather, terrainName, tailwindTeams, groundedByCombatant, Map.of());
+        this(weather, terrainName, tailwindTeams, groundedByCombatant, Map.of(), false, false);
     }
 
     public BattleEnvironmentState(
@@ -37,6 +41,18 @@ public final class BattleEnvironmentState {
             Collection<String> tailwindTeams,
             Map<String, Boolean> groundedByCombatant,
             Map<String, String> mountedPairs
+    ) {
+        this(weather, terrainName, tailwindTeams, groundedByCombatant, mountedPairs, false, false);
+    }
+
+    public BattleEnvironmentState(
+            String weather,
+            String terrainName,
+            Collection<String> tailwindTeams,
+            Map<String, Boolean> groundedByCombatant,
+            Map<String, String> mountedPairs,
+            boolean trickRoomOrdering,
+            boolean leagueBattleOrdering
     ) {
         this.weather = normalizeText(weather);
         this.terrainName = normalizeText(terrainName);
@@ -82,10 +98,12 @@ public final class BattleEnvironmentState {
             }
         }
         this.mountedPairs = Collections.unmodifiableMap(pairs);
+        this.trickRoomOrdering = trickRoomOrdering;
+        this.leagueBattleOrdering = leagueBattleOrdering;
     }
 
     public static BattleEnvironmentState neutral() {
-        return new BattleEnvironmentState("", "", Set.of(), Map.of(), Map.of());
+        return new BattleEnvironmentState("", "", Set.of(), Map.of(), Map.of(), false, false);
     }
 
     public String weather() {
@@ -124,6 +142,16 @@ public final class BattleEnvironmentState {
     /** Canonical riderId -> mountId relationships in deterministic Python-compatible order. */
     public Map<String, String> mountedPairs() {
         return mountedPairs;
+    }
+
+    /** True when the authoritative field state currently reverses initiative for Trick Room. */
+    public boolean trickRoomOrdering() {
+        return trickRoomOrdering;
+    }
+
+    /** True when the authoritative battle format uses League trainer-first initiative ordering. */
+    public boolean leagueBattleOrdering() {
+        return leagueBattleOrdering;
     }
 
     private static String normalizeText(String value) {
