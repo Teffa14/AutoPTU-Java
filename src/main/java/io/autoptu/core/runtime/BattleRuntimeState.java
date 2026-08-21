@@ -27,11 +27,17 @@ public final class BattleRuntimeState {
     private final RoundDamageHistoryState damageHistory = new RoundDamageHistoryState();
     private final RoundInjuryHistoryState injuryHistory = new RoundInjuryHistoryState();
     private final InitiativeProgressState initiativeProgress = new InitiativeProgressState();
+    private final BattleDelayedHitState delayedHits;
     private BattleEnvironmentState environment = BattleEnvironmentState.neutral();
     private int currentRound;
 
     public BattleRuntimeState(MovementGrid grid, List<RuntimeCombatantState> combatants) {
-        this(grid, combatants, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
+        this(grid, combatants, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), 0L);
+    }
+
+    /** Preferred battle-construction boundary when a canonical battle seed is already available. */
+    public BattleRuntimeState(MovementGrid grid, List<RuntimeCombatantState> combatants, long battleSeed) {
+        this(grid, combatants, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), battleSeed);
     }
 
     public BattleRuntimeState(
@@ -144,10 +150,39 @@ public final class BattleRuntimeState {
             Map<String, ? extends Collection<MoveOption>> movesByCombatant,
             Map<String, ? extends Collection<HeldItemState>> heldItemsByCombatant
     ) {
+        this(
+                grid,
+                combatants,
+                statusesByCombatant,
+                statusSkipFeaturesByCombatant,
+                geometryByCombatant,
+                affiliationByCombatant,
+                movesByCombatant,
+                heldItemsByCombatant,
+                0L
+        );
+    }
+
+    /**
+     * Full authoritative battle snapshot with the single Python-compatible RNG stream
+     * used by server-owned delayed-hit lifecycle execution.
+     */
+    public BattleRuntimeState(
+            MovementGrid grid,
+            List<RuntimeCombatantState> combatants,
+            Map<String, ? extends Collection<String>> statusesByCombatant,
+            Map<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant,
+            Map<String, CombatantGeometryState> geometryByCombatant,
+            Map<String, CombatantAffiliationState> affiliationByCombatant,
+            Map<String, ? extends Collection<MoveOption>> movesByCombatant,
+            Map<String, ? extends Collection<HeldItemState>> heldItemsByCombatant,
+            long battleSeed
+    ) {
         if (grid == null) {
             throw new IllegalArgumentException("grid is required");
         }
         this.grid = grid;
+        this.delayedHits = new BattleDelayedHitState(battleSeed);
         for (RuntimeCombatantState combatant : combatants == null ? List.<RuntimeCombatantState>of() : combatants) {
             if (combatant == null) {
                 continue;
@@ -260,6 +295,21 @@ public final class BattleRuntimeState {
     /** Server-owned initiative order/cursor shared by lifecycle and stateful ability hooks. */
     public InitiativeProgressState initiativeProgress() {
         return initiativeProgress;
+    }
+
+    /** Read-only delayed-hit snapshot owned by the battle state, never by Minecraft/Cobblemon. */
+    public List<DelayedHitEntry> delayedHits() {
+        return delayedHits.entriesInInsertionOrder();
+    }
+
+    /** Runtime-package scheduling boundary used by move-special/lifecycle services. */
+    void scheduleDelayedHitFromRuntime(DelayedHitEntry entry) {
+        delayedHits.scheduleFromRuntime(entry);
+    }
+
+    /** Runtime-package execution boundary; callers outside the core never receive the mutable RNG/queue owner. */
+    BattleDelayedHitState delayedHitStateFromRuntime() {
+        return delayedHits;
     }
 
     public RuntimeCombatantState requireCombatant(String combatantId) {
