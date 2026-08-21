@@ -25,24 +25,24 @@ public final class DelayedHitBindingResolver {
                         "delayed-hit move is not in canonical moveset: " + entry.moveId()));
 
         MoveChoice choice;
-        if (entry.targetId() != null) {
-            RuntimeCombatantState target = state.requireCombatant(entry.targetId());
-            GridCoord anchor = entry.targetPosition() != null ? entry.targetPosition() : target.position();
-            choice = new MoveChoice(
-                    attacker.combatantId(),
-                    move.moveId(),
-                    ChoiceTargetMode.COMBATANT,
-                    target.combatantId(),
-                    anchor,
-                    move.actionType()
-            );
-        } else if (entry.targetPosition() != null) {
+        if (entry.targetPosition() != null) {
             choice = new MoveChoice(
                     attacker.combatantId(),
                     move.moveId(),
                     ChoiceTargetMode.TILE,
                     "",
                     entry.targetPosition(),
+                    move.actionType()
+            );
+        } else if (entry.targetId() != null) {
+            RuntimeCombatantState target = state.requireCombatant(entry.targetId());
+            GridCoord anchor = target.position();
+            choice = new MoveChoice(
+                    attacker.combatantId(),
+                    move.moveId(),
+                    ChoiceTargetMode.COMBATANT,
+                    target.combatantId(),
+                    anchor,
                     move.actionType()
             );
         } else {
