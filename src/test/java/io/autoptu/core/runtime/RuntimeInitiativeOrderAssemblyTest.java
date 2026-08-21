@@ -22,7 +22,7 @@ class RuntimeInitiativeOrderAssemblyTest {
         RuntimeCombatantState pokemon = combatant("pokemon", 10);
         pokemon.temporaryEffects().add(
                 "initiative_penalty",
-                Map.of("amount", -3, "expires_round", 2)
+                Map.of("amount", -3, "expires_round", 1)
         );
 
         BattleRuntimeState state = new BattleRuntimeState(
