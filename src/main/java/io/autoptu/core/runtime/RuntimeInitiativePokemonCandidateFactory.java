@@ -13,9 +13,10 @@ import io.autoptu.core.rules.StatusStatResolution;
  * Internal adapter from authoritative battle state to the parity-tested Pokemon
  * initiative contracts.
  *
- * The caller supplies semantic environment/trainer inputs, never a precomputed speed,
- * total, or sorted order. Combat stages, statuses, HP, abilities, temporary effects,
- * participation state, and trainer identity are read from BattleRuntimeState.
+ * The caller supplies only semantic trainer/rider inputs that are not yet canonical
+ * battle state. Combat stages, statuses, HP, abilities, temporary effects,
+ * participation, trainer identity and environmental inputs are read from
+ * BattleRuntimeState.
  */
 public final class RuntimeInitiativePokemonCandidateFactory {
     private RuntimeInitiativePokemonCandidateFactory() {
@@ -34,6 +35,7 @@ public final class RuntimeInitiativePokemonCandidateFactory {
         }
 
         RuntimeCombatantState actor = state.requireCombatant(actorId);
+        BattleEnvironmentState environment = state.environment();
         CombatantStatProfile statusAwareProfile = StatusStatResolution.apply(
                 actor.effectiveStatProfile(),
                 state.statuses(actorId)
@@ -43,9 +45,9 @@ public final class RuntimeInitiativePokemonCandidateFactory {
                 resolvedSpeed,
                 actor.hp(),
                 actor.maxHp(),
-                context.weather(),
-                context.terrainName(),
-                context.grounded(),
+                environment.weather(),
+                environment.terrainName(),
+                environment.grounded(actorId),
                 actor.abilities()
         );
 
@@ -64,7 +66,7 @@ public final class RuntimeInitiativePokemonCandidateFactory {
                 resolvedSpeed,
                 context.trainerModifier(),
                 state.hasStatus(actorId, "Bashed"),
-                context.tailwindActive(),
+                environment.tailwindActive(state.teamId(actorId)),
                 state.currentRound(),
                 actor.temporaryEffects().entriesInInsertionOrder(),
                 additionalBonus,
