@@ -39,7 +39,7 @@ public final class InitiativeAssemblyInstaller {
         for (InitiativeEntry entry : assembly.orderedEntries()) {
             String actorId = entry.actorId();
             boolean pokemonActor = state.combatants().containsKey(actorId);
-            boolean trainerActor = state.hasTrainerActor(actorId);
+            boolean trainerActor = isKnownTrainer(state, actorId);
             if (!pokemonActor && !trainerActor) {
                 throw new IllegalArgumentException(
                         "initiative entry references unknown Pokemon/Trainer actor: " + actorId
@@ -67,5 +67,14 @@ public final class InitiativeAssemblyInstaller {
 
         state.initiativeProgress().replaceOrderFromLifecycle(orderedActorIds);
         return orderedActorIds;
+    }
+
+    private static boolean isKnownTrainer(BattleRuntimeState state, String actorId) {
+        try {
+            state.requireTrainer(actorId);
+            return true;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 }
