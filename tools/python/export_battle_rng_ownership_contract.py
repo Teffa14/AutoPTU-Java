@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import inspect
 import sys
+import textwrap
+from collections import deque
 from pathlib import Path
 
 
@@ -14,6 +17,43 @@ def safe_source(value) -> str:
         return inspect.getsource(value)
     except (OSError, TypeError):
         return ""
+
+
+def call_names(source: str) -> set[str]:
+    if not source:
+        return set()
+    tree = ast.parse(textwrap.dedent(source))
+    result: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        target = node.func
+        if isinstance(target, ast.Name):
+            result.add(target.id)
+        elif isinstance(target, ast.Attribute):
+            result.add(target.attr)
+    return result
+
+
+def reachable_rng_users(root_function, module_functions: dict[str, object]) -> list[str]:
+    queue: deque[tuple[str, object]] = deque([(root_function.__name__, root_function)])
+    visited: set[str] = set()
+    rng_users: list[str] = []
+
+    while queue:
+        name, function = queue.popleft()
+        if name in visited:
+            continue
+        visited.add(name)
+        source = safe_source(function)
+        if ".rng" in source:
+            rng_users.append(name)
+        for called in sorted(call_names(source)):
+            candidate = module_functions.get(called)
+            if candidate is not None and called not in visited:
+                queue.append((called, candidate))
+
+    return sorted(rng_users)
 
 
 def main() -> int:
@@ -30,30 +70,35 @@ def main() -> int:
     from auto_ptu.rules.controllers.phase_controller import PhaseController
 
     resolve_move_action = getattr(battle_state_module, "resolve_move_action")
-    move_action_source = safe_source(resolve_move_action)
     target_source = safe_source(BattleState.resolve_move_targets)
     start_round_source = safe_source(PhaseController.start_round)
 
-    class_rng_methods = sorted(
-        name
-        for name, method in inspect.getmembers(BattleState, predicate=inspect.isfunction)
-        if ".rng" in safe_source(method)
-    )
-    module_rng_functions = sorted(
-        name
+    module_functions = {
+        name: function
         for name, function in inspect.getmembers(battle_state_module, predicate=inspect.isfunction)
-        if ".rng" in safe_source(function)
+    }
+    reachable_rng = reachable_rng_users(resolve_move_action, module_functions)
+    all_rng_users = sorted(
+        {
+            name
+            for name, function in module_functions.items()
+            if ".rng" in safe_source(function)
+        }
+        | {
+            name
+            for name, method in inspect.getmembers(BattleState, predicate=inspect.isfunction)
+            if ".rng" in safe_source(method)
+        }
     )
-    rng_users = sorted(set(class_rng_methods + module_rng_functions))
 
-    move_uses_battle_rng = ".rng" in move_action_source
+    move_reaches_battle_rng = bool(reachable_rng)
     target_feeds_move_action = "resolve_move_action" in target_source
     delayed_receives_battle = "resolve_delayed_hits" in start_round_source and "self.battle" in start_round_source
 
     # Fail loudly if Python moves these responsibilities. Java must then review
     # the lifecycle/RNG boundary instead of preserving an obsolete assumption.
-    assert rng_users, "battle rules must expose functions that consume the battle RNG stream"
-    assert move_uses_battle_rng, "resolve_move_action must consume the battle-owned RNG"
+    assert all_rng_users, "battle rules must expose functions that consume the battle RNG stream"
+    assert move_reaches_battle_rng, "resolve_move_action must reach a battle RNG consumer"
     assert target_feeds_move_action, "resolve_move_targets must feed resolve_move_action"
     assert delayed_receives_battle, "round-start delayed resolution must receive the BattleState owner"
 
@@ -64,9 +109,9 @@ def main() -> int:
             [
                 "BATTLE_RNG_OWNERSHIP",
                 "1",
-                "",
-                ",".join(rng_users),
-                "1" if move_uses_battle_rng else "0",
+                ",".join(reachable_rng),
+                ",".join(all_rng_users),
+                "1" if move_reaches_battle_rng else "0",
                 "1" if target_feeds_move_action else "0",
                 "1" if delayed_receives_battle else "0",
             ]
