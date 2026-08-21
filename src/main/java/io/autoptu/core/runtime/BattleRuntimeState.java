@@ -27,6 +27,7 @@ public final class BattleRuntimeState {
     private final RoundDamageHistoryState damageHistory = new RoundDamageHistoryState();
     private final RoundInjuryHistoryState injuryHistory = new RoundInjuryHistoryState();
     private final InitiativeProgressState initiativeProgress = new InitiativeProgressState();
+    private BattleEnvironmentState environment = BattleEnvironmentState.neutral();
     private int currentRound;
 
     public BattleRuntimeState(MovementGrid grid, List<RuntimeCombatantState> combatants) {
@@ -224,6 +225,26 @@ public final class BattleRuntimeState {
             throw new IllegalArgumentException("currentRound cannot be negative");
         }
         this.currentRound = currentRound;
+    }
+
+    /** Server-owned environmental state shared by initiative and future field-rule hooks. */
+    public BattleEnvironmentState environment() {
+        return environment;
+    }
+
+    /**
+     * Runtime-package boundary for replacing the canonical environment snapshot.
+     * Adapters may materialize world data before it enters the core, but cannot mutate
+     * the environment through this state once battle rules are running.
+     */
+    void syncEnvironmentFromRuntime(BattleEnvironmentState environment) {
+        if (environment == null) {
+            throw new IllegalArgumentException("environment state is required");
+        }
+        for (String combatantId : environment.groundedCombatantIds()) {
+            requireKnownCombatant(combatantId, "environment grounded state");
+        }
+        this.environment = environment;
     }
 
     /** Server-owned damage history shared by move resolution and round lifecycle. */
