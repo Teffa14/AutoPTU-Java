@@ -1,0 +1,40 @@
+name: Delayed Hit Resource Contract
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  delayed-hit-resource-contract:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Freeze Python delayed-hit resource contract
+        run: |
+          python3 -m py_compile tools/python/export_delayed_hit_resource_contract.py
+          python3 tools/python/export_delayed_hit_resource_contract.py \
+            --source-root python-oracle \
+            --output build/oracle/delayed-hit-resource.tsv
+          cat build/oracle/delayed-hit-resource.tsv
+
+      - name: Run Java contract tests
+        run: gradle test --stacktrace --tests io.autoptu.core.runtime.DelayedHitResourceContractOracleParityTest
