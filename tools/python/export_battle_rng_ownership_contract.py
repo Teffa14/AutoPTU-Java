@@ -4,128 +4,75 @@
 from __future__ import annotations
 
 import argparse
-import ast
+import inspect
+import sys
 from pathlib import Path
 
 
-def is_self_rng(node: ast.AST) -> bool:
-    return (
-        isinstance(node, ast.Attribute)
-        and node.attr == "rng"
-        and isinstance(node.value, ast.Name)
-        and node.value.id == "self"
-    )
+def safe_source(value) -> str:
+    try:
+        return inspect.getsource(value)
+    except (OSError, TypeError):
+        return ""
 
 
-def references_self_rng(node: ast.AST) -> bool:
-    return any(is_self_rng(child) for child in ast.walk(node))
-
-
-def calls_named(node: ast.AST, method_name: str) -> bool:
-    for child in ast.walk(node):
-        if not isinstance(child, ast.Call):
-            continue
-        func = child.func
-        if isinstance(func, ast.Attribute) and func.attr == method_name:
-            return True
-        if isinstance(func, ast.Name) and func.id == method_name:
-            return True
-    return False
-
-
-def find_class(root: ast.AST, name: str) -> ast.ClassDef:
-    for node in ast.walk(root):
-        if isinstance(node, ast.ClassDef) and node.name == name:
-            return node
-    raise RuntimeError(f"class {name!r} not found")
-
-
-def find_method(class_node: ast.ClassDef, name: str) -> ast.FunctionDef | ast.AsyncFunctionDef:
-    for node in class_node.body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
-            return node
-    raise RuntimeError(f"method {class_node.name}.{name} not found")
-
-
-def find_function(root: ast.AST, name: str) -> ast.FunctionDef | ast.AsyncFunctionDef:
-    for node in ast.walk(root):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
-            return node
-    raise RuntimeError(f"function {name!r} not found")
-
-
-def rng_functions(root: ast.AST) -> list[str]:
-    return sorted(
-        {
-            node.name
-            for node in ast.walk(root)
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-            and references_self_rng(node)
-        }
-    )
-
-
-def assignment_functions(root: ast.AST) -> list[str]:
-    result: set[str] = set()
-    for function in ast.walk(root):
-        if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            continue
-        for child in ast.walk(function):
-            if isinstance(child, ast.Assign) and any(is_self_rng(target) for target in child.targets):
-                result.add(function.name)
-            elif isinstance(child, ast.AnnAssign) and is_self_rng(child.target):
-                result.add(function.name)
-    return sorted(result)
-
-
-def phase_calls_delayed_with_battle(phase_source: str) -> bool:
-    module = ast.parse(phase_source)
-    controller = find_class(module, "PhaseController")
-    start_round = find_method(controller, "start_round")
-    for node in ast.walk(start_round):
-        if not isinstance(node, ast.Call):
-            continue
-        func = node.func
-        name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else ""
-        if name != "resolve_delayed_hits" or not node.args:
-            continue
-        first = node.args[0]
-        if isinstance(first, ast.Attribute) and first.attr == "battle":
-            return True
-    return False
-
-
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
 
-    root = Path(args.source_root)
-    battle_path = root / "auto_ptu" / "rules" / "battle_state.py"
-    phase_path = root / "auto_ptu" / "rules" / "controllers" / "phase_controller.py"
+    source_root = Path(args.source_root).resolve()
+    sys.path.insert(0, str(source_root))
 
-    battle_module = ast.parse(battle_path.read_text(encoding="utf-8"))
-    resolve_move_action = find_function(battle_module, "resolve_move_action")
-    resolve_move_targets = find_function(battle_module, "resolve_move_targets")
+    from auto_ptu.rules.battle_state import BattleState
+    from auto_ptu.rules.controllers.phase_controller import PhaseController
 
-    rng_users = rng_functions(battle_module)
-    assignments = assignment_functions(battle_module)
+    rng_methods = sorted(
+        name
+        for name, method in inspect.getmembers(BattleState, predicate=inspect.isfunction)
+        if "self.rng" in safe_source(method)
+    )
+    assignment_methods = sorted(
+        name
+        for name, method in inspect.getmembers(BattleState, predicate=inspect.isfunction)
+        if "self.rng =" in safe_source(method) or "self.rng:" in safe_source(method)
+    )
 
-    values = [
-        "BATTLE_RNG_OWNERSHIP",
-        "1" if rng_users else "0",
-        ",".join(assignments),
-        ",".join(rng_users),
-        "1" if references_self_rng(resolve_move_action) else "0",
-        "1" if calls_named(resolve_move_targets, "resolve_move_action") else "0",
-        "1" if phase_calls_delayed_with_battle(phase_path.read_text(encoding="utf-8")) else "0",
-    ]
+    move_action_source = safe_source(BattleState.resolve_move_action)
+    target_source = safe_source(BattleState.resolve_move_targets)
+    start_round_source = safe_source(PhaseController.start_round)
+
+    move_uses_battle_rng = "self.rng" in move_action_source
+    target_feeds_move_action = "resolve_move_action" in target_source
+    delayed_receives_battle = "resolve_delayed_hits" in start_round_source and "self.battle" in start_round_source
+
+    # Fail loudly if Python moves these responsibilities. Java must then review
+    # the lifecycle/RNG boundary instead of preserving an obsolete assumption.
+    assert rng_methods, "BattleState must expose methods that consume its RNG stream"
+    assert move_uses_battle_rng, "resolve_move_action must consume BattleState.rng"
+    assert target_feeds_move_action, "resolve_move_targets must feed resolve_move_action"
+    assert delayed_receives_battle, "round-start delayed resolution must receive the BattleState owner"
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text("\t".join(values) + "\n", encoding="utf-8")
+    output.write_text(
+        "\t".join(
+            [
+                "BATTLE_RNG_OWNERSHIP",
+                "1",
+                ",".join(assignment_methods),
+                ",".join(rng_methods),
+                "1" if move_uses_battle_rng else "0",
+                "1" if target_feeds_move_action else "0",
+                "1" if delayed_receives_battle else "0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
