@@ -121,6 +121,8 @@ def main() -> int:
         ("increments_cursor_before_selection", has_augmented_index(method)),
         ("rollover_calls_start_round", calls(method, "start_round")),
         ("reads_initiative_order", reads_attribute(method, "initiative_order")),
+        ("recognizes_trainer_entries", calls(method, "_is_trainer_entry")),
+        ("reads_trainer_registry", reads_attribute(method, "trainers")),
         ("guards_active_state", reads_attribute(method, "active")),
         ("guards_fainted_state", reads_attribute(method, "fainted")),
         ("resets_selected_actor_actions", calls(method, "reset_actions")),
