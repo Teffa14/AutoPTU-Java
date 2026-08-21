@@ -5,23 +5,25 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Mutable server-owned trainer state shared by combatants controlled by one trainer.
  *
- * Trainer Feature ownership, AP, and initiative modifier are PTU rule state.
+ * Trainer Feature ownership, skills, AP, and initiative modifier are PTU rule state.
  * Minecraft/Cobblemon may render them, but adapters must not supply these values while
  * battle rules are resolving.
  */
 public final class TrainerRuntimeState {
     private final String trainerId;
     private final LinkedHashMap<String, String> featuresByNormalizedName = new LinkedHashMap<>();
+    private final LinkedHashMap<String, Integer> skillRanksByNormalizedName = new LinkedHashMap<>();
     private final int initiativeModifier;
     private int ap;
 
     /** Backwards-compatible trainer state with the Python default initiative modifier of zero. */
     public TrainerRuntimeState(String trainerId, Collection<String> trainerFeatures, int ap) {
-        this(trainerId, trainerFeatures, ap, 0);
+        this(trainerId, trainerFeatures, ap, 0, Map.of());
     }
 
     public TrainerRuntimeState(
@@ -29,6 +31,16 @@ public final class TrainerRuntimeState {
             Collection<String> trainerFeatures,
             int ap,
             int initiativeModifier
+    ) {
+        this(trainerId, trainerFeatures, ap, initiativeModifier, Map.of());
+    }
+
+    public TrainerRuntimeState(
+            String trainerId,
+            Collection<String> trainerFeatures,
+            int ap,
+            int initiativeModifier,
+            Map<String, Integer> skillRanks
     ) {
         if (trainerId == null || trainerId.isBlank()) {
             throw new IllegalArgumentException("trainerId is required");
@@ -47,6 +59,16 @@ public final class TrainerRuntimeState {
                 }
             }
         }
+        if (skillRanks != null) {
+            for (Map.Entry<String, Integer> entry : skillRanks.entrySet()) {
+                String name = entry.getKey();
+                if (name == null || name.isBlank()) {
+                    throw new IllegalArgumentException("Trainer skill name is required");
+                }
+                int rank = entry.getValue() == null ? 0 : entry.getValue();
+                skillRanksByNormalizedName.put(normalize(name), rank);
+            }
+        }
         this.ap = ap;
         this.initiativeModifier = initiativeModifier;
     }
@@ -63,6 +85,16 @@ public final class TrainerRuntimeState {
     public boolean hasTrainerFeature(String featureName) {
         if (featureName == null || featureName.isBlank()) return false;
         return featuresByNormalizedName.containsKey(normalize(featureName));
+    }
+
+    /** Python TrainerState.skill_rank() semantics: case-insensitive lookup, missing => 0. */
+    public int skillRank(String skillName) {
+        if (skillName == null || skillName.isBlank()) return 0;
+        return skillRanksByNormalizedName.getOrDefault(normalize(skillName), 0);
+    }
+
+    public Map<String, Integer> skillRanks() {
+        return Map.copyOf(skillRanksByNormalizedName);
     }
 
     public int ap() {
