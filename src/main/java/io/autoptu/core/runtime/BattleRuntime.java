@@ -108,7 +108,8 @@ public final class BattleRuntime {
         if (postDamageHooks == null) throw new IllegalArgumentException("postDamageHooks is required");
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
-                rng, input, preResolutionEvents, postDamageHooks, null, null
+                rng, input, preResolutionEvents, postDamageHooks, null, null,
+                MoveExecutionPolicy.ORDINARY
         );
     }
 
@@ -130,7 +131,31 @@ public final class BattleRuntime {
         if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
-                rng, input, preResolutionEvents, null, postDamageHookRegistry, effectiveMetadata
+                rng, input, preResolutionEvents, null, postDamageHookRegistry, effectiveMetadata,
+                MoveExecutionPolicy.ORDINARY
+        );
+    }
+
+    /**
+     * Mature delayed-hit path. The move re-enters the same accuracy/damage/post-result pipeline
+     * as an ordinary move, but its action and move-frequency resources were already paid when
+     * the delayed effect was scheduled. Current target/range/footprint/LoS state is still
+     * revalidated server-side.
+     */
+    public static AppliedActionResult applyDelayedAuthoritativeMove(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            PythonRandom rng, MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            PostDamageHookRegistry postDamageHookRegistry,
+            MoveCombatProfile effectiveMetadata
+    ) {
+        if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHookRegistry is required");
+        if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
+        return applyAuthoritativeMoveInternal(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
+                rng, input, preResolutionEvents, null, postDamageHookRegistry, effectiveMetadata,
+                MoveExecutionPolicy.DELAYED_TRIGGER
         );
     }
 
@@ -141,12 +166,22 @@ public final class BattleRuntime {
             List<? extends BattleEvent> preResolutionEvents,
             PostDamageHookResult precomputedPostDamageHooks,
             PostDamageHookRegistry deferredPostDamageHooks,
-            MoveCombatProfile effectiveMetadata
+            MoveCombatProfile effectiveMetadata,
+            MoveExecutionPolicy executionPolicy
     ) {
         if (rng == null) throw new IllegalArgumentException("rng is required");
         if (input == null) throw new IllegalArgumentException("input is required");
+        if (executionPolicy == null) throw new IllegalArgumentException("executionPolicy is required");
 
-        MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
+        if (executionPolicy.validateOrdinaryLegality()) {
+            MoveChoiceRevalidation.requireLegalCombatantMove(
+                    state, choice, move, actorSize, targetSize, lineOfSightBlockers
+            );
+        } else {
+            MoveChoiceRevalidation.requireLegalDelayedCombatantMove(
+                    state, choice, move, actorSize, targetSize, lineOfSightBlockers
+            );
+        }
 
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
@@ -177,11 +212,15 @@ public final class BattleRuntime {
         if (accuracy.hit()) {
             damage = applyPostDamageAdjustment(damage, resolvedPostDamageHooks.flatDamageBonus());
         }
-        AppliedActionResult result = applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
+        AppliedActionResult result = applyResolvedMoveOutcome(
+                state, choice, source, accuracy, damage, executionPolicy
+        );
         if (accuracy.hit()) {
             result = prependEvents(resolvedPostDamageHooks.events(), result);
         }
-        actor.moveFrequencyUsage().recordUse(move);
+        if (executionPolicy.recordFrequencyUse()) {
+            actor.moveFrequencyUsage().recordUse(move);
+        }
         return prependEvents(preResolutionEvents, result);
     }
 
@@ -191,7 +230,9 @@ public final class BattleRuntime {
             AccuracyResult accuracy, DamageResult damage
     ) {
         MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
-        AppliedActionResult result = applyResolvedMoveOutcome(state, choice, source, accuracy, damage);
+        AppliedActionResult result = applyResolvedMoveOutcome(
+                state, choice, source, accuracy, damage, MoveExecutionPolicy.ORDINARY
+        );
         state.requireCombatant(choice.actorId()).moveFrequencyUsage().recordUse(move);
         return result;
     }
@@ -200,9 +241,20 @@ public final class BattleRuntime {
             BattleRuntimeState state, MoveChoice choice, String source,
             AccuracyResult accuracy, DamageResult damage
     ) {
+        return applyResolvedMoveOutcome(
+                state, choice, source, accuracy, damage, MoveExecutionPolicy.ORDINARY
+        );
+    }
+
+    private static AppliedActionResult applyResolvedMoveOutcome(
+            BattleRuntimeState state, MoveChoice choice, String source,
+            AccuracyResult accuracy, DamageResult damage,
+            MoveExecutionPolicy executionPolicy
+    ) {
         if (state == null) throw new IllegalArgumentException("state is required");
         if (choice == null) throw new IllegalArgumentException("choice is required");
         if (accuracy == null) throw new IllegalArgumentException("accuracy is required");
+        if (executionPolicy == null) throw new IllegalArgumentException("executionPolicy is required");
         if (choice.targetMode() != ChoiceTargetMode.COMBATANT || choice.targetId().isBlank()) {
             throw new IllegalArgumentException("resolved move outcome currently requires a combatant target");
         }
@@ -212,14 +264,16 @@ public final class BattleRuntime {
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
         ActionBudget budget = actor.actionBudget();
         ActionType actionType = choice.actionType();
-        if (!budget.hasActionAvailable(actionType) && budget.extraCount(actionType) <= 0) {
+        if (executionPolicy.consumeAction()
+                && !budget.hasActionAvailable(actionType)
+                && budget.extraCount(actionType) <= 0) {
             throw new IllegalStateException(actionType.value() + " action is already consumed");
         }
 
         int previousHp = target.hp();
         int resolvedDamage = accuracy.hit() ? Math.max(0, damage.damage()) : 0;
         int nextHp = Math.max(0, previousHp - resolvedDamage);
-        if (!budget.consume(actionType, choice.moveId())) {
+        if (executionPolicy.consumeAction() && !budget.consume(actionType, choice.moveId())) {
             throw new IllegalStateException(actionType.value() + " action is already consumed");
         }
         target.setHp(nextHp);
