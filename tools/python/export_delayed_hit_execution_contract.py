@@ -3,8 +3,9 @@
 
 This deliberately freezes the language-neutral entrypoint contract before Java
 wires delayed hits into ROUND_START. Delayed hits are scheduled separately and,
-when due, enter BattleState.resolve_move_targets directly rather than the normal
-resolve_move_action/action-selection path.
+when due, enter BattleState.resolve_move_targets before the ordinary move-action
+resolver. A stored target position also changes the copied delayed move to Tile
+targeting before target resolution.
 """
 
 from __future__ import annotations
@@ -55,6 +56,25 @@ def keyword_names_for_call(fn, expected_call: str) -> set[str]:
     return names
 
 
+def target_position_forces_tile(fn) -> bool:
+    tree = function_tree(fn)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.If):
+            continue
+        test = ast.unparse(node.test).replace(" ", "")
+        if "target_positionisnotNone" not in test:
+            continue
+        for child in node.body:
+            if not isinstance(child, ast.Assign):
+                continue
+            if not isinstance(child.value, ast.Constant) or child.value.value != "Tile":
+                continue
+            for target in child.targets:
+                if isinstance(target, ast.Attribute) and target.attr == "target":
+                    return True
+    return False
+
+
 def main() -> int:
     args = parse_args()
     source_root = Path(args.source_root).resolve()
@@ -66,6 +86,7 @@ def main() -> int:
     delayed_calls = call_names(resolve_delayed_hits)
     target_calls = call_names(BattleState.resolve_move_targets)
     forwarded = keyword_names_for_call(resolve_delayed_hits, "resolve_move_targets")
+    position_forces_tile = target_position_forces_tile(resolve_delayed_hits)
 
     # These checks intentionally fail the exporter if Python changes the
     # execution boundary. Java must then be reviewed rather than silently
@@ -74,6 +95,7 @@ def main() -> int:
     assert "resolve_move_action" not in delayed_calls
     assert "target_id" in forwarded
     assert "target_position" in forwarded
+    assert position_forces_tile
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -86,6 +108,7 @@ def main() -> int:
                 "1" if "target_id" in forwarded else "0",
                 "1" if "target_position" in forwarded else "0",
                 "1" if "resolve_move_action" in target_calls else "0",
+                "1" if position_forces_tile else "0",
             ]
         )
         + "\n",
