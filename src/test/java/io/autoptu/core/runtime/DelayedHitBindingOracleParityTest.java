@@ -52,16 +52,45 @@ class DelayedHitBindingOracleParityTest {
 
             assertEquals(fixture.moveId(), binding.move().moveId());
             assertEquals(binding.move().actionType(), binding.choice().actionType());
-            if (fixture.targetId() != null) {
-                assertEquals(ChoiceTargetMode.COMBATANT, binding.choice().targetMode());
-                assertEquals(fixture.targetId(), binding.choice().targetId());
-                assertEquals(state.requireCombatant(fixture.targetId()).position(), binding.choice().targetAnchor());
-            } else {
+            if (fixture.targetPosition() != null) {
                 assertEquals(ChoiceTargetMode.TILE, binding.choice().targetMode());
                 assertEquals("", binding.choice().targetId());
                 assertEquals(fixture.targetPosition(), binding.choice().targetAnchor());
+            } else {
+                assertEquals(ChoiceTargetMode.COMBATANT, binding.choice().targetMode());
+                assertEquals(fixture.targetId(), binding.choice().targetId());
+                assertEquals(state.requireCombatant(fixture.targetId()).position(), binding.choice().targetAnchor());
             }
         }
+    }
+
+    @Test
+    void targetPositionTakesPrecedenceWhenDelayedEntryAlsoCarriesTargetId() {
+        Fixture fixture = new Fixture(
+                "actor",
+                "Future Sight",
+                "target",
+                new GridCoord(7, 9),
+                2,
+                "future_sight"
+        );
+        BattleRuntimeState state = stateFor(List.of(fixture));
+
+        DelayedHitBinding binding = DelayedHitBindingResolver.bind(
+                state,
+                new DelayedHitEntry(
+                        fixture.attackerId(),
+                        fixture.moveId(),
+                        fixture.targetId(),
+                        fixture.targetPosition(),
+                        fixture.triggerRound(),
+                        fixture.effect()
+                )
+        );
+
+        assertEquals(ChoiceTargetMode.TILE, binding.choice().targetMode());
+        assertEquals("", binding.choice().targetId());
+        assertEquals(fixture.targetPosition(), binding.choice().targetAnchor());
     }
 
     @Test
