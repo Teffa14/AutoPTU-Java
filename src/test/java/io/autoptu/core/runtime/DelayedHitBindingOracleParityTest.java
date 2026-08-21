@@ -52,20 +52,23 @@ class DelayedHitBindingOracleParityTest {
 
             assertEquals(fixture.moveId(), binding.move().moveId());
             assertEquals(binding.move().actionType(), binding.choice().actionType());
-            if (fixture.targetPosition() != null) {
+            if (fixture.targetId() != null) {
+                assertEquals(ChoiceTargetMode.COMBATANT, binding.choice().targetMode());
+                assertEquals(fixture.targetId(), binding.choice().targetId());
+                GridCoord expectedAnchor = fixture.targetPosition() != null
+                        ? fixture.targetPosition()
+                        : state.requireCombatant(fixture.targetId()).position();
+                assertEquals(expectedAnchor, binding.choice().targetAnchor());
+            } else {
                 assertEquals(ChoiceTargetMode.TILE, binding.choice().targetMode());
                 assertEquals("", binding.choice().targetId());
                 assertEquals(fixture.targetPosition(), binding.choice().targetAnchor());
-            } else {
-                assertEquals(ChoiceTargetMode.COMBATANT, binding.choice().targetMode());
-                assertEquals(fixture.targetId(), binding.choice().targetId());
-                assertEquals(state.requireCombatant(fixture.targetId()).position(), binding.choice().targetAnchor());
             }
         }
     }
 
     @Test
-    void targetPositionTakesPrecedenceWhenDelayedEntryAlsoCarriesTargetId() {
+    void targetIdRemainsAuthoritativeWhenDelayedEntryAlsoCarriesTargetPosition() {
         Fixture fixture = new Fixture(
                 "actor",
                 "Future Sight",
@@ -88,8 +91,8 @@ class DelayedHitBindingOracleParityTest {
                 )
         );
 
-        assertEquals(ChoiceTargetMode.TILE, binding.choice().targetMode());
-        assertEquals("", binding.choice().targetId());
+        assertEquals(ChoiceTargetMode.COMBATANT, binding.choice().targetMode());
+        assertEquals(fixture.targetId(), binding.choice().targetId());
         assertEquals(fixture.targetPosition(), binding.choice().targetAnchor());
     }
 
@@ -111,7 +114,6 @@ class DelayedHitBindingOracleParityTest {
     private static BattleRuntimeState stateFor(List<Fixture> fixtures) {
         LinkedHashMap<String, RuntimeCombatantState> combatants = new LinkedHashMap<>();
         LinkedHashMap<String, List<MoveOption>> moves = new LinkedHashMap<>();
-        int position = 1;
         for (Fixture fixture : fixtures) {
             combatants.computeIfAbsent(fixture.attackerId(), ignored -> combatant(fixture.attackerId(), new GridCoord(positionFor(fixture.attackerId()), 1)));
             moves.computeIfAbsent(fixture.attackerId(), ignored -> new ArrayList<>())
@@ -119,7 +121,6 @@ class DelayedHitBindingOracleParityTest {
             if (fixture.targetId() != null) {
                 combatants.computeIfAbsent(fixture.targetId(), ignored -> combatant(fixture.targetId(), new GridCoord(positionFor(fixture.targetId()), 3)));
             }
-            position++;
         }
         return new BattleRuntimeState(
                 new MovementGrid(20, 20, Set.of(), Map.of()),
