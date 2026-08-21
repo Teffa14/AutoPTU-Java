@@ -3,6 +3,7 @@ package io.autoptu.core.runtime;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.event.MoveResolvedEvent;
 import io.autoptu.core.model.ActionType;
+import io.autoptu.core.model.AttackModifier;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.model.CombatantStatProfile;
 import io.autoptu.core.model.EvasionProfile;
@@ -41,7 +42,7 @@ class RuntimeAuthoritativeDelayedHitTest {
         MoveResolutionInput forged = new MoveResolutionInput(
                 19, 99, -6, 1, true, true, true,
                 1, 999, 1, true, 1.0,
-                List.of(new io.autoptu.core.model.AttackModifier("forged", 500, 9.0))
+                List.of(AttackModifier.flat("forged", 500))
         );
         MoveResolutionInput neutralLegacy = new MoveResolutionInput(
                 2, 0, 0, 20, false, false, false,
