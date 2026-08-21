@@ -10,7 +10,7 @@ import java.util.Map;
 /**
  * Mutable server-owned trainer state shared by combatants controlled by one trainer.
  *
- * Trainer Feature ownership, skills, AP, and initiative modifier are PTU rule state.
+ * Trainer Feature ownership, skills, AP, and initiative inputs are PTU rule state.
  * Minecraft/Cobblemon may render them, but adapters must not supply these values while
  * battle rules are resolving.
  */
@@ -19,11 +19,13 @@ public final class TrainerRuntimeState {
     private final LinkedHashMap<String, String> featuresByNormalizedName = new LinkedHashMap<>();
     private final LinkedHashMap<String, Integer> skillRanksByNormalizedName = new LinkedHashMap<>();
     private final int initiativeModifier;
+    private final Integer explicitInitiativeSpeed;
+    private final String teamId;
     private int ap;
 
     /** Backwards-compatible trainer state with the Python default initiative modifier of zero. */
     public TrainerRuntimeState(String trainerId, Collection<String> trainerFeatures, int ap) {
-        this(trainerId, trainerFeatures, ap, 0, Map.of());
+        this(trainerId, trainerFeatures, ap, 0, Map.of(), null, "");
     }
 
     public TrainerRuntimeState(
@@ -32,7 +34,7 @@ public final class TrainerRuntimeState {
             int ap,
             int initiativeModifier
     ) {
-        this(trainerId, trainerFeatures, ap, initiativeModifier, Map.of());
+        this(trainerId, trainerFeatures, ap, initiativeModifier, Map.of(), null, "");
     }
 
     public TrainerRuntimeState(
@@ -41,6 +43,25 @@ public final class TrainerRuntimeState {
             int ap,
             int initiativeModifier,
             Map<String, Integer> skillRanks
+    ) {
+        this(trainerId, trainerFeatures, ap, initiativeModifier, skillRanks, null, "");
+    }
+
+    /**
+     * Full server-owned Trainer initiative profile.
+     *
+     * explicitInitiativeSpeed mirrors Python TrainerState.speed: null means derive the
+     * value from the Trainer's Pokemon. teamId mirrors TrainerState.team; blank uses the
+     * Python identifier fallback when checking Tailwind.
+     */
+    public TrainerRuntimeState(
+            String trainerId,
+            Collection<String> trainerFeatures,
+            int ap,
+            int initiativeModifier,
+            Map<String, Integer> skillRanks,
+            Integer explicitInitiativeSpeed,
+            String teamId
     ) {
         if (trainerId == null || trainerId.isBlank()) {
             throw new IllegalArgumentException("trainerId is required");
@@ -71,6 +92,8 @@ public final class TrainerRuntimeState {
         }
         this.ap = ap;
         this.initiativeModifier = initiativeModifier;
+        this.explicitInitiativeSpeed = explicitInitiativeSpeed;
+        this.teamId = teamId == null ? "" : teamId.strip();
     }
 
     public String trainerId() {
@@ -101,9 +124,19 @@ public final class TrainerRuntimeState {
         return ap;
     }
 
-    /** Raw Python TrainerState.initiative_modifier used by Pokemon initiative entries. */
+    /** Raw Python TrainerState.initiative_modifier used by Pokemon and Trainer entries. */
     public int initiativeModifier() {
         return initiativeModifier;
+    }
+
+    /** Null means Python must derive Trainer initiative Speed from controlled Pokemon. */
+    public Integer explicitInitiativeSpeed() {
+        return explicitInitiativeSpeed;
+    }
+
+    /** Python TrainerState.team. Blank means use trainerId when checking Tailwind. */
+    public String teamId() {
+        return teamId;
     }
 
     /** Spend AP atomically; returns false without mutation when insufficient. */
