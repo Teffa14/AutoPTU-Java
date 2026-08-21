@@ -39,15 +39,21 @@ class RuntimeInitiativePokemonCandidateFactoryTest {
                 Map.of("actor", List.of("Paralyzed"))
         );
         state.syncCurrentRoundFromLifecycle(2);
+        state.syncEnvironmentFromRuntime(new BattleEnvironmentState(
+                "Hail",
+                "",
+                Set.of("actor"),
+                Map.of("actor", true)
+        ));
         state.putTrainer(new TrainerRuntimeState("trainer", List.of(), 3));
         state.bindController("actor", "trainer");
 
         RuntimeInitiativePokemonContext context = new RuntimeInitiativePokemonContext(
                 2,
-                true,
-                "Hail",
-                "",
-                true,
+                false,
+                "Clear",
+                "Electric Terrain",
+                false,
                 false,
                 false,
                 0,
@@ -69,9 +75,9 @@ class RuntimeInitiativePokemonCandidateFactoryTest {
                 statSpeed,
                 actor.hp(),
                 actor.maxHp(),
-                context.weather(),
-                context.terrainName(),
-                context.grounded(),
+                state.environment().weather(),
+                state.environment().terrainName(),
+                state.environment().grounded("actor"),
                 actor.abilities()
         );
         int additional = InitiativeAdditionalBonusResolution.resolve(
@@ -99,6 +105,72 @@ class RuntimeInitiativePokemonCandidateFactoryTest {
         assertFalse(actual.fainted());
         assertEquals(actor.abilities(), actual.abilities());
         assertEquals(actor.temporaryEffects().entriesInInsertionOrder(), actual.temporaryEffects());
+    }
+
+    @Test
+    void ignoresForgedExternalEnvironmentAndUsesCanonicalBattleEnvironment() {
+        RuntimeCombatantState actor = combatant(
+                "actor",
+                10,
+                List.of("Slush Rush", "Surge Surfer")
+        );
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(actor),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of("actor", CombatantAffiliationState.active("team-a"))
+        );
+        state.syncEnvironmentFromRuntime(new BattleEnvironmentState(
+                "Clear",
+                "Electric Terrain",
+                Set.of("team-a"),
+                Map.of("actor", false)
+        ));
+
+        RuntimeInitiativePokemonContext forgedContext = new RuntimeInitiativePokemonContext(
+                0,
+                false,
+                "Hail",
+                "Electric Terrain",
+                true,
+                false,
+                false,
+                0,
+                false,
+                false
+        );
+
+        InitiativePokemonCandidate candidate = RuntimeInitiativePokemonCandidateFactory.fromState(
+                state,
+                "actor",
+                forgedContext
+        );
+
+        assertEquals(10, candidate.baseEntry().speed());
+        assertEquals(15, candidate.baseEntry().total());
+    }
+
+    @Test
+    void environmentGroundedStateRejectsUnknownCombatantsBeforeProjection() {
+        RuntimeCombatantState actor = combatant("actor", 10, List.of());
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(actor)
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> state.syncEnvironmentFromRuntime(new BattleEnvironmentState(
+                        "",
+                        "",
+                        Set.of(),
+                        Map.of("forged", false)
+                ))
+        );
+        assertEquals(BattleEnvironmentState.neutral().weather(), state.environment().weather());
+        assertTrue(state.environment().grounded("actor"));
     }
 
     @Test
