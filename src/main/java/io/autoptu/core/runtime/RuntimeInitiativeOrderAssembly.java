@@ -6,7 +6,6 @@ import io.autoptu.core.rules.InitiativeOrderAssemblyResult;
 import io.autoptu.core.rules.InitiativePokemonCandidate;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
@@ -47,13 +46,7 @@ public final class RuntimeInitiativeOrderAssembly {
     }
 
     private static List<InitiativeEntry> canonicalTrainerEntries(BattleRuntimeState state) {
-        LinkedHashSet<String> trainerIds = new LinkedHashSet<>();
-        for (String combatantId : state.combatantIds()) {
-            if (state.hasCanonicalTrainer(combatantId)) {
-                trainerIds.add(state.controllerId(combatantId));
-            }
-        }
-
+        List<String> trainerIds = state.trainerIds();
         ArrayList<InitiativeEntry> entries = new ArrayList<>(trainerIds.size());
         for (String trainerId : trainerIds) {
             entries.add(RuntimeInitiativeTrainerEntryFactory.fromState(state, trainerId));
