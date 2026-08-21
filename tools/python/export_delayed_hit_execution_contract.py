@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Export the pinned Python delayed-hit execution boundary.
 
-This deliberately freezes the language-neutral entrypoint contract before Java
-wires delayed hits into ROUND_START. Delayed hits are scheduled separately and,
-when due, enter BattleState.resolve_move_targets before the ordinary move-action
-resolver. A stored target position also changes the copied delayed move to Tile
-targeting before target resolution.
+This freezes the language-neutral entrypoint contract before Java wires delayed
+hits into ROUND_START. Due delayed hits enter BattleState.resolve_move_targets,
+which then re-enters the ordinary move-action resolver. Both stored target id and
+target position are forwarded unchanged. The pinned oracle does not rewrite the
+move to Tile targeting merely because target_position exists.
 """
 
 from __future__ import annotations
@@ -56,22 +56,16 @@ def keyword_names_for_call(fn, expected_call: str) -> set[str]:
     return names
 
 
-def target_position_forces_tile(fn) -> bool:
+def target_position_rewrites_move_to_tile(fn) -> bool:
     tree = function_tree(fn)
     for node in ast.walk(tree):
-        if not isinstance(node, ast.If):
+        if not isinstance(node, ast.Assign):
             continue
-        test = ast.unparse(node.test).replace(" ", "")
-        if "target_positionisnotNone" not in test:
+        if not isinstance(node.value, ast.Constant) or node.value.value != "Tile":
             continue
-        for child in node.body:
-            if not isinstance(child, ast.Assign):
-                continue
-            if not isinstance(child.value, ast.Constant) or child.value.value != "Tile":
-                continue
-            for target in child.targets:
-                if isinstance(target, ast.Attribute) and target.attr == "target":
-                    return True
+        for target in node.targets:
+            if isinstance(target, ast.Attribute) and target.attr == "target":
+                return True
     return False
 
 
@@ -86,21 +80,23 @@ def main() -> int:
     delayed_calls = call_names(resolve_delayed_hits)
     target_calls = call_names(BattleState.resolve_move_targets)
     forwarded = keyword_names_for_call(resolve_delayed_hits, "resolve_move_targets")
-    position_forces_tile = target_position_forces_tile(resolve_delayed_hits)
+    delayed_rewrites_tile = target_position_rewrites_move_to_tile(resolve_delayed_hits)
+    target_resolution_rewrites_tile = target_position_rewrites_move_to_tile(BattleState.resolve_move_targets)
 
     print("--- PINNED resolve_delayed_hits ---")
     print(inspect.getsource(resolve_delayed_hits))
     print("--- PINNED BattleState.resolve_move_targets ---")
     print(inspect.getsource(BattleState.resolve_move_targets))
 
-    # These checks intentionally fail the exporter if Python changes the
-    # execution boundary. Java must then be reviewed rather than silently
-    # preserving an obsolete assumption.
+    # Fail loudly if Python changes this execution boundary. Java must be
+    # reviewed rather than silently preserving an obsolete assumption.
     assert "resolve_move_targets" in delayed_calls
     assert "resolve_move_action" not in delayed_calls
     assert "target_id" in forwarded
     assert "target_position" in forwarded
-    assert position_forces_tile
+    assert "resolve_move_action" in target_calls
+    assert not delayed_rewrites_tile
+    assert not target_resolution_rewrites_tile
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -113,7 +109,7 @@ def main() -> int:
                 "1" if "target_id" in forwarded else "0",
                 "1" if "target_position" in forwarded else "0",
                 "1" if "resolve_move_action" in target_calls else "0",
-                "1" if position_forces_tile else "0",
+                "1" if (delayed_rewrites_tile or target_resolution_rewrites_tile) else "0",
             ]
         )
         + "\n",
