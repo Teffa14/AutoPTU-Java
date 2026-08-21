@@ -47,7 +47,7 @@ public final class BattleRoundController {
         this.damageHistory = Objects.requireNonNull(damageHistory, "damageHistory");
         this.injuryHistory = Objects.requireNonNull(injuryHistory, "injuryHistory");
         this.turnState = Objects.requireNonNull(turnState, "turnState");
-        if (turnState.currentActorId() != null) state.requireCombatant(turnState.currentActorId());
+        if (turnState.currentActorId() != null) requireKnownTurnActor(turnState.currentActorId());
         state.syncCurrentRoundFromLifecycle(initialRound);
     }
 
@@ -68,16 +68,12 @@ public final class BattleRoundController {
     }
 
     /**
-     * Advance the canonical initiative cursor to the next active, conscious combatant in
-     * the current round and open that combatant's START phase.
+     * Advance the canonical initiative cursor to the next executable Pokemon or Trainer slot.
      *
-     * Python increments _initiative_index before reading a slot, skips invalid/inactive
-     * combatants, resets only actions_taken for the selected combatant, then assigns the
-     * current actor and START phase. Before returning the decision window Python runs the
-     * START phase effects and consumes any resulting pending status skip. Java mirrors that
-     * order through the generic TURN_START lifecycle seam. Automatic round rollover remains
-     * on the explicit core-owned rebuild boundary below because the complete Python
-     * initiative-entry formula is not yet ported.
+     * Python identifies Trainer entries by actor_id membership in BattleState.trainers. A Trainer
+     * slot resets TrainerState.actions_taken, becomes current_actor_id, enters START, emits
+     * turn_start, and returns immediately. Pokemon slots then follow their existing active/HP
+     * guards and START-effect pipeline. Minecraft/Cobblemon never decides the slot kind.
      */
     public InitiativeTurnAdvanceResult advanceInitiativeTurn() {
         if (turnState.currentActorId() != null) {
@@ -92,9 +88,20 @@ public final class BattleRoundController {
         while (candidateIndex < order.size()) {
             progress.setCursorFromLifecycle(candidateIndex);
             String actorId = order.get(candidateIndex);
-            RuntimeCombatantState actor = combatants.get(actorId);
             candidateIndex += 1;
 
+            TrainerRuntimeState trainer = trainerOrNull(actorId);
+            if (trainer != null) {
+                trainer.resetActions();
+                turnState.beginTurn(actorId);
+                return InitiativeTurnAdvanceResult.actor(
+                        actorId,
+                        progress.cursor(),
+                        List.of(new TurnStartedEvent(actorId, round, TurnPhase.START, progress.cursor()))
+                );
+            }
+
+            RuntimeCombatantState actor = combatants.get(actorId);
             if (actor == null || actor.hp() <= 0 || !state.isActive(actorId)) {
                 continue;
             }
@@ -147,12 +154,8 @@ public final class BattleRoundController {
     /**
      * Python advance_turn() calls start_round() when the initiative cursor reaches the end,
      * rebuilds initiative as part of that round transition, and then continues selecting the
-     * next actor. This boundary mirrors that lifecycle without pretending the full Python
-     * initiative formula is already available in Java.
-     *
-     * The rebuilder is a core rules service. It receives only authoritative BattleRuntimeState
-     * after ROUND_START has completed. The current bounded contract accepts combatant IDs only;
-     * trainer initiative slots and special initiative entries remain explicit follow-up work.
+     * next actor. This boundary mirrors that lifecycle while the fully autonomous rebuilder is
+     * still being assembled from parity-tested components.
      */
     public InitiativeTurnAdvanceResult advanceInitiativeTurnWithRollover(
             InitiativeRoundRebuilder rebuilder
@@ -184,7 +187,7 @@ public final class BattleRoundController {
             if (actorId == null || actorId.isBlank()) {
                 throw new IllegalArgumentException("initiative rebuilder returned blank actor id");
             }
-            state.requireCombatant(actorId.strip());
+            requireKnownTurnActor(actorId.strip());
         }
         replaceInitiativeOrder(rebuiltOrder);
 
@@ -208,7 +211,7 @@ public final class BattleRoundController {
     }
 
     public void beginTurn(String actorId) {
-        state.requireCombatant(actorId);
+        requireKnownTurnActor(actorId);
         turnState.beginTurn(actorId);
     }
 
@@ -217,14 +220,19 @@ public final class BattleRoundController {
 
     /**
      * Advance START -> COMMAND -> ACTION -> END using the server-owned actor and phase.
-     * END is terminal until endTurn() clears the turn. The semantic phase event is
-     * emitted before PHASE_CHANGE hook events. A hook may also emit one pending status
-     * skip request; it is resolved only after every phase hook has run, matching Python
-     * PhaseController's run_phase_effects() -> consume_pending_status_skip() order.
+     * END is terminal until endTurn() clears the turn. Pokemon phase hooks remain the
+     * authoritative gameplay path; Trainer phase-specific rules are a separate parity slice.
      */
     public List<BattleEvent> advancePhase() {
         String actorId = turnState.currentActorId();
-        if (actorId == null) throw new IllegalStateException("No active combatant to advance phase for.");
+        if (actorId == null) throw new IllegalStateException("No active actor to advance phase for.");
+        if (trainerOrNull(actorId) != null) {
+            TurnPhase current = turnState.phase();
+            TurnPhase next = PhaseSequence.next(current);
+            if (next == current) return List.of();
+            turnState.setPhase(next);
+            return List.of(new PhaseChangedEvent(actorId, round, next));
+        }
         state.requireCombatant(actorId);
         TurnPhase current = turnState.phase();
         TurnPhase next = PhaseSequence.next(current);
@@ -279,6 +287,10 @@ public final class BattleRoundController {
         String actorId = turnState.currentActorId();
         if (actorId == null) return List.of();
         TurnPhase phase = turnState.phase();
+        if (trainerOrNull(actorId) != null) {
+            turnState.clearToStart();
+            return List.of(new TurnEndedEvent(actorId, round, phase));
+        }
         state.requireCombatant(actorId);
         LifecycleHookResult result = lifecycleHooks.resolve(
                 LifecycleHookPoint.TURN_END,
@@ -294,9 +306,28 @@ public final class BattleRoundController {
     public List<BattleEvent> endTurn(String actorId, TurnPhase phase) {
         if (actorId == null || actorId.isBlank()) throw new IllegalArgumentException("actorId is required");
         if (phase == null) throw new IllegalArgumentException("phase is required");
-        state.requireCombatant(actorId);
+        requireKnownTurnActor(actorId);
         turnState.setActiveTurn(actorId, phase);
         return endTurn();
+    }
+
+    private TrainerRuntimeState trainerOrNull(String actorId) {
+        try {
+            return state.requireTrainer(actorId);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private void requireKnownTurnActor(String actorId) {
+        if (actorId == null || actorId.isBlank()) {
+            throw new IllegalArgumentException("actorId is required");
+        }
+        String canonical = actorId.strip();
+        if (state.combatants().containsKey(canonical) || trainerOrNull(canonical) != null) {
+            return;
+        }
+        throw new IllegalArgumentException("unknown Pokemon/Trainer actor: " + canonical);
     }
 
     private static RoundDamageHistoryState canonicalDamageHistory(BattleRuntimeState state) {
