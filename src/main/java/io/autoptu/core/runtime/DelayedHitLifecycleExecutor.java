@@ -15,13 +15,17 @@ public final class DelayedHitLifecycleExecutor {
     private DelayedHitLifecycleExecutor() {
     }
 
+    /** Preferred lifecycle boundary: queue and RNG are both owned by BattleRuntimeState. */
+    static List<BattleEvent> resolveDueCombatantHits(BattleRuntimeState state, int currentRound) {
+        if (state == null) throw new IllegalArgumentException("state is required");
+        return resolveDueCombatantHits(state, state.delayedHitStateFromRuntime(), currentRound);
+    }
+
     /**
-     * Resolve all due combatant-target delayed hits in insertion order.
-     *
-     * This slice intentionally fails before mutating the queue when a due TILE/area entry is
-     * present. Python supports that path, but Java must freeze and port its target semantics
-     * separately instead of silently treating a tile as a combatant.
+     * Transitional injection seam retained for focused parity tests.
+     * Production/lifecycle code should use the BattleRuntimeState-owned overload.
      */
+    @Deprecated
     static List<BattleEvent> resolveDueCombatantHits(
             BattleRuntimeState state,
             BattleDelayedHitState delayedState,
