@@ -45,6 +45,7 @@ class PokemonStub:
 class BattleStub:
     def __init__(self, battle_state, case):
         self.round = case["round"]
+        self.tailwind_teams = set(case.get("tailwind_teams", []))
         self.trainers = {
             spec["id"]: TrainerStub(spec["id"], spec["speed"], spec.get("bonus", 0))
             for spec in case.get("trainers", [])
