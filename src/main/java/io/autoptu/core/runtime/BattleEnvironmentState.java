@@ -8,24 +8,35 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Canonical battle-environment inputs consumed by PTU rules.
+ * Canonical battle-environment and spatial-relationship inputs consumed by PTU rules.
  *
- * Minecraft/Cobblemon may be used to materialize an initial environment snapshot, but
- * rules read this server-owned state rather than live world/entity claims. Grounded
- * defaults to true for legacy/headless fixtures that have not materialized an explicit
- * per-combatant value yet.
+ * Minecraft/Cobblemon may be used to materialize an initial snapshot, but rules read
+ * this server-owned state rather than live world/entity claims. Grounded defaults to
+ * true for legacy/headless fixtures that have not materialized an explicit value yet.
+ * Mounted pairs preserve Python BattleState insertion order as riderId -> mountId.
  */
 public final class BattleEnvironmentState {
     private final String weather;
     private final String terrainName;
     private final Set<String> tailwindTeams;
     private final Map<String, Boolean> groundedByCombatant;
+    private final Map<String, String> mountedPairs;
 
     public BattleEnvironmentState(
             String weather,
             String terrainName,
             Collection<String> tailwindTeams,
             Map<String, Boolean> groundedByCombatant
+    ) {
+        this(weather, terrainName, tailwindTeams, groundedByCombatant, Map.of());
+    }
+
+    public BattleEnvironmentState(
+            String weather,
+            String terrainName,
+            Collection<String> tailwindTeams,
+            Map<String, Boolean> groundedByCombatant,
+            Map<String, String> mountedPairs
     ) {
         this.weather = normalizeText(weather);
         this.terrainName = normalizeText(terrainName);
@@ -55,10 +66,26 @@ public final class BattleEnvironmentState {
             }
         }
         this.groundedByCombatant = Collections.unmodifiableMap(grounded);
+
+        LinkedHashMap<String, String> pairs = new LinkedHashMap<>();
+        if (mountedPairs != null) {
+            for (Map.Entry<String, String> entry : mountedPairs.entrySet()) {
+                String riderId = normalizeText(entry.getKey());
+                String mountId = normalizeText(entry.getValue());
+                if (riderId.isEmpty()) {
+                    throw new IllegalArgumentException("mounted riderId is required");
+                }
+                if (mountId.isEmpty()) {
+                    throw new IllegalArgumentException("mounted mountId is required for rider: " + riderId);
+                }
+                pairs.put(riderId, mountId);
+            }
+        }
+        this.mountedPairs = Collections.unmodifiableMap(pairs);
     }
 
     public static BattleEnvironmentState neutral() {
-        return new BattleEnvironmentState("", "", Set.of(), Map.of());
+        return new BattleEnvironmentState("", "", Set.of(), Map.of(), Map.of());
     }
 
     public String weather() {
@@ -92,6 +119,11 @@ public final class BattleEnvironmentState {
             throw new IllegalArgumentException("combatantId is required");
         }
         return groundedByCombatant.getOrDefault(canonical, true);
+    }
+
+    /** Canonical riderId -> mountId relationships in deterministic Python-compatible order. */
+    public Map<String, String> mountedPairs() {
+        return mountedPairs;
     }
 
     private static String normalizeText(String value) {
