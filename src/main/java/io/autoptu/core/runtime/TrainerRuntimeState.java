@@ -9,15 +9,27 @@ import java.util.Locale;
 /**
  * Mutable server-owned trainer state shared by combatants controlled by one trainer.
  *
- * Trainer Feature ownership and AP are PTU rule state. Minecraft/Cobblemon may render
- * them, but adapters must not supply either value while a phase hook is resolving.
+ * Trainer Feature ownership, AP, and initiative modifier are PTU rule state.
+ * Minecraft/Cobblemon may render them, but adapters must not supply these values while
+ * battle rules are resolving.
  */
 public final class TrainerRuntimeState {
     private final String trainerId;
     private final LinkedHashMap<String, String> featuresByNormalizedName = new LinkedHashMap<>();
+    private final int initiativeModifier;
     private int ap;
 
+    /** Backwards-compatible trainer state with the Python default initiative modifier of zero. */
     public TrainerRuntimeState(String trainerId, Collection<String> trainerFeatures, int ap) {
+        this(trainerId, trainerFeatures, ap, 0);
+    }
+
+    public TrainerRuntimeState(
+            String trainerId,
+            Collection<String> trainerFeatures,
+            int ap,
+            int initiativeModifier
+    ) {
         if (trainerId == null || trainerId.isBlank()) {
             throw new IllegalArgumentException("trainerId is required");
         }
@@ -36,6 +48,7 @@ public final class TrainerRuntimeState {
             }
         }
         this.ap = ap;
+        this.initiativeModifier = initiativeModifier;
     }
 
     public String trainerId() {
@@ -54,6 +67,11 @@ public final class TrainerRuntimeState {
 
     public int ap() {
         return ap;
+    }
+
+    /** Raw Python TrainerState.initiative_modifier used by Pokemon initiative entries. */
+    public int initiativeModifier() {
+        return initiativeModifier;
     }
 
     /** Spend AP atomically; returns false without mutation when insufficient. */

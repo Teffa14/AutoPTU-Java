@@ -13,10 +13,10 @@ import io.autoptu.core.rules.StatusStatResolution;
  * Internal adapter from authoritative battle state to the parity-tested Pokemon
  * initiative contracts.
  *
- * The caller supplies only semantic trainer/rider inputs that are not yet canonical
- * battle state. Combat stages, statuses, HP, abilities, temporary effects,
- * participation, trainer identity and environmental inputs are read from
- * BattleRuntimeState.
+ * Combat stages, statuses, HP, abilities, temporary effects, participation, trainer
+ * identity/modifier and environmental inputs are read from BattleRuntimeState. The
+ * transitional context only remains authoritative for rider doubling and Hardened
+ * Initiative until their upstream state is represented canonically.
  */
 public final class RuntimeInitiativePokemonCandidateFactory {
     private RuntimeInitiativePokemonCandidateFactory() {
@@ -51,33 +51,40 @@ public final class RuntimeInitiativePokemonCandidateFactory {
                 actor.abilities()
         );
 
+        boolean agilityTraining = actor.temporaryEffects().has("agility_training");
+        boolean parentalBondChild = actor.temporaryEffects().has("parental_bond_child");
+        boolean initiativeZeroUntilTurn = actor.temporaryEffects().has("initiative_zero_until_turn");
+
         int additionalBonus = InitiativeAdditionalBonusResolution.resolve(
                 resolvedSpeed,
                 actor.abilities(),
-                context.agilityTraining(),
+                agilityTraining,
                 context.riderAgilityTrainingDoubled(),
                 context.hardenedInitiativeBonus()
         );
 
         String trainerId = state.hasCanonicalTrainer(actorId) ? state.controllerId(actorId) : "";
+        int trainerModifier = state.hasCanonicalTrainer(actorId)
+                ? state.requireTrainerForCombatant(actorId).initiativeModifier()
+                : 0;
         InitiativeEntry baseEntry = PokemonInitiativeEntryResolution.resolve(
                 actorId,
                 trainerId,
                 resolvedSpeed,
-                context.trainerModifier(),
+                trainerModifier,
                 state.hasStatus(actorId, "Bashed"),
                 environment.tailwindActive(state.teamId(actorId)),
                 state.currentRound(),
                 actor.temporaryEffects().entriesInInsertionOrder(),
                 additionalBonus,
-                context.initiativeZeroUntilTurn()
+                initiativeZeroUntilTurn
         );
 
         return new InitiativePokemonCandidate(
                 baseEntry,
                 state.isActive(actorId),
                 actor.hp() <= 0,
-                context.parentalBondChild(),
+                parentalBondChild,
                 actor.temporaryEffects().entriesInInsertionOrder(),
                 actor.abilities()
         );

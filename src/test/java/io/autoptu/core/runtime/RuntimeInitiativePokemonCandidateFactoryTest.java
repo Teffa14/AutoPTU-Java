@@ -45,20 +45,20 @@ class RuntimeInitiativePokemonCandidateFactoryTest {
                 Set.of("actor"),
                 Map.of("actor", true)
         ));
-        state.putTrainer(new TrainerRuntimeState("trainer", List.of(), 3));
+        state.putTrainer(new TrainerRuntimeState("trainer", List.of(), 3, 2));
         state.bindController("actor", "trainer");
 
         RuntimeInitiativePokemonContext context = new RuntimeInitiativePokemonContext(
-                2,
+                999,
                 false,
                 "Clear",
                 "Electric Terrain",
                 false,
-                false,
+                true,
                 false,
                 0,
-                false,
-                false
+                true,
+                true
         );
 
         InitiativePokemonCandidate actual = RuntimeInitiativePokemonCandidateFactory.fromState(
@@ -103,6 +103,7 @@ class RuntimeInitiativePokemonCandidateFactoryTest {
         assertEquals(expected, actual.baseEntry());
         assertTrue(actual.active());
         assertFalse(actual.fainted());
+        assertFalse(actual.parentalBondChild());
         assertEquals(actor.abilities(), actual.abilities());
         assertEquals(actor.temporaryEffects().entriesInInsertionOrder(), actual.temporaryEffects());
     }
@@ -153,6 +154,73 @@ class RuntimeInitiativePokemonCandidateFactoryTest {
     }
 
     @Test
+    void derivesInitiativeTemporaryEffectsAndTrainerModifierFromCanonicalState() {
+        RuntimeCombatantState actor = combatant("actor", 10, List.of());
+        actor.temporaryEffects().add("agility_training");
+        actor.temporaryEffects().add("parental_bond_child");
+        actor.temporaryEffects().add("initiative_zero_until_turn", Map.of("expires_round", 3));
+
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(actor)
+        );
+        state.syncCurrentRoundFromLifecycle(2);
+        state.putTrainer(new TrainerRuntimeState("trainer", List.of(), 1, -3));
+        state.bindController("actor", "trainer");
+
+        RuntimeInitiativePokemonContext forgedContext = new RuntimeInitiativePokemonContext(
+                999,
+                false,
+                false,
+                0,
+                false,
+                false
+        );
+
+        InitiativePokemonCandidate candidate = RuntimeInitiativePokemonCandidateFactory.fromState(
+                state,
+                "actor",
+                forgedContext
+        );
+
+        assertEquals(-3, candidate.baseEntry().trainerModifier());
+        assertEquals(0, candidate.baseEntry().total());
+        assertTrue(candidate.parentalBondChild());
+
+        int additional = InitiativeAdditionalBonusResolution.resolve(10, List.of(), true, false, 0);
+        assertEquals(4, additional);
+    }
+
+    @Test
+    void forgedLegacyInitiativeFlagsCannotCreateCanonicalEffects() {
+        RuntimeCombatantState actor = combatant("actor", 10, List.of());
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(actor)
+        );
+        state.putTrainer(new TrainerRuntimeState("trainer", List.of(), 1, 3));
+        state.bindController("actor", "trainer");
+
+        RuntimeInitiativePokemonContext forged = new RuntimeInitiativePokemonContext(
+                999,
+                true,
+                true,
+                0,
+                true,
+                true
+        );
+        InitiativePokemonCandidate candidate = RuntimeInitiativePokemonCandidateFactory.fromState(
+                state,
+                "actor",
+                forged
+        );
+
+        assertEquals(13, candidate.baseEntry().total());
+        assertEquals(3, candidate.baseEntry().trainerModifier());
+        assertFalse(candidate.parentalBondChild());
+    }
+
+    @Test
     void environmentGroundedStateRejectsUnknownCombatantsBeforeProjection() {
         RuntimeCombatantState actor = combatant("actor", 10, List.of());
         BattleRuntimeState state = new BattleRuntimeState(
@@ -177,6 +245,7 @@ class RuntimeInitiativePokemonCandidateFactoryTest {
     void derivesBashedFaintedAndParentalBondFilteringInputsFromCanonicalState() {
         RuntimeCombatantState actor = combatant("actor", 10, List.of());
         actor.setHp(0);
+        actor.temporaryEffects().add("parental_bond_child");
         BattleRuntimeState state = new BattleRuntimeState(
                 new MovementGrid(6, 6, Set.of(), Map.of()),
                 List.of(actor),
@@ -188,7 +257,7 @@ class RuntimeInitiativePokemonCandidateFactoryTest {
 
         RuntimeInitiativePokemonContext context = new RuntimeInitiativePokemonContext(
                 99, true, "Hail", "Electric Terrain", true,
-                true, true, 99, true, false
+                true, true, 99, false, true
         );
         InitiativePokemonCandidate candidate = RuntimeInitiativePokemonCandidateFactory.fromState(
                 state,
