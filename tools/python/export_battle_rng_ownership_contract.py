@@ -17,52 +17,65 @@ def is_self_rng(node: ast.AST) -> bool:
     )
 
 
-def method_map(class_node: ast.ClassDef) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
-    return {
-        node.name: node
-        for node in class_node.body
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-    }
-
-
 def references_self_rng(node: ast.AST) -> bool:
     return any(is_self_rng(child) for child in ast.walk(node))
 
 
-def calls_method(node: ast.AST, method_name: str) -> bool:
+def calls_named(node: ast.AST, method_name: str) -> bool:
     for child in ast.walk(node):
         if not isinstance(child, ast.Call):
             continue
         func = child.func
         if isinstance(func, ast.Attribute) and func.attr == method_name:
             return True
+        if isinstance(func, ast.Name) and func.id == method_name:
+            return True
     return False
 
 
-def assignment_methods(class_node: ast.ClassDef) -> list[str]:
-    result: list[str] = []
-    for method in method_map(class_node).values():
-        for child in ast.walk(method):
-            if isinstance(child, ast.Assign):
-                if any(is_self_rng(target) for target in child.targets):
-                    result.append(method.name)
-            elif isinstance(child, ast.AnnAssign) and is_self_rng(child.target):
-                result.append(method.name)
-    return sorted(set(result))
-
-
-def find_class(module: ast.Module, name: str) -> ast.ClassDef:
-    for node in module.body:
+def find_class(root: ast.AST, name: str) -> ast.ClassDef:
+    for node in ast.walk(root):
         if isinstance(node, ast.ClassDef) and node.name == name:
             return node
     raise RuntimeError(f"class {name!r} not found")
 
 
 def find_method(class_node: ast.ClassDef, name: str) -> ast.FunctionDef | ast.AsyncFunctionDef:
-    methods = method_map(class_node)
-    if name not in methods:
-        raise RuntimeError(f"method {class_node.name}.{name} not found")
-    return methods[name]
+    for node in class_node.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
+            return node
+    raise RuntimeError(f"method {class_node.name}.{name} not found")
+
+
+def find_function(root: ast.AST, name: str) -> ast.FunctionDef | ast.AsyncFunctionDef:
+    for node in ast.walk(root):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
+            return node
+    raise RuntimeError(f"function {name!r} not found")
+
+
+def rng_functions(root: ast.AST) -> list[str]:
+    return sorted(
+        {
+            node.name
+            for node in ast.walk(root)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and references_self_rng(node)
+        }
+    )
+
+
+def assignment_functions(root: ast.AST) -> list[str]:
+    result: set[str] = set()
+    for function in ast.walk(root):
+        if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for child in ast.walk(function):
+            if isinstance(child, ast.Assign) and any(is_self_rng(target) for target in child.targets):
+                result.add(function.name)
+            elif isinstance(child, ast.AnnAssign) and is_self_rng(child.target):
+                result.add(function.name)
+    return sorted(result)
 
 
 def phase_calls_delayed_with_battle(phase_source: str) -> bool:
@@ -74,12 +87,11 @@ def phase_calls_delayed_with_battle(phase_source: str) -> bool:
             continue
         func = node.func
         name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else ""
-        if name != "resolve_delayed_hits":
+        if name != "resolve_delayed_hits" or not node.args:
             continue
-        if node.args:
-            first = node.args[0]
-            if isinstance(first, ast.Attribute) and first.attr == "battle":
-                return True
+        first = node.args[0]
+        if isinstance(first, ast.Attribute) and first.attr == "battle":
+            return True
     return False
 
 
@@ -93,24 +105,20 @@ def main() -> None:
     battle_path = root / "auto_ptu" / "rules" / "battle_state.py"
     phase_path = root / "auto_ptu" / "rules" / "controllers" / "phase_controller.py"
 
-    battle_source = battle_path.read_text(encoding="utf-8")
-    battle_module = ast.parse(battle_source)
-    battle = find_class(battle_module, "BattleState")
-    methods = method_map(battle)
+    battle_module = ast.parse(battle_path.read_text(encoding="utf-8"))
+    resolve_move_action = find_function(battle_module, "resolve_move_action")
+    resolve_move_targets = find_function(battle_module, "resolve_move_targets")
 
-    rng_methods = sorted(name for name, method in methods.items() if references_self_rng(method))
-    assignments = assignment_methods(battle)
-
-    resolve_move_action = methods.get("resolve_move_action")
-    resolve_move_targets = methods.get("resolve_move_targets")
+    rng_users = rng_functions(battle_module)
+    assignments = assignment_functions(battle_module)
 
     values = [
         "BATTLE_RNG_OWNERSHIP",
-        "1" if rng_methods else "0",
+        "1" if rng_users else "0",
         ",".join(assignments),
-        ",".join(rng_methods),
-        "1" if resolve_move_action is not None and references_self_rng(resolve_move_action) else "0",
-        "1" if resolve_move_targets is not None and calls_method(resolve_move_targets, "resolve_move_action") else "0",
+        ",".join(rng_users),
+        "1" if references_self_rng(resolve_move_action) else "0",
+        "1" if calls_named(resolve_move_targets, "resolve_move_action") else "0",
         "1" if phase_calls_delayed_with_battle(phase_path.read_text(encoding="utf-8")) else "0",
     ]
 
