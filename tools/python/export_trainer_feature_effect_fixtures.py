@@ -8,25 +8,70 @@ from pathlib import Path
 
 
 class Mon:
-    def __init__(self, controller_id: str, hp: int, max_hp: int, *, active: bool = True, fainted: bool = False, stages=None):
+    def __init__(
+        self,
+        controller_id: str,
+        hp: int,
+        max_hp: int,
+        *,
+        active: bool = True,
+        fainted: bool = False,
+        stages=None,
+        temp_hp: int = 0,
+        statuses=None,
+        temporary_effects=None,
+    ):
         self.controller_id = controller_id
         self.hp = hp
         self.max_hp = max_hp
         self.active = active
         self.fainted = fainted
-        self.statuses = []
+        self.statuses = list(statuses or [])
         self.combat_stages = dict(stages or {})
+        self.temp_hp = int(temp_hp or 0)
+        self.temporary_effects = list(temporary_effects or [])
 
     def heal(self, amount):
         self.hp = min(self.max_hp, int(self.hp or 0) + int(amount or 0))
 
     def has_status(self, name):
-        return False
+        wanted = str(name).strip().lower()
+        return any(str(status).strip().lower() == wanted for status in self.statuses)
+
+    def get_temporary_effects(self, name):
+        wanted = str(name).strip().lower()
+        return [effect for effect in self.temporary_effects if str(effect.get("name", "")).strip().lower() == wanted]
+
+    def add_temp_hp(self, amount: int) -> int:
+        amount = max(0, int(amount))
+        if amount <= 0:
+            return 0
+        if self.has_status("Heal Blocked") or self.has_status("Heal Block"):
+            return 0
+        if self.get_temporary_effects("temp_hp_locked"):
+            return 0
+        self.temp_hp += amount
+        return amount
 
 
-def run_case(dispatcher_cls, *, effect, feature=None, actor_id="ally", payload=None, hp_by_id=None, stages_by_id=None):
+def run_case(
+    dispatcher_cls,
+    *,
+    effect,
+    feature=None,
+    actor_id="ally",
+    payload=None,
+    hp_by_id=None,
+    stages_by_id=None,
+    temp_hp_by_id=None,
+    statuses_by_id=None,
+    locked_ids=None,
+):
     hp_by_id = hp_by_id or {"ally": (5, 20), "ally_full": (20, 20), "enemy": (4, 20)}
     stages_by_id = stages_by_id or {}
+    temp_hp_by_id = temp_hp_by_id or {}
+    statuses_by_id = statuses_by_id or {}
+    locked_ids = set(locked_ids or [])
     pokemon = OrderedDict(
         (
             pid,
@@ -35,6 +80,9 @@ def run_case(dispatcher_cls, *, effect, feature=None, actor_id="ally", payload=N
                 hp,
                 max_hp,
                 stages=stages_by_id.get(pid, {}),
+                temp_hp=temp_hp_by_id.get(pid, 0),
+                statuses=statuses_by_id.get(pid, []),
+                temporary_effects=[{"name": "temp_hp_locked"}] if pid in locked_ids else [],
             ),
         )
         for pid, (hp, max_hp) in hp_by_id.items()
@@ -57,7 +105,8 @@ def run_case(dispatcher_cls, *, effect, feature=None, actor_id="ally", payload=N
         f"spd={int(mon.combat_stages.get('spd', 0) or 0)},accuracy={int(mon.combat_stages.get('accuracy', 0) or 0)}"
         for pid, mon in pokemon.items()
     )
-    return int(bool(applied)), str(effect_type), ",".join(targets), str(amount), hp_snapshot, stage_snapshot
+    temp_hp_snapshot = ",".join(f"{pid}={mon.temp_hp}" for pid, mon in pokemon.items())
+    return int(bool(applied)), str(effect_type), ",".join(targets), str(amount), hp_snapshot, stage_snapshot, temp_hp_snapshot
 
 
 def main() -> None:
@@ -85,6 +134,43 @@ def main() -> None:
     )
     cases["blank_effect_is_log_only"] = run_case(TrainerFeatureDispatcher, effect={})
     cases["unknown_effect_is_applied_scaffold"] = run_case(TrainerFeatureDispatcher, effect={"type": "future_effect"})
+
+    cases["grant_temp_hp_actor"] = run_case(
+        TrainerFeatureDispatcher,
+        effect={"type": "grant_temp_hp", "amount": 5, "target_rules": {"scope": "actor"}},
+    )
+    cases["grant_temp_hp_stacks_without_cap"] = run_case(
+        TrainerFeatureDispatcher,
+        effect={"type": "grant_temp_hp", "amount": 25, "target_rules": {"scope": "actor"}},
+        temp_hp_by_id={"ally": 4},
+    )
+    cases["grant_temp_hp_heal_blocked"] = run_case(
+        TrainerFeatureDispatcher,
+        effect={"type": "grant_temp_hp", "amount": 5, "target_rules": {"scope": "actor"}},
+        statuses_by_id={"ally": ["Heal Blocked"]},
+    )
+    cases["grant_temp_hp_heal_block_alias"] = run_case(
+        TrainerFeatureDispatcher,
+        effect={"type": "grant_temp_hp", "amount": 5, "target_rules": {"scope": "actor"}},
+        statuses_by_id={"ally": ["Heal Block"]},
+    )
+    cases["grant_temp_hp_locked"] = run_case(
+        TrainerFeatureDispatcher,
+        effect={"type": "grant_temp_hp", "amount": 5, "target_rules": {"scope": "actor"}},
+        locked_ids={"ally"},
+    )
+    cases["grant_temp_hp_zero_not_applied"] = run_case(
+        TrainerFeatureDispatcher,
+        effect={"type": "grant_temp_hp", "amount": 0, "target_rules": {"scope": "actor"}},
+    )
+    cases["grant_temp_hp_float_string_int_like"] = run_case(
+        TrainerFeatureDispatcher,
+        effect={"type": "grant_temp_hp", "amount": "4.9", "target_rules": {"scope": "actor"}},
+    )
+    cases["grant_temp_hp_multiple_allies"] = run_case(
+        TrainerFeatureDispatcher,
+        effect={"type": "grant_temp_hp", "amount": 3, "target_rules": {"scope": "all_allies"}},
+    )
 
     cases["raise_cs_single_attack"] = run_case(
         TrainerFeatureDispatcher,

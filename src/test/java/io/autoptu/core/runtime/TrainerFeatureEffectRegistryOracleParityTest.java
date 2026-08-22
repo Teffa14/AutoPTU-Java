@@ -40,6 +40,15 @@ class TrainerFeatureEffectRegistryOracleParityTest {
         cases.put("blank_effect_is_log_only", effectCase(Map.of(), Map.of(), "ally"));
         cases.put("unknown_effect_is_applied_scaffold", effectCase(Map.of(), Map.of("type", "future_effect"), "ally"));
 
+        cases.put("grant_temp_hp_actor", effectCase(Map.of(), Map.of("type", "grant_temp_hp", "amount", 5, "target_rules", Map.of("scope", "actor")), "ally"));
+        cases.put("grant_temp_hp_stacks_without_cap", effectCase(Map.of(), Map.of("type", "grant_temp_hp", "amount", 25, "target_rules", Map.of("scope", "actor")), "ally"));
+        cases.put("grant_temp_hp_heal_blocked", effectCase(Map.of(), Map.of("type", "grant_temp_hp", "amount", 5, "target_rules", Map.of("scope", "actor")), "ally"));
+        cases.put("grant_temp_hp_heal_block_alias", effectCase(Map.of(), Map.of("type", "grant_temp_hp", "amount", 5, "target_rules", Map.of("scope", "actor")), "ally"));
+        cases.put("grant_temp_hp_locked", effectCase(Map.of(), Map.of("type", "grant_temp_hp", "amount", 5, "target_rules", Map.of("scope", "actor")), "ally"));
+        cases.put("grant_temp_hp_zero_not_applied", effectCase(Map.of(), Map.of("type", "grant_temp_hp", "amount", 0, "target_rules", Map.of("scope", "actor")), "ally"));
+        cases.put("grant_temp_hp_float_string_int_like", effectCase(Map.of(), Map.of("type", "grant_temp_hp", "amount", "4.9", "target_rules", Map.of("scope", "actor")), "ally"));
+        cases.put("grant_temp_hp_multiple_allies", effectCase(Map.of(), Map.of("type", "grant_temp_hp", "amount", 3, "target_rules", Map.of("scope", "all_allies")), "ally"));
+
         cases.put("raise_cs_single_attack", effectCase(Map.of(), Map.of("type", "raise_cs", "stat", "attack", "amount", 2, "target_rules", Map.of("scope", "actor")), "ally"));
         cases.put("raise_cs_multiple_stats_and_accuracy", effectCase(Map.of(), Map.of("type", "raise_cs", "stats", Map.of("atk", 2, "defense", -1, "accuracy", 1), "target_rules", Map.of("scope", "actor")), "ally"));
         cases.put("raise_cs_alias_special_attack", effectCase(Map.of(), Map.of("type", "raise_cs", "stat", "special-attack", "amount", "3.9", "target_rules", Map.of("scope", "actor")), "ally"));
@@ -54,6 +63,7 @@ class TrainerFeatureEffectRegistryOracleParityTest {
         for (Map.Entry<String, EffectCase> entry : cases.entrySet()) {
             BattleRuntimeState state = state();
             seedStages(entry.getKey(), state.requireCombatant("ally"));
+            seedTempHpState(entry.getKey(), state);
             EffectCase current = entry.getValue();
             TrainerFeatureEffectRegistry.EffectResult result = registry.apply(
                     new TrainerFeatureEffectRegistry.EffectContext(state, "t1", current.actorId(), current.feature(), Map.of()),
@@ -67,6 +77,7 @@ class TrainerFeatureEffectRegistryOracleParityTest {
             assertEquals(exp.amount(), amount, entry.getKey() + " amount");
             assertEquals(exp.hpSnapshot(), hpSnapshot(state), entry.getKey() + " hp");
             assertEquals(exp.stageSnapshot(), stageSnapshot(state), entry.getKey() + " stages");
+            assertEquals(exp.tempHpSnapshot(), tempHpSnapshot(state), entry.getKey() + " temp hp");
         }
     }
 
@@ -102,12 +113,24 @@ class TrainerFeatureEffectRegistryOracleParityTest {
         if ("raise_cs_accuracy_clamps".equals(caseName)) ally.setAccuracyStage(5);
     }
 
+    private static void seedTempHpState(String caseName, BattleRuntimeState state) {
+        RuntimeCombatantState ally = state.requireCombatant("ally");
+        if ("grant_temp_hp_stacks_without_cap".equals(caseName)) ally.addTempHpFromRuntime(4);
+        if ("grant_temp_hp_heal_blocked".equals(caseName)) state.putStatus("ally", new StatusEntry("Heal Blocked"));
+        if ("grant_temp_hp_heal_block_alias".equals(caseName)) state.putStatus("ally", new StatusEntry("Heal Block"));
+        if ("grant_temp_hp_locked".equals(caseName)) ally.temporaryEffects().add("temp_hp_locked");
+    }
+
     private static RuntimeCombatantState mon(String id, GridCoord position, int hp) {
         return new RuntimeCombatantState(id, MovementProfile.walking(position, 3), hp, 20, new ActionBudget());
     }
 
     private static String hpSnapshot(BattleRuntimeState state) {
         return String.join(",", "ally=" + state.requireCombatant("ally").hp(), "ally_full=" + state.requireCombatant("ally_full").hp(), "enemy=" + state.requireCombatant("enemy").hp());
+    }
+
+    private static String tempHpSnapshot(BattleRuntimeState state) {
+        return String.join(",", "ally=" + state.requireCombatant("ally").tempHp(), "ally_full=" + state.requireCombatant("ally_full").tempHp(), "enemy=" + state.requireCombatant("enemy").tempHp());
     }
 
     private static String stageSnapshot(BattleRuntimeState state) {
@@ -133,11 +156,11 @@ class TrainerFeatureEffectRegistryOracleParityTest {
         for (String line : Files.readAllLines(path)) {
             if (line == null || line.isBlank()) continue;
             String[] parts = line.split("\\t", -1);
-            out.put(parts[0], new Expected("1".equals(parts[1]), parts[2], parts[3], parts[4], parts[5], parts[6]));
+            out.put(parts[0], new Expected("1".equals(parts[1]), parts[2], parts[3], parts[4], parts[5], parts[6], parts[7]));
         }
         return out;
     }
 
     private record EffectCase(Map<String, ?> feature, Map<String, ?> effect, String actorId) {}
-    private record Expected(boolean applied, String effectType, String targets, String amount, String hpSnapshot, String stageSnapshot) {}
+    private record Expected(boolean applied, String effectType, String targets, String amount, String hpSnapshot, String stageSnapshot, String tempHpSnapshot) {}
 }

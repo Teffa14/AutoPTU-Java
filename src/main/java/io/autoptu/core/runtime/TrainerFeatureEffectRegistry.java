@@ -55,6 +55,7 @@ public final class TrainerFeatureEffectRegistry {
     public TrainerFeatureEffectRegistry() {
         register("heal", TrainerFeatureEffectRegistry::applyHeal);
         register("heal_active", TrainerFeatureEffectRegistry::applyHeal);
+        register("grant_temp_hp", TrainerFeatureEffectRegistry::applyGrantTempHp);
         register("raise_cs", TrainerFeatureEffectRegistry::applyRaiseCs);
     }
 
@@ -90,6 +91,18 @@ public final class TrainerFeatureEffectRegistry {
             if (target.hp() != before) changed.add(targetId);
         }
         return new EffectResult(!changed.isEmpty(), "heal", changed, Map.of("amount", amount));
+    }
+
+    private static EffectResult applyGrantTempHp(EffectContext context, Map<String, ?> effect) {
+        int amount = intLike(effect.get("amount"), 0);
+        if (amount <= 0) return new EffectResult(false, "grant_temp_hp", List.of(), Map.of());
+        List<String> targetIds = resolveTargets(context, effect);
+        if (targetIds.isEmpty()) return new EffectResult(false, "grant_temp_hp", List.of(), Map.of());
+        ArrayList<String> changed = new ArrayList<>();
+        for (String targetId : targetIds) {
+            if (TempHpResolution.grant(context.state(), targetId, amount) > 0) changed.add(targetId);
+        }
+        return new EffectResult(!changed.isEmpty(), "grant_temp_hp", changed, Map.of("amount", amount));
     }
 
     private static EffectResult applyRaiseCs(EffectContext context, Map<String, ?> effect) {
