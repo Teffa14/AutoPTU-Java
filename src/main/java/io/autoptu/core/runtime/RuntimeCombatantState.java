@@ -34,6 +34,7 @@ public final class RuntimeCombatantState {
     private final TemporaryEffectStore temporaryEffects = new TemporaryEffectStore();
     private MovementProfile movementProfile;
     private int hp;
+    private int tempHp;
     private boolean probabilityControl;
     private List<String> types = List.of();
     private List<AttackModifier> damageModifiers = List.of();
@@ -273,6 +274,11 @@ public final class RuntimeCombatantState {
         return maxHp;
     }
 
+    /** Server-owned temporary HP. It may exceed max HP and stacks additively like Python. */
+    public int tempHp() {
+        return tempHp;
+    }
+
     public ActionBudget actionBudget() {
         return actionBudget;
     }
@@ -384,6 +390,12 @@ public final class RuntimeCombatantState {
 
     void setHp(int nextHp) {
         hp = Math.max(0, Math.min(maxHp, nextHp));
+    }
+
+    int addTempHpFromRuntime(int amount) {
+        int gained = Math.max(0, amount);
+        tempHp += gained;
+        return gained;
     }
 
     private static List<String> normalizeNames(List<String> values) {
