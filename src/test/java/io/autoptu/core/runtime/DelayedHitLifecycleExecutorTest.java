@@ -22,7 +22,6 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DelayedHitLifecycleExecutorTest {
@@ -58,19 +57,42 @@ class DelayedHitLifecycleExecutorTest {
     }
 
     @Test
-    void unsupportedDueTileHitFailsBeforeRemovingAnythingFromBattleOwnedQueue() {
+    void positionOnlyDelayedHitUsesStoredAnchorAndAuthoritativeTargetResolution() {
         MoveOption move = move();
         BattleRuntimeState state = state(move, 7L);
         state.syncCurrentRoundFromLifecycle(3);
+        RuntimeCombatantState actor = state.requireCombatant("actor");
+        assertTrue(actor.actionBudget().consume(ActionType.STANDARD, move.moveId()));
+        actor.moveFrequencyUsage().recordUse(move);
         state.scheduleDelayedHitFromRuntime(new DelayedHitEntry(
                 "actor", move.moveId(), null, new GridCoord(4, 1), 3, "future_sight"
         ));
 
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> DelayedHitLifecycleExecutor.resolveDueCombatantHits(state, 3)
-        );
-        assertEquals(1, state.delayedHits().size());
+        List<BattleEvent> events = DelayedHitLifecycleExecutor.resolveDueCombatantHits(state, 3);
+
+        assertFalse(events.isEmpty());
+        MoveResolvedEvent resolved = assertInstanceOf(MoveResolvedEvent.class, events.getLast());
+        assertEquals("target", resolved.targetId());
+        assertTrue(state.delayedHits().isEmpty());
+        assertTrue(state.requireCombatant("target").hp() < 100);
+        assertFalse(actor.actionBudget().hasActionAvailable(ActionType.STANDARD));
+        assertEquals(1, actor.moveFrequencyUsage().battleUses(move.moveId()));
+    }
+
+    @Test
+    void emptyPositionOnlyDelayedHitMaturesWithoutInventingATarget() {
+        MoveOption move = move();
+        BattleRuntimeState state = state(move, 7L);
+        state.syncCurrentRoundFromLifecycle(3);
+        state.scheduleDelayedHitFromRuntime(new DelayedHitEntry(
+                "actor", move.moveId(), null, new GridCoord(10, 10), 3, "future_sight"
+        ));
+
+        List<BattleEvent> events = DelayedHitLifecycleExecutor.resolveDueCombatantHits(state, 3);
+
+        assertTrue(events.isEmpty());
+        assertTrue(state.delayedHits().isEmpty());
+        assertEquals(100, state.requireCombatant("target").hp());
     }
 
     @Test
