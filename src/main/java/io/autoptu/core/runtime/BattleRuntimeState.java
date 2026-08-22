@@ -28,6 +28,7 @@ public final class BattleRuntimeState {
     private final RoundInjuryHistoryState injuryHistory = new RoundInjuryHistoryState();
     private final InitiativeProgressState initiativeProgress = new InitiativeProgressState();
     private final BattleDelayedHitState delayedHits;
+    private final DeclaredActionState declaredActions = new DeclaredActionState();
     private BattleEnvironmentState environment = BattleEnvironmentState.neutral();
     private int currentRound;
 
@@ -310,6 +311,26 @@ public final class BattleRuntimeState {
     /** Runtime-package execution boundary; callers outside the core never receive the mutable RNG/queue owner. */
     BattleDelayedHitState delayedHitStateFromRuntime() {
         return delayedHits;
+    }
+
+    /** Read-only declarations made during the current round. */
+    public List<Map<String, Object>> declaredActions() {
+        return declaredActions.snapshot();
+    }
+
+    /** Runtime-package declaration boundary used by future action/Feature systems. */
+    void recordDeclaredActionFromRuntime(Map<String, ?> declaration) {
+        declaredActions.addFromRuntime(declaration);
+    }
+
+    /** Runtime-package replacement boundary for parity fixtures and state restoration. */
+    void replaceDeclaredActionsFromRuntime(Collection<? extends Map<String, ?>> declarations) {
+        declaredActions.replaceFromRuntime(declarations);
+    }
+
+    /** Lifecycle-only cleanup matching Python battle.declared_actions = [] at ROUND_START. */
+    void clearDeclaredActionsFromLifecycle() {
+        declaredActions.clearFromLifecycle();
     }
 
     public RuntimeCombatantState requireCombatant(String combatantId) {
