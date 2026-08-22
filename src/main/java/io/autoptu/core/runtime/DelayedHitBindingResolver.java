@@ -5,6 +5,9 @@ import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.model.GridCoord;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Resolves delayed-hit scheduling state into authoritative target and execution requests. */
 public final class DelayedHitBindingResolver {
     private DelayedHitBindingResolver() {
@@ -40,6 +43,53 @@ public final class DelayedHitBindingResolver {
             return new DelayedHitTargetRequest(entry, move, null, entry.targetPosition(), false);
         }
         throw new IllegalArgumentException("delayed hit requires targetId or targetPosition");
+    }
+
+    /**
+     * Expands a delayed target request through the same authoritative area/footprint/LoS
+     * selection boundary used by the pinned Python resolve_move_targets contract.
+     *
+     * <p>This is primarily needed when the originally stored combatant id no longer exists:
+     * the stale id remains only as the preferred id, while the stored anchor is used to
+     * recompute the move geometry against the current battlefield. Any combatants selected
+     * by that recomputation become normal combatant execution bindings. An empty selection is
+     * a valid result and means the matured delayed hit affects nobody.</p>
+     */
+    public static List<DelayedHitBinding> bindEffectiveTargets(
+            BattleRuntimeState state,
+            DelayedHitTargetRequest targetRequest
+    ) {
+        if (state == null) throw new IllegalArgumentException("state is required");
+        if (targetRequest == null) throw new IllegalArgumentException("targetRequest is required");
+        if (targetRequest.resolvedTargetPosition() == null) {
+            throw new IllegalArgumentException("delayed target request requires a resolved position");
+        }
+
+        DelayedHitEntry entry = targetRequest.entry();
+        RuntimeCombatantState attacker = state.requireCombatant(entry.attackerId());
+        MoveOption move = targetRequest.move();
+        EffectiveMoveTargetResolution resolved = EffectiveMoveTargetResolver.resolve(
+                state,
+                attacker.combatantId(),
+                move,
+                targetRequest.resolvedTargetPosition(),
+                targetRequest.targetId()
+        );
+
+        ArrayList<DelayedHitBinding> bindings = new ArrayList<>();
+        for (String targetId : resolved.targetIds()) {
+            state.requireCombatant(targetId);
+            MoveChoice choice = new MoveChoice(
+                    attacker.combatantId(),
+                    move.moveId(),
+                    ChoiceTargetMode.COMBATANT,
+                    targetId,
+                    resolved.anchor(),
+                    move.actionType()
+            );
+            bindings.add(new DelayedHitBinding(entry, move, choice));
+        }
+        return List.copyOf(bindings);
     }
 
     /**
