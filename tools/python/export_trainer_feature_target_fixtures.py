@@ -47,7 +47,9 @@ def main() -> None:
         ("actor_missing", {"scope": "self"}, "missing", {}),
         ("target", {"scope": "target"}, "ally_active", {"target_id": "enemy_active"}),
         ("target_missing", {"scope": "action_target"}, "ally_active", {"target_id": "missing"}),
+        ("target_non_string_does_not_coerce", {"scope": "target"}, "ally_active", {"target_id": 7}),
         ("targets_preserve_payload_order", {"scope": "targets"}, "ally_active", {"target_ids": ["enemy_active", "missing", "ally_active", "enemy_active"]}),
+        ("targets_ignore_non_string_ids", {"scope": "targets"}, "ally_active", {"target_ids": [7, "enemy_active"]}),
         ("targets_string_is_not_sequence", {"scope": "action_targets"}, "ally_active", {"target_ids": "enemy_active"}),
         ("all_active_filters_fainted_later", {"scope": "all_active"}, "ally_active", {}),
         ("all_allies_includes_inactive_by_default", {"scope": "all_allies"}, "ally_active", {}),
@@ -64,6 +66,7 @@ def main() -> None:
         ("float_string_limit_int_like", {"scope": "all", "include_fainted": True, "limit": "2.9"}, "ally_active", {}),
         ("unknown_scope_safe_default", {"scope": "mystery"}, "ally_active", {}),
         ("target_alias_precedence", {"target": "all_enemies"}, "ally_active", {}),
+        ("false_scope_falls_back_to_target", {"scope": False, "target": "all_enemies"}, "ally_active", {}),
         ("scope_precedes_target", {"scope": "active_allies", "target": "all_enemies"}, "ally_active", {}),
         ("bool_like_include_fainted", {"scope": "all", "include_fainted": "yes"}, "ally_active", {}),
     ]
