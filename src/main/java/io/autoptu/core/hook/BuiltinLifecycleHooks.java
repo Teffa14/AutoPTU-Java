@@ -75,6 +75,21 @@ public final class BuiltinLifecycleHooks {
                         }
                 )
                 .register(
+                        "round-temporary-effect-cleanup",
+                        HookSource.TEMPORARY_EFFECT,
+                        LifecycleHookPoint.ROUND_START,
+                        45,
+                        context -> {
+                            for (String combatantId : context.state().combatantIds()) {
+                                RuntimeCombatantState combatant = context.state().requireCombatant(combatantId);
+                                for (String effectName : ROUND_START_TEMPORARY_EFFECTS) {
+                                    combatant.temporaryEffects().removeAll(effectName);
+                                }
+                            }
+                            return LifecycleHookResult.empty();
+                        }
+                )
+                .register(
                         "round-declared-action-cleanup",
                         HookSource.SYSTEM,
                         LifecycleHookPoint.ROUND_START,
@@ -88,21 +103,6 @@ public final class BuiltinLifecycleHooks {
                         100,
                         context -> {
                             BattleRuntime.resetRoundMoveFrequency(context.state());
-                            return LifecycleHookResult.empty();
-                        }
-                )
-                .register(
-                        "round-temporary-effect-cleanup",
-                        HookSource.TEMPORARY_EFFECT,
-                        LifecycleHookPoint.ROUND_START,
-                        500,
-                        context -> {
-                            for (String combatantId : context.state().combatantIds()) {
-                                RuntimeCombatantState combatant = context.state().requireCombatant(combatantId);
-                                for (String effectName : ROUND_START_TEMPORARY_EFFECTS) {
-                                    combatant.temporaryEffects().removeAll(effectName);
-                                }
-                            }
                             return LifecycleHookResult.empty();
                         }
                 )
