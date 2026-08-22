@@ -9,11 +9,9 @@ import java.util.Map;
 /**
  * Transactional composition of the generic Trainer Feature dispatcher gates.
  *
- * Mirrors the ordering of Python TrainerFeatureDispatcher.trigger(): enabled/trigger,
- * prerequisites, context, frequency, resources, effect application, then resource
- * consumption and usage/cooldown mutation. Target resolution and concrete effect
- * semantics stay behind {@link FeatureEffect} so those families can be ported separately.
- * Minecraft/Cobblemon must not decide eligibility or commit bookkeeping.
+ * Mirrors Python TrainerFeatureDispatcher.trigger(): enabled/trigger, prerequisites,
+ * context, frequency, resources, effect application, then resource consumption and
+ * usage/cooldown mutation. Concrete effect semantics stay behind FeatureEffect.
  */
 public final class TrainerFeatureExecutionService {
     private TrainerFeatureExecutionService() {}
@@ -70,37 +68,30 @@ public final class TrainerFeatureExecutionService {
             return result(Outcome.TRIGGER_MISMATCH, initialResources, initialUsage);
         }
         if (!TrainerFeaturePrerequisiteResolution.prerequisitesMet(
-                trainerClass,
-                safeFeature,
-                knownFeatureIds
+                trainerClass, safeFeature, knownFeatureIds
         )) {
             return result(Outcome.PREREQUISITES_FAILED, initialResources, initialUsage);
         }
 
-        TrainerFeatureContextResolution.Context effectiveContext = withFeatureUsage(
-                context,
-                usageInfo(safeFeature, initialUsage)
-        );
+        Map<String, Integer> currentUsage = usageInfo(safeFeature, initialUsage);
+        TrainerFeatureContextResolution.Context effectiveContext = withFeatureUsage(context, currentUsage);
         if (!TrainerFeatureContextResolution.matches(safeFeature, effectiveContext)) {
             return result(Outcome.CONTEXT_FAILED, initialResources, initialUsage);
         }
 
         int currentRound = effectiveContext.currentRound();
-        Map<String, Object> currentUsage = usageInfo(safeFeature, initialUsage);
         if (!TrainerFeatureFrequencyResolution.isAvailable(safeFeature, currentUsage, currentRound)) {
             return result(Outcome.FREQUENCY_BLOCKED, initialResources, initialUsage);
         }
         if (!TrainerFeatureResourceResolution.hasResources(safeFeature, initialResources)) {
             return result(Outcome.RESOURCES_BLOCKED, initialResources, initialUsage);
         }
-
         if (effect == null || !effect.apply()) {
             return result(Outcome.EFFECT_NOT_APPLIED, initialResources, initialUsage);
         }
 
         Map<String, Object> committedResources = TrainerFeatureResourceResolution.consume(
-                safeFeature,
-                initialResources
+                safeFeature, initialResources
         );
         Map<String, Map<String, Object>> committedUsage = TrainerFeatureUsageResolution.markUse(
                 safeFeature,
@@ -121,16 +112,9 @@ public final class TrainerFeatureExecutionService {
                 )
                 : context;
         return new TrainerFeatureContextResolution.Context(
-                source.trainerId(),
-                source.actorId(),
-                source.actorTrainerId(),
-                source.actorIsPokemon(),
-                source.actorActive(),
-                source.currentRound(),
-                source.battlePhase(),
-                source.payload(),
-                featureUsage,
-                source.rng()
+                source.trainerId(), source.actorId(), source.actorTrainerId(),
+                source.actorIsPokemon(), source.actorActive(), source.currentRound(),
+                source.battlePhase(), source.payload(), featureUsage, source.rng()
         );
     }
 
@@ -165,8 +149,7 @@ public final class TrainerFeatureExecutionService {
     }
 
     private static boolean isEnabled(Map<String, ?> feature) {
-        if (!feature.containsKey("enabled")) return true;
-        return pythonTruthy(feature.get("enabled"));
+        return !feature.containsKey("enabled") || pythonTruthy(feature.get("enabled"));
     }
 
     private static boolean pythonTruthy(Object value) {
