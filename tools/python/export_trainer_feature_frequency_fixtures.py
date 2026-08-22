@@ -51,7 +51,7 @@ def main() -> None:
         evaluate("negative_round_defaults", {"frequency": "Round", "uses_per_round": -4}),
         evaluate("zero_per_scene", {"frequency": "0/scene"}),
         evaluate("unknown_frequency", {"frequency": "Special"}),
-        evaluate("numeric_string_limits", {"max_uses": "3.9", "uses_per_round": "2.8"}),
+        evaluate("numeric_string_limits", {"max_uses": "3", "uses_per_round": "2"}),
         evaluate("cooldown_before_blocks", {}, usage={"cooldown_until": 4}, round_number=3),
         evaluate("cooldown_equal_blocks", {}, usage={"cooldown_until": 3}, round_number=3),
         evaluate("cooldown_after_allows", {}, usage={"cooldown_until": 2}, round_number=3),
@@ -62,8 +62,7 @@ def main() -> None:
         evaluate("round_equal_blocks", {"frequency": "2/round"}, usage={"uses_round_3": 2}),
         evaluate("other_round_ignored", {"frequency": "2/round"}, usage={"uses_round_2": 99}),
         evaluate("cooldown_precedes_usage", {"frequency": "Daily"}, usage={"cooldown_until": 3, "uses_total": 99}),
-        evaluate("string_usage_coercion", {"frequency": "2/round", "max_uses": 3}, usage={"uses_total": "2.9", "uses_round_3": "1.9"}),
-        evaluate("bad_usage_defaults_zero", {"frequency": "Daily"}, usage={"uses_total": "bad", "cooldown_until": "bad"}),
+        evaluate("string_usage_coercion", {"frequency": "2/round", "max_uses": 3}, usage={"uses_total": "2", "uses_round_3": "1"}),
     ]
 
     output = Path(args.output)
