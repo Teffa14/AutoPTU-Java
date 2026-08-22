@@ -7,6 +7,8 @@ forwarded unchanged. If target_id still resolves, ordinary target resolution use
 the defender's current position; target_position is the fallback when there is no
 defender. Area geometry is recomputed at maturity through affected_tiles, LoS
 filtering and footprint overlap rather than being frozen when the hit is scheduled.
+The effective target collector excludes combatants without positive HP but does not
+apply a generic active-state filter at this stage.
 """
 
 from __future__ import annotations
@@ -113,6 +115,50 @@ def target_id_is_prioritized_for_area_resolution(fn) -> bool:
     return False
 
 
+def area_target_eligibility_contract(fn) -> tuple[bool, bool]:
+    """Freeze the generic area collector's HP and active-state eligibility rules.
+
+    Python builds ``prioritized`` and then resolves ``state = self.pokemon.get(cid)``.
+    Its direct guard excludes missing/non-positive-HP states before footprint overlap.
+    There is intentionally no generic ``active`` check in this collector. Keeping both
+    facts explicit prevents Java from either hitting fainted combatants or over-filtering
+    inactive combatants in a path where the Python oracle still includes them.
+    """
+    for node in ast.walk(function_tree(fn)):
+        if not isinstance(node, ast.For):
+            continue
+        if not isinstance(node.target, ast.Name) or node.target.id != "cid":
+            continue
+        if not isinstance(node.iter, ast.Name) or node.iter.id != "prioritized":
+            continue
+
+        saw_state_lookup = False
+        filters_nonpositive_hp = False
+        filters_inactive = False
+        for statement in node.body:
+            if isinstance(statement, ast.Assign):
+                for target in statement.targets:
+                    if isinstance(target, ast.Name) and target.id == "state":
+                        if isinstance(statement.value, ast.Call) and call_name(statement.value) == "get":
+                            saw_state_lookup = True
+            if not saw_state_lookup:
+                continue
+            if isinstance(statement, ast.If):
+                test_text = ast.unparse(statement.test)
+                if "state.hp is None" in test_text and "state.hp <= 0" in test_text:
+                    filters_nonpositive_hp = True
+                if "state.active" in test_text:
+                    filters_inactive = True
+            if isinstance(statement, ast.If):
+                if any(
+                    isinstance(child, ast.Call) and call_name(child) == "_footprint_overlaps_tiles"
+                    for child in ast.walk(statement)
+                ):
+                    break
+        return filters_nonpositive_hp, filters_inactive
+    return False, False
+
+
 def main() -> int:
     args = parse_args()
     source_root = Path(args.source_root).resolve()
@@ -133,6 +179,7 @@ def main() -> int:
     area_uses_footprint_overlap = "_footprint_overlaps_tiles" in target_calls
     area_uses_los = "line_of_sight_clear" in target_calls
     target_id_priority = target_id_is_prioritized_for_area_resolution(BattleState.resolve_move_targets)
+    filters_nonpositive_hp, filters_inactive = area_target_eligibility_contract(BattleState.resolve_move_targets)
 
     print("--- PINNED resolve_delayed_hits ---")
     print(inspect.getsource(resolve_delayed_hits))
@@ -153,6 +200,8 @@ def main() -> int:
     assert area_uses_footprint_overlap
     assert area_uses_los
     assert target_id_priority
+    assert filters_nonpositive_hp
+    assert not filters_inactive
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -172,6 +221,8 @@ def main() -> int:
                 "1" if area_uses_los else "0",
                 "1" if target_id_priority else "0",
                 "1" if uses_stored_position_fallback else "0",
+                "1" if filters_nonpositive_hp else "0",
+                "1" if filters_inactive else "0",
             ]
         )
         + "\n",
