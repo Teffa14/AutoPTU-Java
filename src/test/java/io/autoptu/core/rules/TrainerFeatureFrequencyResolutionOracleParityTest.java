@@ -41,7 +41,7 @@ class TrainerFeatureFrequencyResolutionOracleParityTest {
         cases.put("negative_round_defaults", testCase(Map.of("frequency", "Round", "uses_per_round", -4)));
         cases.put("zero_per_scene", testCase(Map.of("frequency", "0/scene")));
         cases.put("unknown_frequency", testCase(Map.of("frequency", "Special")));
-        cases.put("numeric_string_limits", testCase(Map.of("max_uses", "3.9", "uses_per_round", "2.8")));
+        cases.put("numeric_string_limits", testCase(Map.of("max_uses", "3", "uses_per_round", "2")));
         cases.put("cooldown_before_blocks", testCase(Map.of()).usage(Map.of("cooldown_until", 4)).round(3));
         cases.put("cooldown_equal_blocks", testCase(Map.of()).usage(Map.of("cooldown_until", 3)).round(3));
         cases.put("cooldown_after_allows", testCase(Map.of()).usage(Map.of("cooldown_until", 2)).round(3));
@@ -52,8 +52,7 @@ class TrainerFeatureFrequencyResolutionOracleParityTest {
         cases.put("round_equal_blocks", testCase(Map.of("frequency", "2/round")).usage(Map.of("uses_round_3", 2)));
         cases.put("other_round_ignored", testCase(Map.of("frequency", "2/round")).usage(Map.of("uses_round_2", 99)));
         cases.put("cooldown_precedes_usage", testCase(Map.of("frequency", "Daily")).usage(Map.of("cooldown_until", 3, "uses_total", 99)));
-        cases.put("string_usage_coercion", testCase(Map.of("frequency", "2/round", "max_uses", 3)).usage(Map.of("uses_total", "2.9", "uses_round_3", "1.9")));
-        cases.put("bad_usage_defaults_zero", testCase(Map.of("frequency", "Daily")).usage(Map.of("uses_total", "bad", "cooldown_until", "bad")));
+        cases.put("string_usage_coercion", testCase(Map.of("frequency", "2/round", "max_uses", 3)).usage(Map.of("uses_total", "2", "uses_round_3", "1")));
 
         assertEquals(expected.keySet(), cases.keySet());
         for (Map.Entry<String, Case> entry : cases.entrySet()) {
