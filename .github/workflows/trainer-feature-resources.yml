@@ -1,0 +1,40 @@
+name: Trainer Feature Resource Parity
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  trainer-feature-resources:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Export Python Trainer Feature resource fixtures
+        run: |
+          python3 -m py_compile tools/python/export_trainer_feature_resource_fixtures.py
+          python3 tools/python/export_trainer_feature_resource_fixtures.py \
+            --source-root python-oracle \
+            --output build/oracle/trainer-feature-resources.tsv
+          cat build/oracle/trainer-feature-resources.tsv
+
+      - name: Run Trainer Feature resource parity test
+        run: gradle test --stacktrace --tests io.autoptu.core.rules.TrainerFeatureResourceResolutionOracleParityTest
