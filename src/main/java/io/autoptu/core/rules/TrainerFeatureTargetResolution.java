@@ -61,7 +61,7 @@ public final class TrainerFeatureTargetResolution {
     public static List<String> resolve(Map<String, ?> rules, Context context) {
         Objects.requireNonNull(context, "context");
         Map<String, ?> cfg = rules == null ? Map.of() : rules;
-        String scope = normalize(firstNonBlank(cfg.get("scope"), cfg.get("target"), "active_allies"));
+        String scope = normalize(firstTruthy(cfg.get("scope"), cfg.get("target"), "active_allies"));
         boolean defaultIncludeInactive = Set.of("all_allies", "all_enemies", "all", "all_pokemon").contains(scope);
         boolean includeInactive = boolLike(cfg.get("include_inactive"), defaultIncludeInactive);
         boolean includeFainted = boolLike(cfg.get("include_fainted"), false);
@@ -95,7 +95,7 @@ public final class TrainerFeatureTargetResolution {
         }
         if (Set.of("target", "action_target").contains(scope)) {
             Object raw = context.payload().get("target_id");
-            String id = raw == null ? null : String.valueOf(raw);
+            if (!(raw instanceof String id)) return List.of();
             return find(combatants, id) == null ? List.of() : List.of(id);
         }
         if (Set.of("targets", "action_targets").contains(scope)) {
@@ -135,8 +135,7 @@ public final class TrainerFeatureTargetResolution {
 
         List<String> out = new ArrayList<>();
         for (Object value : values) {
-            if (value == null) continue;
-            String id = String.valueOf(value);
+            if (!(value instanceof String id)) continue;
             if (find(combatants, id) != null) out.add(id);
         }
         return out;
@@ -150,10 +149,21 @@ public final class TrainerFeatureTargetResolution {
         return null;
     }
 
-    private static Object firstNonBlank(Object first, Object second, Object fallback) {
-        if (!normalize(first).isEmpty()) return first;
-        if (!normalize(second).isEmpty()) return second;
+    private static Object firstTruthy(Object first, Object second, Object fallback) {
+        if (pythonTruthy(first)) return first;
+        if (pythonTruthy(second)) return second;
         return fallback;
+    }
+
+    private static boolean pythonTruthy(Object value) {
+        if (value == null) return false;
+        if (value instanceof Boolean bool) return bool;
+        if (value instanceof Number number) return number.doubleValue() != 0.0d;
+        if (value instanceof CharSequence sequence) return !sequence.isEmpty();
+        if (value instanceof Collection<?> collection) return !collection.isEmpty();
+        if (value instanceof Map<?, ?> map) return !map.isEmpty();
+        if (value.getClass().isArray()) return Array.getLength(value) > 0;
+        return true;
     }
 
     private static List<String> tokens(Object value) {
@@ -185,6 +195,7 @@ public final class TrainerFeatureTargetResolution {
     private static int intLike(Object value, int fallback) {
         if (value == null || "".equals(value)) return fallback;
         try {
+            if (value instanceof Boolean bool) return bool ? 1 : 0;
             if (value instanceof Number number) return number.intValue();
             return Integer.parseInt(String.valueOf(value));
         } catch (RuntimeException first) {
