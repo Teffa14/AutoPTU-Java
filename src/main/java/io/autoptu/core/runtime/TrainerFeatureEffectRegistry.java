@@ -2,6 +2,7 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.rules.TrainerFeatureTargetResolution;
+import io.autoptu.core.rules.TrainerFeatureTrainerTargetResolution;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -57,6 +58,7 @@ public final class TrainerFeatureEffectRegistry {
         register("heal_active", TrainerFeatureEffectRegistry::applyHeal);
         register("grant_temp_hp", TrainerFeatureEffectRegistry::applyGrantTempHp);
         register("raise_cs", TrainerFeatureEffectRegistry::applyRaiseCs);
+        register("grant_ap", TrainerFeatureEffectRegistry::applyGrantAp);
     }
 
     public void register(String effectType, EffectHandler handler) {
@@ -103,6 +105,25 @@ public final class TrainerFeatureEffectRegistry {
             if (TempHpResolution.grant(context.state(), targetId, amount) > 0) changed.add(targetId);
         }
         return new EffectResult(!changed.isEmpty(), "grant_temp_hp", changed, Map.of("amount", amount));
+    }
+
+    private static EffectResult applyGrantAp(EffectContext context, Map<String, ?> effect) {
+        int amount = intLike(effect.containsKey("amount") ? effect.get("amount") : 1, 0);
+        if (amount <= 0) return new EffectResult(false, "grant_ap", List.of(), Map.of());
+        List<String> trainerIds = TrainerFeatureTrainerTargetResolution.resolve(
+                context.trainerId(), context.state().trainerIds(), effect
+        );
+        ArrayList<String> changed = new ArrayList<>();
+        for (String trainerId : trainerIds) {
+            context.state().requireTrainer(trainerId).restoreAp(amount);
+            changed.add(trainerId);
+        }
+        return new EffectResult(
+                !changed.isEmpty(),
+                "grant_ap",
+                List.of(),
+                Map.of("amount", amount, "trainers", List.copyOf(changed))
+        );
     }
 
     private static EffectResult applyRaiseCs(EffectContext context, Map<String, ?> effect) {
