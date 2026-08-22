@@ -64,7 +64,8 @@ public final class TrainerFeatureExecutionService {
         if (!isEnabled(safeFeature)) {
             return result(Outcome.DISABLED, initialResources, initialUsage);
         }
-        if (!normalize(safeFeature.get("trigger")).equals(normalize(trigger))) {
+        String triggerToken = normalize(trigger);
+        if (triggerToken.isBlank() || !normalize(safeFeature.get("trigger")).equals(triggerToken)) {
             return result(Outcome.TRIGGER_MISMATCH, initialResources, initialUsage);
         }
         if (!TrainerFeaturePrerequisiteResolution.prerequisitesMet(
