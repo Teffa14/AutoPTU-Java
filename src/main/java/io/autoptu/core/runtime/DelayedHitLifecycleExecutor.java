@@ -38,19 +38,14 @@ public final class DelayedHitLifecycleExecutor {
             throw new IllegalArgumentException("delayed lifecycle round does not match BattleRuntimeState");
         }
 
-        // Preflight every due entry before takeDue mutates the server-owned queue. Position-only
-        // TILE/area requests remain intentionally unsupported in this slice. A stale combatant id,
-        // however, is now safe to expand through the authoritative target resolver using its stored
-        // anchor, matching the pinned Python fallback contract.
+        // Preflight every due entry before takeDue mutates the server-owned queue. Both stale
+        // combatant ids and position-only delayed requests expand through the authoritative
+        // target resolver. The stored position is only the anchor; the move keeps its original
+        // targeting model, matching the pinned Python resolve_move_targets contract.
         for (DelayedHitEntry entry : delayedState.entriesInInsertionOrder()) {
             if (entry.triggerRound() > currentRound) continue;
             DelayedHitTargetRequest targetRequest = DelayedHitBindingResolver.resolveTargetRequest(state, entry);
-            if (targetRequest.positionOnly()) {
-                throw new UnsupportedOperationException(
-                        "due TILE/area delayed hits require the dedicated target-resolution parity slice"
-                );
-            }
-            if (targetRequest.missingStoredCombatant()) {
+            if (targetRequest.positionOnly() || targetRequest.missingStoredCombatant()) {
                 DelayedHitBindingResolver.bindEffectiveTargets(state, targetRequest);
             }
         }
@@ -59,7 +54,7 @@ public final class DelayedHitLifecycleExecutor {
         ArrayList<BattleEvent> events = new ArrayList<>();
         for (DelayedHitEntry entry : batch.due()) {
             DelayedHitTargetRequest targetRequest = DelayedHitBindingResolver.resolveTargetRequest(state, entry);
-            if (targetRequest.missingStoredCombatant()) {
+            if (targetRequest.positionOnly() || targetRequest.missingStoredCombatant()) {
                 for (DelayedHitBinding binding : DelayedHitBindingResolver.bindEffectiveTargets(state, targetRequest)) {
                     events.addAll(resolveBinding(state, delayedState, entry, binding));
                 }
