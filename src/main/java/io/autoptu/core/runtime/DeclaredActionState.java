@@ -75,7 +75,7 @@ public final class DeclaredActionState {
             for (Object item : collection) {
                 copied.add(copyValue(item));
             }
-            return List.copyOf(copied);
+            return Collections.unmodifiableList(copied);
         }
         throw new IllegalArgumentException(
                 "declared action payloads must use scalar/map/list values, got: " + value.getClass().getName()
