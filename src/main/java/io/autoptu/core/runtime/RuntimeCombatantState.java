@@ -26,7 +26,7 @@ public final class RuntimeCombatantState {
     private final CombatantStatProfile statProfile;
     private final CombatStageState combatStages;
     private final EvasionProfile evasionProfile;
-    private final int accuracyStage;
+    private int accuracyStage;
     private final boolean sniper;
     private final boolean noGuard;
     private final boolean blur;
@@ -320,6 +320,17 @@ public final class RuntimeCombatantState {
 
     public int accuracyStage() {
         return accuracyStage;
+    }
+
+    /** Mutable canonical Accuracy CS used by Trainer Features and move/status effects. */
+    public int setAccuracyStage(int value) {
+        accuracyStage = Calculations.accuracyStageValue(value);
+        return accuracyStage;
+    }
+
+    /** Adjust Accuracy CS and return the final clamped PTU stage. */
+    public int adjustAccuracyStage(int delta) {
+        return setAccuracyStage(accuracyStage + delta);
     }
 
     public boolean sniper() {
