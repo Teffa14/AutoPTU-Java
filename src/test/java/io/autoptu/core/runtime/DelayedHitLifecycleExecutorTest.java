@@ -74,7 +74,7 @@ class DelayedHitLifecycleExecutorTest {
     }
 
     @Test
-    void missingCombatantTargetFallsBackToStoredAnchorBeforeQueueMutation() {
+    void missingCombatantTargetFallsBackToStoredAnchorAndConsumesMaturedEntry() {
         MoveOption move = move();
         BattleRuntimeState state = stateWithoutTarget(move, 7L);
         state.syncCurrentRoundFromLifecycle(3);
@@ -89,12 +89,11 @@ class DelayedHitLifecycleExecutorTest {
         assertEquals(storedPosition, request.resolvedTargetPosition());
         assertFalse(request.targetPresent());
 
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> DelayedHitLifecycleExecutor.resolveDueCombatantHits(state, 3)
-        );
-        assertEquals(List.of(entry), state.delayedHits(),
-                "unsupported stale-target execution must not drop the due entry from server-owned state");
+        List<BattleEvent> events = DelayedHitLifecycleExecutor.resolveDueCombatantHits(state, 3);
+
+        assertTrue(events.isEmpty());
+        assertTrue(state.delayedHits().isEmpty(),
+                "a matured stale-target hit with no effective target must not remain queued forever");
     }
 
     @Test
