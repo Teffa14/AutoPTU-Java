@@ -2,6 +2,7 @@ package io.autoptu.core.rules;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -34,11 +35,11 @@ public final class TrainerFeatureUsageResolution {
             info.put(actorRoundKey, directInt(info.get(actorRoundKey)) + 1);
         }
 
-        Object cooldownRaw;
-        if (feature != null && feature.containsKey("cooldown_rounds")) {
-            cooldownRaw = feature.get("cooldown_rounds");
-        } else {
-            cooldownRaw = feature == null ? 0 : feature.getOrDefault("cooldown", 0);
+        Object cooldownRaw = 0;
+        if (feature != null) {
+            cooldownRaw = feature.containsKey("cooldown_rounds")
+                    ? feature.get("cooldown_rounds")
+                    : feature.get("cooldown");
         }
         int cooldown = intLike(cooldownRaw, 0);
         if (cooldown > 0) {
@@ -120,7 +121,7 @@ public final class TrainerFeatureUsageResolution {
     }
 
     private static String normalizeToken(Object value) {
-        return String.valueOf(value == null ? "" : value).strip().toLowerCase();
+        return String.valueOf(value == null ? "" : value).strip().toLowerCase(Locale.ROOT);
     }
 
     private static boolean isPythonTruthyString(String value) {
