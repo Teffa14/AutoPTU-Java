@@ -1,6 +1,7 @@
 package io.autoptu.core.hook;
 
 import io.autoptu.core.runtime.BattleRuntime;
+import io.autoptu.core.runtime.DeclaredActionRoundLifecycleHook;
 import io.autoptu.core.runtime.DelayedHitRoundLifecycleHook;
 import io.autoptu.core.runtime.FieldRoundLifecycleHook;
 import io.autoptu.core.runtime.RoundTemporaryEffectExpiryHook;
@@ -72,6 +73,13 @@ public final class BuiltinLifecycleHooks {
                             }
                             return LifecycleHookResult.empty();
                         }
+                )
+                .register(
+                        "round-declared-action-cleanup",
+                        HookSource.SYSTEM,
+                        LifecycleHookPoint.ROUND_START,
+                        50,
+                        new DeclaredActionRoundLifecycleHook()
                 )
                 .register(
                         "round-move-frequency-reset",
