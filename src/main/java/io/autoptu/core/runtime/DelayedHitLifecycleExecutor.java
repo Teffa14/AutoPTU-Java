@@ -38,10 +38,21 @@ public final class DelayedHitLifecycleExecutor {
             throw new IllegalArgumentException("delayed lifecycle round does not match BattleRuntimeState");
         }
 
+        // Preflight every due entry before takeDue mutates the server-owned queue. Python can
+        // fall back to the stored position when a delayed combatant target disappeared, but
+        // Java does not yet execute that target-resolution branch. Preserve the entry until
+        // that parity slice exists rather than losing it after a failed direct binding.
         for (DelayedHitEntry entry : delayedState.entriesInInsertionOrder()) {
-            if (entry.triggerRound() <= currentRound && entry.targetId() == null) {
+            if (entry.triggerRound() > currentRound) continue;
+            DelayedHitTargetRequest targetRequest = DelayedHitBindingResolver.resolveTargetRequest(state, entry);
+            if (targetRequest.positionOnly()) {
                 throw new UnsupportedOperationException(
                         "due TILE/area delayed hits require the dedicated target-resolution parity slice"
+                );
+            }
+            if (targetRequest.missingStoredCombatant()) {
+                throw new UnsupportedOperationException(
+                        "due delayed hit with missing combatant target requires stored-position target resolution"
                 );
             }
         }
