@@ -21,6 +21,7 @@ public final class TrainerRuntimeState {
     private final LinkedHashMap<String, String> featuresByNormalizedName = new LinkedHashMap<>();
     private final LinkedHashMap<String, Integer> skillRanksByNormalizedName = new LinkedHashMap<>();
     private final ActionBudget actionBudget = new ActionBudget();
+    private final List<TemporaryApGrant> temporaryAp = new ArrayList<>();
     private final int initiativeModifier;
     private final Integer explicitInitiativeSpeed;
     private final String teamId;
@@ -137,6 +138,43 @@ public final class TrainerRuntimeState {
         return ap;
     }
 
+    /** Read-only temporary AP grants in deterministic grant order. */
+    public List<TemporaryApGrant> temporaryApGrants() {
+        return List.copyOf(temporaryAp);
+    }
+
+    /**
+     * Python TrainerState.grant_temporary_ap(): positive grants increase AP immediately
+     * and retain round/source metadata for later expiry or spending.
+     */
+    public void grantTemporaryAp(int amount, int expiresRound, String source) {
+        if (amount <= 0) return;
+        temporaryAp.add(new TemporaryApGrant(amount, expiresRound, source));
+        ap += amount;
+    }
+
+    /**
+     * Python TrainerState.expire_temporary_ap(): expire only when currentRound is strictly
+     * greater than expiresRound, then subtract the expired amount without allowing AP below zero.
+     */
+    public int expireTemporaryAp(int currentRound) {
+        int expired = 0;
+        ArrayList<TemporaryApGrant> remaining = new ArrayList<>();
+        for (TemporaryApGrant grant : temporaryAp) {
+            if (currentRound > grant.expiresRound()) {
+                expired += grant.amount();
+            } else {
+                remaining.add(grant);
+            }
+        }
+        temporaryAp.clear();
+        temporaryAp.addAll(remaining);
+        if (expired > 0) {
+            ap = Math.max(0, ap - expired);
+        }
+        return expired;
+    }
+
     /** Raw Python TrainerState.initiative_modifier used by Pokemon and Trainer entries. */
     public int initiativeModifier() {
         return initiativeModifier;
@@ -152,12 +190,32 @@ public final class TrainerRuntimeState {
         return teamId;
     }
 
-    /** Spend AP atomically; returns false without mutation when insufficient. */
+    /**
+     * Spend AP atomically. Python consumes temporary grants first in insertion order so
+     * later expiry cannot subtract already-spent temporary AP a second time.
+     */
     public boolean spendAp(int amount) {
         if (amount <= 0) {
             throw new IllegalArgumentException("AP spend must be positive");
         }
         if (ap < amount) return false;
+
+        int remainingSpend = amount;
+        ArrayList<TemporaryApGrant> updatedTemporary = new ArrayList<>();
+        for (TemporaryApGrant grant : temporaryAp) {
+            if (remainingSpend <= 0) {
+                updatedTemporary.add(grant);
+                continue;
+            }
+            int used = Math.min(grant.amount(), remainingSpend);
+            remainingSpend -= used;
+            int leftover = grant.amount() - used;
+            if (leftover > 0) {
+                updatedTemporary.add(grant.withAmount(leftover));
+            }
+        }
+        temporaryAp.clear();
+        temporaryAp.addAll(updatedTemporary);
         ap -= amount;
         return true;
     }
