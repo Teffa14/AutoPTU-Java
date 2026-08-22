@@ -47,6 +47,11 @@ class DelayedHitExecutionContractOracleParityTest {
         assertEquals(asBool(parts[4]), policy.forwardsTargetPosition());
         assertEquals(asBool(parts[5]), policy.targetResolutionReentersMoveAction());
         assertEquals(asBool(parts[6]), policy.targetPositionForcesTile());
+        assertEquals(asBool(parts[7]), policy.usesLiveDefenderPositionWhenPresent());
+        assertEquals(asBool(parts[8]), policy.recomputesAffectedTiles());
+        assertEquals(asBool(parts[9]), policy.selectsTargetsByFootprintOverlap());
+        assertEquals(asBool(parts[10]), policy.rechecksLineOfSight());
+        assertEquals(asBool(parts[11]), policy.explicitTargetIdHasPriority());
         assertEquals(asBool(parts[12]), policy.fallsBackToStoredTargetPositionWhenDefenderMissing());
     }
 
