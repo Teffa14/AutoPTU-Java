@@ -1,5 +1,6 @@
 package io.autoptu.core.rules;
 
+import io.autoptu.core.runtime.TrainerRuntimeState;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
@@ -14,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TrainerFeatureExecutionServiceTest {
     @Test
@@ -57,6 +59,99 @@ class TrainerFeatureExecutionServiceTest {
         assertEquals(1, result.usage().get("tactical-burst").get("uses_round_3"));
         assertEquals(3, result.usage().get("tactical-burst").get("last_round"));
         assertEquals(4, result.usage().get("tactical-burst").get("cooldown_until"));
+    }
+
+    @Test
+    void authoritativeExecutionCommitsOnlyToTrainerRuntimeState() {
+        TrainerRuntimeState trainer = trainerState(
+                Map.of("focus", 5, "other", 7),
+                Map.of("tactical-burst", Map.of("legacy", 9))
+        );
+        TrainerFeatureExecutionService.Result result = TrainerFeatureExecutionService.executeAuthoritative(
+                "round_start",
+                Map.of("level", 5),
+                feature(),
+                List.of(),
+                context(3),
+                trainer,
+                () -> true
+        );
+
+        assertEquals(TrainerFeatureExecutionService.Outcome.APPLIED, result.outcome());
+        assertEquals(Map.of("focus", 3, "other", 7), trainer.featureResources());
+        assertEquals(9, trainer.featureUsage().get("tactical-burst").get("legacy"));
+        assertEquals(1, trainer.featureUsage().get("tactical-burst").get("uses_total"));
+        assertEquals(1, trainer.featureUsage().get("tactical-burst").get("uses_round_3"));
+        assertEquals(4, trainer.featureUsage().get("tactical-burst").get("cooldown_until"));
+    }
+
+    @Test
+    void authoritativeExecutionLeavesRuntimeStateUntouchedWhenEffectDoesNotApply() {
+        TrainerRuntimeState trainer = trainerState(
+                Map.of("focus", 5),
+                Map.of("tactical-burst", Map.of("legacy", 9))
+        );
+        Map<String, Object> beforeResources = trainer.featureResources();
+        Map<String, Map<String, Object>> beforeUsage = trainer.featureUsage();
+
+        TrainerFeatureExecutionService.Result result = TrainerFeatureExecutionService.executeAuthoritative(
+                "round_start",
+                Map.of("level", 5),
+                feature(),
+                List.of(),
+                context(3),
+                trainer,
+                () -> false
+        );
+
+        assertEquals(TrainerFeatureExecutionService.Outcome.EFFECT_NOT_APPLIED, result.outcome());
+        assertEquals(beforeResources, trainer.featureResources());
+        assertEquals(beforeUsage, trainer.featureUsage());
+    }
+
+    @Test
+    void authoritativeExecutionUsesCanonicalTrainerIdentityForContextScope() {
+        LinkedHashMap<String, Object> scoped = new LinkedHashMap<>(feature());
+        scoped.put("conditions", Map.of("actor_scope", "self"));
+        TrainerRuntimeState trainer = trainerState(Map.of("focus", 5), Map.of());
+        TrainerFeatureContextResolution.Context forgedTrainerContext = new TrainerFeatureContextResolution.Context(
+                "forged-trainer", "pokemon-1", "trainer-1", true, true, 3,
+                "START", Map.of("phase", "START"), Map.of(), null
+        );
+
+        TrainerFeatureExecutionService.Result result = TrainerFeatureExecutionService.executeAuthoritative(
+                "round_start",
+                Map.of("level", 5),
+                scoped,
+                List.of(),
+                forgedTrainerContext,
+                trainer,
+                () -> true
+        );
+
+        assertTrue(result.applied());
+        assertEquals(3, trainer.featureResources().get("focus"));
+    }
+
+    @Test
+    void trainerFeatureBookkeepingSnapshotsAreDefensiveAndAtomic() {
+        LinkedHashMap<String, Object> resources = new LinkedHashMap<>();
+        resources.put("focus", 5);
+        LinkedHashMap<String, Object> usageInfo = new LinkedHashMap<>();
+        usageInfo.put("uses_total", 1);
+        LinkedHashMap<String, Map<String, Object>> usage = new LinkedHashMap<>();
+        usage.put("tactical-burst", usageInfo);
+        TrainerRuntimeState trainer = trainerState(resources, usage);
+
+        resources.put("focus", 999);
+        usageInfo.put("uses_total", 999);
+        assertEquals(5, trainer.featureResources().get("focus"));
+        assertEquals(1, trainer.featureUsage().get("tactical-burst").get("uses_total"));
+        assertThrows(UnsupportedOperationException.class, () -> trainer.featureResources().put("focus", 0));
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> trainer.featureUsage().get("tactical-burst").put("uses_total", 0)
+        );
     }
 
     @Test
@@ -164,6 +259,16 @@ class TrainerFeatureExecutionServiceTest {
     private static TrainerFeatureContextResolution.Context context(int round) {
         return new TrainerFeatureContextResolution.Context(
                 "trainer-1", "", "", false, false, round, "START", Map.of("phase", "START"), Map.of(), null
+        );
+    }
+
+    private static TrainerRuntimeState trainerState(
+            Map<String, ?> resources,
+            Map<String, ? extends Map<String, ?>> usage
+    ) {
+        return new TrainerRuntimeState(
+                "trainer-1", List.of("Tactical Burst"), 3, 0, Map.of(), null, "team-a",
+                resources, usage
         );
     }
 }

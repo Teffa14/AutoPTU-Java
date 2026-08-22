@@ -4,6 +4,7 @@ import io.autoptu.core.rules.ActionBudget;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -12,9 +13,9 @@ import java.util.Map;
 /**
  * Mutable server-owned trainer state shared by combatants controlled by one trainer.
  *
- * Trainer Feature ownership, skills, AP, action state, and initiative inputs are PTU rule state.
- * Minecraft/Cobblemon may render them, but adapters must not supply these values while
- * battle rules are resolving.
+ * Trainer Feature ownership, skills, AP, action state, initiative inputs, feature resources,
+ * and feature usage are PTU rule state. Minecraft/Cobblemon may render them, but adapters
+ * must not supply these values while battle rules are resolving.
  */
 public final class TrainerRuntimeState {
     private final String trainerId;
@@ -22,6 +23,8 @@ public final class TrainerRuntimeState {
     private final LinkedHashMap<String, Integer> skillRanksByNormalizedName = new LinkedHashMap<>();
     private final ActionBudget actionBudget = new ActionBudget();
     private final List<TemporaryApGrant> temporaryAp = new ArrayList<>();
+    private final LinkedHashMap<String, Object> featureResources = new LinkedHashMap<>();
+    private final LinkedHashMap<String, Map<String, Object>> featureUsage = new LinkedHashMap<>();
     private final int initiativeModifier;
     private final Integer explicitInitiativeSpeed;
     private final String teamId;
@@ -29,7 +32,7 @@ public final class TrainerRuntimeState {
 
     /** Backwards-compatible trainer state with the Python default initiative modifier of zero. */
     public TrainerRuntimeState(String trainerId, Collection<String> trainerFeatures, int ap) {
-        this(trainerId, trainerFeatures, ap, 0, Map.of(), null, "");
+        this(trainerId, trainerFeatures, ap, 0, Map.of(), null, "", Map.of(), Map.of());
     }
 
     public TrainerRuntimeState(
@@ -38,7 +41,7 @@ public final class TrainerRuntimeState {
             int ap,
             int initiativeModifier
     ) {
-        this(trainerId, trainerFeatures, ap, initiativeModifier, Map.of(), null, "");
+        this(trainerId, trainerFeatures, ap, initiativeModifier, Map.of(), null, "", Map.of(), Map.of());
     }
 
     public TrainerRuntimeState(
@@ -48,7 +51,7 @@ public final class TrainerRuntimeState {
             int initiativeModifier,
             Map<String, Integer> skillRanks
     ) {
-        this(trainerId, trainerFeatures, ap, initiativeModifier, skillRanks, null, "");
+        this(trainerId, trainerFeatures, ap, initiativeModifier, skillRanks, null, "", Map.of(), Map.of());
     }
 
     /**
@@ -66,6 +69,31 @@ public final class TrainerRuntimeState {
             Map<String, Integer> skillRanks,
             Integer explicitInitiativeSpeed,
             String teamId
+    ) {
+        this(
+                trainerId, trainerFeatures, ap, initiativeModifier, skillRanks,
+                explicitInitiativeSpeed, teamId, Map.of(), Map.of()
+        );
+    }
+
+    /**
+     * Full server-owned Trainer state including generic Feature resources and usage.
+     *
+     * featureResources mirrors Python TrainerState.feature_resources. featureUsage mirrors
+     * TrainerState.feature_usage and retains arbitrary bookkeeping fields because the Python
+     * dispatcher stores per-feature counters using dynamic keys such as uses_round_N,
+     * actor_round_ACTOR_N, last_round and cooldown_until.
+     */
+    public TrainerRuntimeState(
+            String trainerId,
+            Collection<String> trainerFeatures,
+            int ap,
+            int initiativeModifier,
+            Map<String, Integer> skillRanks,
+            Integer explicitInitiativeSpeed,
+            String teamId,
+            Map<String, ?> featureResources,
+            Map<String, ? extends Map<String, ?>> featureUsage
     ) {
         if (trainerId == null || trainerId.isBlank()) {
             throw new IllegalArgumentException("trainerId is required");
@@ -98,6 +126,7 @@ public final class TrainerRuntimeState {
         this.initiativeModifier = initiativeModifier;
         this.explicitInitiativeSpeed = explicitInitiativeSpeed;
         this.teamId = teamId == null ? "" : teamId.strip();
+        replaceFeatureBookkeeping(featureResources, featureUsage);
     }
 
     public String trainerId() {
@@ -190,6 +219,32 @@ public final class TrainerRuntimeState {
         return teamId;
     }
 
+    /** Server-owned generic Trainer Feature resources. */
+    public Map<String, Object> featureResources() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(featureResources));
+    }
+
+    /** Server-owned generic Trainer Feature usage/cooldown bookkeeping. */
+    public Map<String, Map<String, Object>> featureUsage() {
+        return immutableFeatureUsage(featureUsage);
+    }
+
+    /**
+     * Atomically replace generic Trainer Feature resources and usage after a successful
+     * dispatcher transaction. Inputs are copied before either live map is mutated.
+     */
+    public void replaceFeatureBookkeeping(
+            Map<String, ?> resources,
+            Map<String, ? extends Map<String, ?>> usage
+    ) {
+        LinkedHashMap<String, Object> resourceCopy = copyFeatureResources(resources);
+        LinkedHashMap<String, Map<String, Object>> usageCopy = copyFeatureUsage(usage);
+        featureResources.clear();
+        featureResources.putAll(resourceCopy);
+        featureUsage.clear();
+        featureUsage.putAll(usageCopy);
+    }
+
     /**
      * Spend AP atomically. Python consumes temporary grants first in insertion order so
      * later expiry cannot subtract already-spent temporary AP a second time.
@@ -225,6 +280,37 @@ public final class TrainerRuntimeState {
             throw new IllegalArgumentException("AP restore cannot be negative");
         }
         ap += amount;
+    }
+
+    private static LinkedHashMap<String, Object> copyFeatureResources(Map<String, ?> source) {
+        LinkedHashMap<String, Object> result = new LinkedHashMap<>();
+        if (source != null) result.putAll(source);
+        return result;
+    }
+
+    private static LinkedHashMap<String, Map<String, Object>> copyFeatureUsage(
+            Map<String, ? extends Map<String, ?>> source
+    ) {
+        LinkedHashMap<String, Map<String, Object>> result = new LinkedHashMap<>();
+        if (source == null) return result;
+        for (Map.Entry<String, ? extends Map<String, ?>> entry : source.entrySet()) {
+            LinkedHashMap<String, Object> info = new LinkedHashMap<>();
+            if (entry.getValue() != null) info.putAll(entry.getValue());
+            result.put(entry.getKey(), Collections.unmodifiableMap(info));
+        }
+        return result;
+    }
+
+    private static Map<String, Map<String, Object>> immutableFeatureUsage(
+            Map<String, ? extends Map<String, ?>> source
+    ) {
+        LinkedHashMap<String, Map<String, Object>> result = new LinkedHashMap<>();
+        for (Map.Entry<String, ? extends Map<String, ?>> entry : source.entrySet()) {
+            LinkedHashMap<String, Object> info = new LinkedHashMap<>();
+            if (entry.getValue() != null) info.putAll(entry.getValue());
+            result.put(entry.getKey(), Collections.unmodifiableMap(info));
+        }
+        return Collections.unmodifiableMap(result);
     }
 
     private static String normalize(String value) {

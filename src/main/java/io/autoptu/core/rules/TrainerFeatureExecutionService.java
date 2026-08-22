@@ -1,5 +1,7 @@
 package io.autoptu.core.rules;
 
+import io.autoptu.core.runtime.TrainerRuntimeState;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -47,6 +49,48 @@ public final class TrainerFeatureExecutionService {
         }
     }
 
+    /**
+     * Preferred server-authoritative boundary.
+     *
+     * Generic Trainer Feature resources and usage are loaded from TrainerRuntimeState and
+     * committed back only when the Python-parity transaction reaches APPLIED. The Trainer
+     * identity used by context gates is also taken from the canonical runtime state rather
+     * than trusting a caller-provided trainerId.
+     */
+    public static Result executeAuthoritative(
+            String trigger,
+            Map<String, ?> trainerClass,
+            Map<String, ?> feature,
+            Collection<String> knownFeatureIds,
+            TrainerFeatureContextResolution.Context context,
+            TrainerRuntimeState trainer,
+            FeatureEffect effect
+    ) {
+        if (trainer == null) {
+            throw new IllegalArgumentException("trainer runtime state is required");
+        }
+        TrainerFeatureContextResolution.Context authoritativeContext = authoritativeTrainerContext(
+                trainer, context
+        );
+        Result result = execute(
+                trigger,
+                trainerClass,
+                feature,
+                knownFeatureIds,
+                authoritativeContext,
+                trainer.featureResources(),
+                trainer.featureUsage(),
+                effect
+        );
+        if (result.applied()) {
+            trainer.replaceFeatureBookkeeping(result.resources(), result.usage());
+        }
+        return result;
+    }
+
+    /**
+     * Transitional pure-snapshot boundary retained for isolated parity tests and migration.
+     */
     public static Result execute(
             String trigger,
             Map<String, ?> trainerClass,
@@ -101,6 +145,29 @@ public final class TrainerFeatureExecutionService {
                 effectiveContext.actorId().isBlank() ? null : effectiveContext.actorId()
         );
         return result(Outcome.APPLIED, committedResources, committedUsage);
+    }
+
+    private static TrainerFeatureContextResolution.Context authoritativeTrainerContext(
+            TrainerRuntimeState trainer,
+            TrainerFeatureContextResolution.Context context
+    ) {
+        TrainerFeatureContextResolution.Context source = context == null
+                ? new TrainerFeatureContextResolution.Context(
+                        "", "", "", false, false, 0, "", Map.of(), Map.of(), null
+                )
+                : context;
+        return new TrainerFeatureContextResolution.Context(
+                trainer.trainerId(),
+                source.actorId(),
+                source.actorTrainerId(),
+                source.actorIsPokemon(),
+                source.actorActive(),
+                source.currentRound(),
+                source.battlePhase(),
+                source.payload(),
+                source.featureUsage(),
+                source.rng()
+        );
     }
 
     private static TrainerFeatureContextResolution.Context withFeatureUsage(
