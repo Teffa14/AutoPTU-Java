@@ -5,6 +5,7 @@ import io.autoptu.core.runtime.DelayedHitRoundLifecycleHook;
 import io.autoptu.core.runtime.FieldRoundLifecycleHook;
 import io.autoptu.core.runtime.RoundTemporaryEffectExpiryHook;
 import io.autoptu.core.runtime.RuntimeCombatantState;
+import io.autoptu.core.runtime.TrainerRuntimeState;
 
 import java.util.List;
 import java.util.Map;
@@ -57,6 +58,20 @@ public final class BuiltinLifecycleHooks {
                         LifecycleHookPoint.ROUND_START,
                         30,
                         new RoundTemporaryEffectExpiryHook()
+                )
+                .register(
+                        "round-trainer-ap-action-reset",
+                        HookSource.TRAINER_FEATURE,
+                        LifecycleHookPoint.ROUND_START,
+                        40,
+                        context -> {
+                            for (String trainerId : context.state().trainerIds()) {
+                                TrainerRuntimeState trainer = context.state().requireTrainer(trainerId);
+                                trainer.expireTemporaryAp(context.round());
+                                trainer.resetActions();
+                            }
+                            return LifecycleHookResult.empty();
+                        }
                 )
                 .register(
                         "round-move-frequency-reset",
