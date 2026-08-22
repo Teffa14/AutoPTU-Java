@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Export the pinned Python delayed-hit execution boundary.
+"""Export the pinned Python delayed-hit execution and target-geometry contract.
 
-This freezes the language-neutral entrypoint contract before Java wires delayed
-hits into ROUND_START. Due delayed hits enter BattleState.resolve_move_targets,
-which then re-enters the ordinary move-action resolver. Both stored target id and
-target position are forwarded unchanged. The pinned oracle does not rewrite the
-move to Tile targeting merely because target_position exists.
+Due delayed hits enter BattleState.resolve_move_targets, which then re-enters the
+ordinary move-action resolver. Both stored target id and target position are
+forwarded unchanged. If target_id still resolves, ordinary target resolution uses
+the defender's current position; target_position is the fallback when there is no
+defender. Area geometry is recomputed at maturity through affected_tiles, LoS
+filtering and footprint overlap rather than being frozen when the hit is scheduled.
 """
 
 from __future__ import annotations
@@ -69,6 +70,45 @@ def target_position_rewrites_move_to_tile(fn) -> bool:
     return False
 
 
+def live_target_position_precedes_stored_position(fn) -> bool:
+    """Detect: resolved_target_pos = defender.position if defender else target_position."""
+    for node in ast.walk(function_tree(fn)):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(target, ast.Name) and target.id == "resolved_target_pos" for target in node.targets):
+            continue
+        value = node.value
+        if not isinstance(value, ast.IfExp):
+            continue
+        if not isinstance(value.test, ast.Name) or value.test.id != "defender":
+            continue
+        if not (
+            isinstance(value.body, ast.Attribute)
+            and isinstance(value.body.value, ast.Name)
+            and value.body.value.id == "defender"
+            and value.body.attr == "position"
+        ):
+            continue
+        if isinstance(value.orelse, ast.Name) and value.orelse.id == "target_position":
+            return True
+    return False
+
+
+def target_id_is_prioritized_for_area_resolution(fn) -> bool:
+    tree = function_tree(fn)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.If):
+            continue
+        if not isinstance(node.test, ast.Name) or node.test.id != "target_id":
+            continue
+        for child in ast.walk(node):
+            if not isinstance(child, ast.Call) or call_name(child) != "append":
+                continue
+            if len(child.args) == 1 and isinstance(child.args[0], ast.Name) and child.args[0].id == "target_id":
+                return True
+    return False
+
+
 def main() -> int:
     args = parse_args()
     source_root = Path(args.source_root).resolve()
@@ -82,14 +122,18 @@ def main() -> int:
     forwarded = keyword_names_for_call(resolve_delayed_hits, "resolve_move_targets")
     delayed_rewrites_tile = target_position_rewrites_move_to_tile(resolve_delayed_hits)
     target_resolution_rewrites_tile = target_position_rewrites_move_to_tile(BattleState.resolve_move_targets)
+    live_position_precedence = live_target_position_precedes_stored_position(BattleState.resolve_move_targets)
+    area_uses_affected_tiles = "affected_tiles" in target_calls
+    area_uses_footprint_overlap = "_footprint_overlaps_tiles" in target_calls
+    area_uses_los = "line_of_sight_clear" in target_calls
+    target_id_priority = target_id_is_prioritized_for_area_resolution(BattleState.resolve_move_targets)
 
     print("--- PINNED resolve_delayed_hits ---")
     print(inspect.getsource(resolve_delayed_hits))
     print("--- PINNED BattleState.resolve_move_targets ---")
     print(inspect.getsource(BattleState.resolve_move_targets))
 
-    # Fail loudly if Python changes this execution boundary. Java must be
-    # reviewed rather than silently preserving an obsolete assumption.
+    # Fail loudly if Python changes this execution or target-geometry boundary.
     assert "resolve_move_targets" in delayed_calls
     assert "resolve_move_action" not in delayed_calls
     assert "target_id" in forwarded
@@ -97,6 +141,11 @@ def main() -> int:
     assert "resolve_move_action" in target_calls
     assert not delayed_rewrites_tile
     assert not target_resolution_rewrites_tile
+    assert live_position_precedence
+    assert area_uses_affected_tiles
+    assert area_uses_footprint_overlap
+    assert area_uses_los
+    assert target_id_priority
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -110,6 +159,11 @@ def main() -> int:
                 "1" if "target_position" in forwarded else "0",
                 "1" if "resolve_move_action" in target_calls else "0",
                 "1" if (delayed_rewrites_tile or target_resolution_rewrites_tile) else "0",
+                "1" if live_position_precedence else "0",
+                "1" if area_uses_affected_tiles else "0",
+                "1" if area_uses_footprint_overlap else "0",
+                "1" if area_uses_los else "0",
+                "1" if target_id_priority else "0",
             ]
         )
         + "\n",
