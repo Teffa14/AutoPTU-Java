@@ -31,46 +31,59 @@ class StatusStateStoreTest {
     }
 
     @Test
-    void legacyNamesBecomeMetadataFreeEntries() {
+    void legacyNamesRemainSetLikeWhileStructuredEntriesCanStack() {
         StatusStateStore store = new StatusStateStore();
         store.replaceNames("actor", List.of(" Sleep ", "sleep", "Poisoned"));
 
         assertEquals(2, store.entries("actor").size());
         assertTrue(store.find("actor", "sleep").orElseThrow().payload().isEmpty());
         assertTrue(store.find("actor", "poisoned").orElseThrow().payload().isEmpty());
+
+        store.replace("actor", List.of(
+                new StatusEntry("Poisoned", Map.of("source", "move:a")),
+                new StatusEntry("POISONED", Map.of("source", "move:b")),
+                new StatusEntry("Burned")
+        ));
+
+        assertEquals(List.of("poisoned", "poisoned", "burned"), store.entries("actor").stream().map(StatusEntry::name).toList());
+        assertEquals(2, store.findAll("actor", "poisoned").size());
+        assertEquals("move:a", store.find("actor", "poisoned").orElseThrow().stringPayload("source").orElseThrow());
     }
 
     @Test
-    void putReplacesOneNormalizedStatusWithoutChangingOrder() {
+    void putReplacesFirstNormalizedStatusWithoutCollapsingLaterStacks() {
         StatusStateStore store = new StatusStateStore();
         store.replace("actor", List.of(
                 new StatusEntry("flinch", Map.of("applied_round", 1)),
-                new StatusEntry("burned")
+                new StatusEntry("burned"),
+                new StatusEntry("flinch", Map.of("applied_round", 7))
         ));
         store.put("actor", new StatusEntry("FLINCH", Map.of("applied_round", 2)));
 
-        assertEquals(List.of("flinch", "burned"), store.entries("actor").stream().map(StatusEntry::name).toList());
+        assertEquals(List.of("flinch", "burned", "flinch"), store.entries("actor").stream().map(StatusEntry::name).toList());
         assertEquals(2, store.find("actor", "flinch").orElseThrow().intPayload("applied_round").orElseThrow());
+        assertEquals(7, store.findAll("actor", "flinch").get(1).intPayload("applied_round").orElseThrow());
     }
 
     @Test
-    void removeCleansOnlyRequestedStatus() {
+    void appendAndRemovePreservePythonStyleStackOrder() {
         StatusStateStore store = new StatusStateStore();
-        store.replaceNames("actor", List.of("flinch", "burned"));
+        store.append("actor", new StatusEntry("poisoned", Map.of("source", "one")));
+        store.append("actor", new StatusEntry("burned"));
+        store.append("actor", new StatusEntry("POISONED", Map.of("source", "two")));
 
-        assertTrue(store.remove("actor", "FLINCH"));
-        assertFalse(store.has("actor", "flinch"));
+        assertTrue(store.remove("actor", "poisoned"));
+        assertEquals(List.of("burned", "poisoned"), store.entries("actor").stream().map(StatusEntry::name).toList());
+        assertEquals("two", store.find("actor", "poisoned").orElseThrow().stringPayload("source").orElseThrow());
+        assertEquals(1, store.removeAll("actor", "poisoned"));
+        assertFalse(store.has("actor", "poisoned"));
         assertTrue(store.has("actor", "burned"));
-        assertFalse(store.remove("actor", "flinch"));
+        assertEquals(1, store.clear("actor"));
+        assertTrue(store.entries("actor").isEmpty());
     }
 
     @Test
-    void rejectsDuplicateStructuredEntriesAndNonScalarPayloads() {
-        StatusStateStore store = new StatusStateStore();
-        assertThrows(IllegalArgumentException.class, () -> store.replace("actor", List.of(
-                new StatusEntry("flinch"),
-                new StatusEntry("FLINCH")
-        )));
+    void rejectsNonScalarPayloads() {
         assertThrows(IllegalArgumentException.class, () -> new StatusEntry("flinch", Map.of("nested", List.of(1))));
     }
 }
