@@ -12,31 +12,28 @@ import java.util.Set;
 /**
  * Mutable server-authoritative status state keyed by stable combatant id.
  *
- * This store separates rule-bearing status metadata from Minecraft entity data. It
- * preserves deterministic insertion order while keeping at most one entry per
- * normalized status name for each combatant, matching the existing set semantics.
+ * Python AutoPTU stores statuses as an ordered list and can retain multiple entries
+ * with the same normalized name when a rule explicitly allows stacking. This store
+ * preserves that multiplicity and insertion order while legacy name-based views
+ * continue to expose unique normalized names.
  */
 public final class StatusStateStore {
-    private final LinkedHashMap<String, LinkedHashMap<String, StatusEntry>> byCombatant = new LinkedHashMap<>();
+    private final LinkedHashMap<String, ArrayList<StatusEntry>> byCombatant = new LinkedHashMap<>();
 
     public void replace(String combatantId, Collection<StatusEntry> entries) {
         String id = requireCombatantId(combatantId);
-        LinkedHashMap<String, StatusEntry> normalized = new LinkedHashMap<>();
+        ArrayList<StatusEntry> copied = new ArrayList<>();
         if (entries != null) {
             for (StatusEntry entry : entries) {
-                if (entry == null) {
-                    continue;
-                }
-                StatusEntry previous = normalized.putIfAbsent(entry.name(), entry);
-                if (previous != null) {
-                    throw new IllegalArgumentException("duplicate status for combatant " + id + ": " + entry.name());
+                if (entry != null) {
+                    copied.add(entry);
                 }
             }
         }
-        if (normalized.isEmpty()) {
+        if (copied.isEmpty()) {
             byCombatant.remove(id);
         } else {
-            byCombatant.put(id, normalized);
+            byCombatant.put(id, copied);
         }
     }
 
@@ -57,49 +54,120 @@ public final class StatusStateStore {
         replace(combatantId, entries);
     }
 
+    /**
+     * Replace the first matching entry in place, or append one when absent.
+     * Additional stacked entries with the same name remain untouched.
+     */
     public void put(String combatantId, StatusEntry entry) {
         if (entry == null) {
             throw new IllegalArgumentException("status entry is required");
         }
         String id = requireCombatantId(combatantId);
-        byCombatant.computeIfAbsent(id, ignored -> new LinkedHashMap<>()).put(entry.name(), entry);
+        ArrayList<StatusEntry> entries = byCombatant.computeIfAbsent(id, ignored -> new ArrayList<>());
+        for (int index = 0; index < entries.size(); index++) {
+            if (entries.get(index).name().equals(entry.name())) {
+                entries.set(index, entry);
+                return;
+            }
+        }
+        entries.add(entry);
     }
 
+    /** Append a new entry even when the normalized status name already exists. */
+    public void append(String combatantId, StatusEntry entry) {
+        if (entry == null) {
+            throw new IllegalArgumentException("status entry is required");
+        }
+        String id = requireCombatantId(combatantId);
+        byCombatant.computeIfAbsent(id, ignored -> new ArrayList<>()).add(entry);
+    }
+
+    /** Remove only the first matching entry, preserving later stacked entries. */
     public boolean remove(String combatantId, String statusName) {
         String id = requireCombatantId(combatantId);
         String name = normalizeStatusName(statusName);
-        LinkedHashMap<String, StatusEntry> entries = byCombatant.get(id);
+        ArrayList<StatusEntry> entries = byCombatant.get(id);
         if (entries == null) {
             return false;
         }
-        boolean removed = entries.remove(name) != null;
+        for (int index = 0; index < entries.size(); index++) {
+            if (entries.get(index).name().equals(name)) {
+                entries.remove(index);
+                if (entries.isEmpty()) {
+                    byCombatant.remove(id);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Remove every matching entry and return the number removed. */
+    public int removeAll(String combatantId, String statusName) {
+        String id = requireCombatantId(combatantId);
+        String name = normalizeStatusName(statusName);
+        ArrayList<StatusEntry> entries = byCombatant.get(id);
+        if (entries == null) {
+            return 0;
+        }
+        int before = entries.size();
+        entries.removeIf(entry -> entry.name().equals(name));
+        int removed = before - entries.size();
         if (entries.isEmpty()) {
             byCombatant.remove(id);
         }
         return removed;
     }
 
+    /** Remove all statuses for one combatant and return how many entries existed. */
+    public int clear(String combatantId) {
+        String id = requireCombatantId(combatantId);
+        ArrayList<StatusEntry> removed = byCombatant.remove(id);
+        return removed == null ? 0 : removed.size();
+    }
+
     public boolean has(String combatantId, String statusName) {
         return find(combatantId, statusName).isPresent();
     }
 
+    /** Return the first matching status, matching Python's ordered status scan. */
     public Optional<StatusEntry> find(String combatantId, String statusName) {
         String id = requireCombatantId(combatantId);
         String name = normalizeStatusName(statusName);
-        LinkedHashMap<String, StatusEntry> entries = byCombatant.get(id);
-        return entries == null ? Optional.empty() : Optional.ofNullable(entries.get(name));
+        ArrayList<StatusEntry> entries = byCombatant.get(id);
+        if (entries == null) {
+            return Optional.empty();
+        }
+        return entries.stream().filter(entry -> entry.name().equals(name)).findFirst();
+    }
+
+    public List<StatusEntry> findAll(String combatantId, String statusName) {
+        String id = requireCombatantId(combatantId);
+        String name = normalizeStatusName(statusName);
+        ArrayList<StatusEntry> entries = byCombatant.get(id);
+        if (entries == null) {
+            return List.of();
+        }
+        return entries.stream().filter(entry -> entry.name().equals(name)).toList();
     }
 
     public List<StatusEntry> entries(String combatantId) {
         String id = requireCombatantId(combatantId);
-        LinkedHashMap<String, StatusEntry> entries = byCombatant.get(id);
-        return entries == null ? List.of() : List.copyOf(entries.values());
+        ArrayList<StatusEntry> entries = byCombatant.get(id);
+        return entries == null ? List.of() : List.copyOf(entries);
     }
 
     public Set<String> names(String combatantId) {
         String id = requireCombatantId(combatantId);
-        LinkedHashMap<String, StatusEntry> entries = byCombatant.get(id);
-        return entries == null ? Set.of() : Set.copyOf(entries.keySet());
+        ArrayList<StatusEntry> entries = byCombatant.get(id);
+        if (entries == null) {
+            return Set.of();
+        }
+        LinkedHashSet<String> names = new LinkedHashSet<>();
+        for (StatusEntry entry : entries) {
+            names.add(entry.name());
+        }
+        return Set.copyOf(names);
     }
 
     private static String requireCombatantId(String combatantId) {
