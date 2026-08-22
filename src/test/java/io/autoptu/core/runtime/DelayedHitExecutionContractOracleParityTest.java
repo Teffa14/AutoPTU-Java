@@ -39,6 +39,7 @@ class DelayedHitExecutionContractOracleParityTest {
         assertTrue(asBool(parts[9]), "area target selection must use combatant footprint overlap");
         assertTrue(asBool(parts[10]), "area propagation must re-evaluate line of sight");
         assertTrue(asBool(parts[11]), "target_id must retain priority when collecting area targets");
+        assertTrue(asBool(parts[12]), "a missing defender must fall back to the stored target_position");
 
         DelayedHitExecutionPolicy policy = DelayedHitExecutionPolicy.targetResolution();
         assertEquals(DelayedHitExecutionPolicy.EntryPoint.TARGET_RESOLUTION, policy.entryPoint());
@@ -46,6 +47,7 @@ class DelayedHitExecutionContractOracleParityTest {
         assertEquals(asBool(parts[4]), policy.forwardsTargetPosition());
         assertEquals(asBool(parts[5]), policy.targetResolutionReentersMoveAction());
         assertEquals(asBool(parts[6]), policy.targetPositionForcesTile());
+        assertEquals(asBool(parts[12]), policy.fallsBackToStoredTargetPositionWhenDefenderMissing());
     }
 
     private static boolean asBool(String raw) {
