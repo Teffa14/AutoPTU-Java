@@ -78,11 +78,13 @@ def sendout_guard_contract(method: ast.FunctionDef, target_call: ast.Call) -> tu
             continue
         if not any(child is target_call for child in ast.walk(node)):
             continue
-        # The closest condition in the source is a continue guard. Inspect the
-        # complete round-one block so active/fainted semantics stay frozen even
-        # if the guard is written as `not active or is_fainted()`.
+        # Inspect the complete round-one block so the source may express fainted
+        # either as a boolean attribute (`not pokemon.fainted`) or as a helper
+        # (`not pokemon.is_fainted()`) without changing the frozen semantics.
         text = ast.unparse(node)
-        return (".active" in text, "is_fainted" in text)
+        has_active_guard = ".active" in text
+        has_fainted_guard = ".fainted" in text or "is_fainted" in text
+        return (has_active_guard, has_fainted_guard)
     return (False, False)
 
 
