@@ -76,10 +76,14 @@ class TrainerFeatureContextResolutionOracleParityTest {
                     rng
             );
             boolean actual = TrainerFeatureContextResolution.matches(current.feature, context);
-            String nextRoll = Double.toHexString(rng.random());
+            double nextRoll = rng.random();
             Expected oracle = expected.get(entry.getKey());
             assertEquals(oracle.result, actual ? 1 : 0, entry.getKey());
-            assertEquals(oracle.nextRoll, nextRoll, entry.getKey() + " RNG position");
+            assertEquals(
+                    Double.doubleToLongBits(Double.parseDouble(oracle.nextRoll)),
+                    Double.doubleToLongBits(nextRoll),
+                    entry.getKey() + " RNG position"
+            );
         }
     }
 
