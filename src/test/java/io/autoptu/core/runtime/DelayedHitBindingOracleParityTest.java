@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class DelayedHitBindingOracleParityTest {
@@ -55,10 +56,11 @@ class DelayedHitBindingOracleParityTest {
             if (fixture.targetId() != null) {
                 assertEquals(ChoiceTargetMode.COMBATANT, binding.choice().targetMode());
                 assertEquals(fixture.targetId(), binding.choice().targetId());
-                GridCoord expectedAnchor = fixture.targetPosition() != null
-                        ? fixture.targetPosition()
-                        : state.requireCombatant(fixture.targetId()).position();
-                assertEquals(expectedAnchor, binding.choice().targetAnchor());
+                assertEquals(
+                        state.requireCombatant(fixture.targetId()).position(),
+                        binding.choice().targetAnchor(),
+                        "a live delayed target tracks its current authoritative position"
+                );
             } else {
                 assertEquals(ChoiceTargetMode.TILE, binding.choice().targetMode());
                 assertEquals("", binding.choice().targetId());
@@ -68,7 +70,7 @@ class DelayedHitBindingOracleParityTest {
     }
 
     @Test
-    void targetIdRemainsAuthoritativeWhenDelayedEntryAlsoCarriesTargetPosition() {
+    void targetIdTracksCurrentPositionWhenDelayedEntryAlsoCarriesStoredPosition() {
         Fixture fixture = new Fixture(
                 "actor",
                 "Future Sight",
@@ -78,6 +80,8 @@ class DelayedHitBindingOracleParityTest {
                 "future_sight"
         );
         BattleRuntimeState state = stateFor(List.of(fixture));
+        GridCoord currentTargetPosition = state.requireCombatant(fixture.targetId()).position();
+        assertNotEquals(fixture.targetPosition(), currentTargetPosition, "fixture must distinguish stored and live positions");
 
         DelayedHitBinding binding = DelayedHitBindingResolver.bind(
                 state,
@@ -93,7 +97,7 @@ class DelayedHitBindingOracleParityTest {
 
         assertEquals(ChoiceTargetMode.COMBATANT, binding.choice().targetMode());
         assertEquals(fixture.targetId(), binding.choice().targetId());
-        assertEquals(fixture.targetPosition(), binding.choice().targetAnchor());
+        assertEquals(currentTargetPosition, binding.choice().targetAnchor());
     }
 
     @Test
