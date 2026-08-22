@@ -34,6 +34,11 @@ class DelayedHitExecutionContractOracleParityTest {
         assertTrue(asBool(parts[4]), "target_position must be forwarded");
         assertTrue(asBool(parts[5]), "resolve_move_targets must re-enter resolve_move_action");
         assertFalse(asBool(parts[6]), "target_position must not rewrite the move into Tile targeting");
+        assertTrue(asBool(parts[7]), "a resolved target id must use defender.current position before stored target_position");
+        assertTrue(asBool(parts[8]), "area geometry must be recomputed with targeting.affected_tiles");
+        assertTrue(asBool(parts[9]), "area target selection must use combatant footprint overlap");
+        assertTrue(asBool(parts[10]), "area propagation must re-evaluate line of sight");
+        assertTrue(asBool(parts[11]), "target_id must retain priority when collecting area targets");
 
         DelayedHitExecutionPolicy policy = DelayedHitExecutionPolicy.targetResolution();
         assertEquals(DelayedHitExecutionPolicy.EntryPoint.TARGET_RESOLUTION, policy.entryPoint());
