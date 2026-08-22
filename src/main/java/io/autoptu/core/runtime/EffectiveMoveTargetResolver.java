@@ -6,7 +6,6 @@ import io.autoptu.core.model.GridState;
 import io.autoptu.core.rules.Targeting;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -14,10 +13,13 @@ import java.util.Set;
  * Reusable server-authoritative target-selection boundary for area moves.
  *
  * <p>This resolver mirrors the delayed-target contract frozen from the pinned Python
- * oracle: recompute affected tiles from the current move geometry, select combatants by
- * footprint overlap, recheck line of sight, preserve battle insertion order, and move a
- * still-live explicit target to the front. Minecraft/Cobblemon never supplies positions,
- * sizes, blockers, or the resulting target list.</p>
+ * oracle: recompute affected tiles from the current move geometry, discard combatants
+ * without positive HP, select the remaining combatants by footprint overlap, recheck
+ * line of sight, preserve battle insertion order, and move a still-present explicit
+ * target to the front. The Python target-resolution path does not apply a generic
+ * active-state filter at this stage, so this resolver deliberately does not add one.
+ * Minecraft/Cobblemon never supplies HP eligibility, positions, sizes, blockers, or the
+ * resulting target list.</p>
  */
 public final class EffectiveMoveTargetResolver {
     private EffectiveMoveTargetResolver() {
@@ -41,6 +43,9 @@ public final class EffectiveMoveTargetResolver {
         ArrayList<String> targets = new ArrayList<>();
         for (String combatantId : state.combatantIds()) {
             RuntimeCombatantState candidate = state.requireCombatant(combatantId);
+            if (candidate.hp() <= 0) {
+                continue;
+            }
             Set<GridCoord> footprint = Targeting.footprintTiles(
                     candidate.position(),
                     state.geometry(combatantId).sizeLabel()
