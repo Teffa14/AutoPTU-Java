@@ -70,8 +70,13 @@ def target_position_rewrites_move_to_tile(fn) -> bool:
     return False
 
 
-def live_target_position_precedes_stored_position(fn) -> bool:
-    """Detect: resolved_target_pos = defender.position if defender else target_position."""
+def resolved_target_position_contract(fn) -> tuple[bool, bool]:
+    """Detect: resolved_target_pos = defender.position if defender else target_position.
+
+    The two returned flags deliberately freeze both branches independently: a live
+    defender wins when present, and the stored target_position is the fallback when
+    the stored target id no longer resolves.
+    """
     for node in ast.walk(function_tree(fn)):
         if not isinstance(node, ast.Assign):
             continue
@@ -82,16 +87,15 @@ def live_target_position_precedes_stored_position(fn) -> bool:
             continue
         if not isinstance(value.test, ast.Name) or value.test.id != "defender":
             continue
-        if not (
+        uses_live_defender = (
             isinstance(value.body, ast.Attribute)
             and isinstance(value.body.value, ast.Name)
             and value.body.value.id == "defender"
             and value.body.attr == "position"
-        ):
-            continue
-        if isinstance(value.orelse, ast.Name) and value.orelse.id == "target_position":
-            return True
-    return False
+        )
+        uses_stored_fallback = isinstance(value.orelse, ast.Name) and value.orelse.id == "target_position"
+        return uses_live_defender, uses_stored_fallback
+    return False, False
 
 
 def target_id_is_prioritized_for_area_resolution(fn) -> bool:
@@ -122,7 +126,9 @@ def main() -> int:
     forwarded = keyword_names_for_call(resolve_delayed_hits, "resolve_move_targets")
     delayed_rewrites_tile = target_position_rewrites_move_to_tile(resolve_delayed_hits)
     target_resolution_rewrites_tile = target_position_rewrites_move_to_tile(BattleState.resolve_move_targets)
-    live_position_precedence = live_target_position_precedes_stored_position(BattleState.resolve_move_targets)
+    uses_live_defender_position, uses_stored_position_fallback = resolved_target_position_contract(
+        BattleState.resolve_move_targets
+    )
     area_uses_affected_tiles = "affected_tiles" in target_calls
     area_uses_footprint_overlap = "_footprint_overlaps_tiles" in target_calls
     area_uses_los = "line_of_sight_clear" in target_calls
@@ -141,7 +147,8 @@ def main() -> int:
     assert "resolve_move_action" in target_calls
     assert not delayed_rewrites_tile
     assert not target_resolution_rewrites_tile
-    assert live_position_precedence
+    assert uses_live_defender_position
+    assert uses_stored_position_fallback
     assert area_uses_affected_tiles
     assert area_uses_footprint_overlap
     assert area_uses_los
@@ -159,11 +166,12 @@ def main() -> int:
                 "1" if "target_position" in forwarded else "0",
                 "1" if "resolve_move_action" in target_calls else "0",
                 "1" if (delayed_rewrites_tile or target_resolution_rewrites_tile) else "0",
-                "1" if live_position_precedence else "0",
+                "1" if uses_live_defender_position else "0",
                 "1" if area_uses_affected_tiles else "0",
                 "1" if area_uses_footprint_overlap else "0",
                 "1" if area_uses_los else "0",
                 "1" if target_id_priority else "0",
+                "1" if uses_stored_position_fallback else "0",
             ]
         )
         + "\n",
