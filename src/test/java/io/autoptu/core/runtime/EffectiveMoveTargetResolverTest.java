@@ -103,11 +103,50 @@ class EffectiveMoveTargetResolverTest {
         assertEquals(List.of("replacement"), result.targetIds());
     }
 
+    @Test
+    void excludesNonPositiveHpButDoesNotInventAnActiveStateFilter() {
+        RuntimeCombatantState attacker = combatant("attacker", 0, 2);
+        RuntimeCombatantState inactive = combatant("inactive", 3, 2);
+        RuntimeCombatantState fainted = combatant("fainted", 3, 2, 0);
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(8, 8, Set.of(), Map.of()),
+                List.of(attacker, inactive, fainted),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(
+                        "attacker", CombatantAffiliationState.active("alpha"),
+                        "inactive", new CombatantAffiliationState("beta", false),
+                        "fainted", CombatantAffiliationState.active("beta")
+                )
+        );
+        MoveOption ranged = new MoveOption(
+                "future-hit",
+                new MoveSpec("Ranged", "Ranged", 6, 6, null, null, "Ranged 6"),
+                ActionType.STANDARD,
+                false
+        );
+
+        EffectiveMoveTargetResolution result = EffectiveMoveTargetResolver.resolve(
+                state,
+                "attacker",
+                ranged,
+                new GridCoord(3, 2),
+                null
+        );
+
+        assertEquals(List.of("inactive"), result.targetIds());
+    }
+
     private static RuntimeCombatantState combatant(String id, int x, int y) {
+        return combatant(id, x, y, 30);
+    }
+
+    private static RuntimeCombatantState combatant(String id, int x, int y, int hp) {
         return new RuntimeCombatantState(
                 id,
                 MovementProfile.walking(new GridCoord(x, y), 5),
-                30,
+                hp,
                 30,
                 new ActionBudget()
         );
