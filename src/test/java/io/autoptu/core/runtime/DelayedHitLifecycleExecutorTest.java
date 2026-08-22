@@ -74,6 +74,30 @@ class DelayedHitLifecycleExecutorTest {
     }
 
     @Test
+    void missingCombatantTargetFallsBackToStoredAnchorBeforeQueueMutation() {
+        MoveOption move = move();
+        BattleRuntimeState state = stateWithoutTarget(move, 7L);
+        state.syncCurrentRoundFromLifecycle(3);
+        GridCoord storedPosition = new GridCoord(4, 1);
+        DelayedHitEntry entry = new DelayedHitEntry(
+                "actor", move.moveId(), "missing-target", storedPosition, 3, "future_sight"
+        );
+        state.scheduleDelayedHitFromRuntime(entry);
+
+        DelayedHitTargetRequest request = DelayedHitBindingResolver.resolveTargetRequest(state, entry);
+        assertEquals("missing-target", request.targetId());
+        assertEquals(storedPosition, request.resolvedTargetPosition());
+        assertFalse(request.targetPresent());
+
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> DelayedHitLifecycleExecutor.resolveDueCombatantHits(state, 3)
+        );
+        assertEquals(List.of(entry), state.delayedHits(),
+                "unsupported stale-target execution must not drop the due entry from server-owned state");
+    }
+
+    @Test
     void battleSeedOwnsTheDelayedHitRngStream() {
         MoveOption move = move();
         BattleRuntimeState first = state(move, 91L);
@@ -102,6 +126,17 @@ class DelayedHitLifecycleExecutorTest {
         return new BattleRuntimeState(
                 new MovementGrid(20, 20, Set.of(), Map.of()),
                 List.of(actor, target),
+                Map.of(), Map.of(), Map.of(), Map.of(), Map.of("actor", List.of(move)), Map.of(),
+                battleSeed
+        );
+    }
+
+    private static BattleRuntimeState stateWithoutTarget(MoveOption move, long battleSeed) {
+        CombatantStatProfile actorStats = profile(30, 8, 18, 8, 10);
+        RuntimeCombatantState actor = combatant("actor", new GridCoord(1, 1), 60, actorStats);
+        return new BattleRuntimeState(
+                new MovementGrid(20, 20, Set.of(), Map.of()),
+                List.of(actor),
                 Map.of(), Map.of(), Map.of(), Map.of(), Map.of("actor", List.of(move)), Map.of(),
                 battleSeed
         );
