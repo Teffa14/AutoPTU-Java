@@ -47,6 +47,12 @@ class RoundLifecycleOracleParityTest {
                 new MovementGrid(4, 4, Set.of(), Map.of()),
                 List.of(actor)
         );
+        TrainerRuntimeState trainer = new TrainerRuntimeState("trainer", List.of(), 4);
+        trainer.grantTemporaryAp(3, 4, "  round bonus  ");
+        trainer.actionBudget().markAction(ActionType.STANDARD, "already used");
+        trainer.actionBudget().markAction(ActionType.SHIFT, "already used");
+        state.putTrainer(trainer);
+
         BattleRoundController rounds = new BattleRoundController(state, 3);
         seedDamageHistory(rounds.damageHistory());
         rounds.injuryHistory().setCurrentInjuries("actor", 2);
@@ -56,7 +62,7 @@ class RoundLifecycleOracleParityTest {
         int after = rounds.startRound();
 
         assertEquals(fixture.get("round_increment"), after - before);
-        assertEquals(1, fixture.get("trainer_actions_reset_at_round_start"));
+        assertTrainerRoundStartMatchesOracle(trainer, fixture);
         assertEquals(0, fixture.get("pokemon_actions_reset_at_round_start"));
         assertFalse(actor.actionBudget().hasActionAvailable(ActionType.STANDARD));
 
@@ -69,7 +75,37 @@ class RoundLifecycleOracleParityTest {
 
         assertDamageHistoryMatchesOracle(rounds.damageHistory(), fixture);
         assertInjuryHistoryMatchesOracle(rounds, fixture);
+        assertEquals(fixture.get("trainer_temp_ap_next_round_ap"), trainer.ap());
+        assertEquals(fixture.get("trainer_temp_ap_next_round_grants"), trainer.temporaryApGrants().size());
+        assertTrainerTemporaryApSpendMatchesOracle(fixture);
         assertTurnEndMatchesOracle(rounds, actor, fixture);
+    }
+
+    private static void assertTrainerRoundStartMatchesOracle(
+            TrainerRuntimeState trainer,
+            Map<String, Integer> fixture
+    ) {
+        assertEquals(1, fixture.get("trainer_actions_reset_at_round_start"));
+        assertEquals(1, fixture.get("trainer_temporary_ap_expires_at_round_start"));
+        assertEquals(1, fixture.get("trainer_ap_expiry_before_action_reset"));
+        assertEquals(1, fixture.get("trainer_reset_actions_empty"));
+        assertTrue(trainer.actionBudget().hasActionAvailable(ActionType.STANDARD));
+        assertTrue(trainer.actionBudget().hasActionAvailable(ActionType.SHIFT));
+        assertEquals(fixture.get("trainer_temp_ap_same_round_expired"), 0);
+        assertEquals(fixture.get("trainer_temp_ap_same_round_ap"), trainer.ap());
+        assertEquals(fixture.get("trainer_temp_ap_same_round_grants"), trainer.temporaryApGrants().size());
+        assertEquals("round bonus", trainer.temporaryApGrants().get(0).source());
+    }
+
+    private static void assertTrainerTemporaryApSpendMatchesOracle(Map<String, Integer> fixture) {
+        TrainerRuntimeState spent = new TrainerRuntimeState("spent", List.of(), 4);
+        spent.grantTemporaryAp(3, 4, "temporary");
+        assertTrue(spent.spendAp(2));
+        assertEquals(fixture.get("trainer_temp_ap_spend_ap"), spent.ap());
+        assertEquals(1, spent.temporaryApGrants().size());
+        assertEquals(fixture.get("trainer_temp_ap_spend_remaining_grant"), spent.temporaryApGrants().get(0).amount());
+        assertEquals(fixture.get("trainer_temp_ap_expire_after_spend"), spent.expireTemporaryAp(5));
+        assertEquals(fixture.get("trainer_temp_ap_final_ap"), spent.ap());
     }
 
     private static void seedRoundScopedTemporaryEffects(RuntimeCombatantState actor) {
