@@ -40,6 +40,8 @@ class DelayedHitExecutionContractOracleParityTest {
         assertTrue(asBool(parts[10]), "area propagation must re-evaluate line of sight");
         assertTrue(asBool(parts[11]), "target_id must retain priority when collecting area targets");
         assertTrue(asBool(parts[12]), "a missing defender must fall back to the stored target_position");
+        assertTrue(asBool(parts[13]), "effective target collection must exclude non-positive HP combatants");
+        assertFalse(asBool(parts[14]), "effective target collection must not invent a generic active-state filter");
 
         DelayedHitExecutionPolicy policy = DelayedHitExecutionPolicy.targetResolution();
         assertEquals(DelayedHitExecutionPolicy.EntryPoint.TARGET_RESOLUTION, policy.entryPoint());
@@ -53,6 +55,8 @@ class DelayedHitExecutionContractOracleParityTest {
         assertEquals(asBool(parts[10]), policy.rechecksLineOfSight());
         assertEquals(asBool(parts[11]), policy.explicitTargetIdHasPriority());
         assertEquals(asBool(parts[12]), policy.fallsBackToStoredTargetPositionWhenDefenderMissing());
+        assertEquals(asBool(parts[13]), policy.excludesNonPositiveHpTargets());
+        assertEquals(asBool(parts[14]), policy.requiresActiveTargets());
     }
 
     private static boolean asBool(String raw) {
