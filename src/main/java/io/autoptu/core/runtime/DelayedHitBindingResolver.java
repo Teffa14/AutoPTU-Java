@@ -27,7 +27,9 @@ public final class DelayedHitBindingResolver {
         MoveChoice choice;
         if (entry.targetId() != null) {
             RuntimeCombatantState target = state.requireCombatant(entry.targetId());
-            GridCoord anchor = entry.targetPosition() != null ? entry.targetPosition() : target.position();
+            // Python resolve_move_targets uses defender.position whenever the target id still resolves.
+            // The stored target_position is only the fallback when there is no defender.
+            GridCoord anchor = target.position();
             choice = new MoveChoice(
                     attacker.combatantId(),
                     move.moveId(),
