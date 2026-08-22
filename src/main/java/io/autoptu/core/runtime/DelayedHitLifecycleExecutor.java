@@ -5,7 +5,7 @@ import io.autoptu.core.event.BattleEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Executes matured combatant-target delayed hits from server-owned queue/RNG state. */
+/** Executes matured delayed hits from server-owned queue/RNG state. */
 public final class DelayedHitLifecycleExecutor {
     private static final MoveResolutionInput NEUTRAL_LEGACY_INPUT = new MoveResolutionInput(
             2, 0, 0, 20, false, false, false,
@@ -38,10 +38,10 @@ public final class DelayedHitLifecycleExecutor {
             throw new IllegalArgumentException("delayed lifecycle round does not match BattleRuntimeState");
         }
 
-        // Preflight every due entry before takeDue mutates the server-owned queue. Python can
-        // fall back to the stored position when a delayed combatant target disappeared, but
-        // Java does not yet execute that target-resolution branch. Preserve the entry until
-        // that parity slice exists rather than losing it after a failed direct binding.
+        // Preflight every due entry before takeDue mutates the server-owned queue. Position-only
+        // TILE/area requests remain intentionally unsupported in this slice. A stale combatant id,
+        // however, is now safe to expand through the authoritative target resolver using its stored
+        // anchor, matching the pinned Python fallback contract.
         for (DelayedHitEntry entry : delayedState.entriesInInsertionOrder()) {
             if (entry.triggerRound() > currentRound) continue;
             DelayedHitTargetRequest targetRequest = DelayedHitBindingResolver.resolveTargetRequest(state, entry);
@@ -51,27 +51,41 @@ public final class DelayedHitLifecycleExecutor {
                 );
             }
             if (targetRequest.missingStoredCombatant()) {
-                throw new UnsupportedOperationException(
-                        "due delayed hit with missing combatant target requires stored-position target resolution"
-                );
+                DelayedHitBindingResolver.bindEffectiveTargets(state, targetRequest);
             }
         }
 
         DelayedHitBatch batch = delayedState.takeDueFromLifecycle(currentRound);
         ArrayList<BattleEvent> events = new ArrayList<>();
         for (DelayedHitEntry entry : batch.due()) {
+            DelayedHitTargetRequest targetRequest = DelayedHitBindingResolver.resolveTargetRequest(state, entry);
+            if (targetRequest.missingStoredCombatant()) {
+                for (DelayedHitBinding binding : DelayedHitBindingResolver.bindEffectiveTargets(state, targetRequest)) {
+                    events.addAll(resolveBinding(state, delayedState, entry, binding));
+                }
+                continue;
+            }
             DelayedHitBinding binding = DelayedHitBindingResolver.bind(state, entry);
-            AppliedActionResult result = RuntimeMoveResolution.applyDelayedUsingAuthoritativeCombatState(
-                    state,
-                    binding,
-                    entry.effect().isBlank() ? "Delayed" : entry.effect(),
-                    delayedState.randomFromRuntime(),
-                    NEUTRAL_LEGACY_INPUT,
-                    false,
-                    false
-            );
-            events.addAll(result.events());
+            events.addAll(resolveBinding(state, delayedState, entry, binding));
         }
         return List.copyOf(events);
+    }
+
+    private static List<BattleEvent> resolveBinding(
+            BattleRuntimeState state,
+            BattleDelayedHitState delayedState,
+            DelayedHitEntry entry,
+            DelayedHitBinding binding
+    ) {
+        AppliedActionResult result = RuntimeMoveResolution.applyDelayedUsingAuthoritativeCombatState(
+                state,
+                binding,
+                entry.effect().isBlank() ? "Delayed" : entry.effect(),
+                delayedState.randomFromRuntime(),
+                NEUTRAL_LEGACY_INPUT,
+                false,
+                false
+        );
+        return result.events();
     }
 }
