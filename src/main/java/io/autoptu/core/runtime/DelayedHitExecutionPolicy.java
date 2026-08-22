@@ -11,8 +11,10 @@ package io.autoptu.core.runtime;
  * When the stored target id still resolves, Python uses the defender's live position.
  * When that defender no longer exists, Python falls back to the stored target position
  * while preserving the move's original targeting model. From that anchor, Python
- * recomputes the move area, selects combatants by footprint overlap, rechecks line of
- * sight, and keeps the explicit target id as the preferred target when it still exists.</p>
+ * recomputes the move area, excludes combatants without positive HP, selects the remaining
+ * combatants by footprint overlap, rechecks line of sight, and keeps the explicit target
+ * id as the preferred target when it still exists. The generic collector does not impose
+ * an additional active-state filter.</p>
  */
 public record DelayedHitExecutionPolicy(
         EntryPoint entryPoint,
@@ -25,7 +27,9 @@ public record DelayedHitExecutionPolicy(
         boolean selectsTargetsByFootprintOverlap,
         boolean rechecksLineOfSight,
         boolean explicitTargetIdHasPriority,
-        boolean fallsBackToStoredTargetPositionWhenDefenderMissing
+        boolean fallsBackToStoredTargetPositionWhenDefenderMissing,
+        boolean excludesNonPositiveHpTargets,
+        boolean requiresActiveTargets
 ) {
     public DelayedHitExecutionPolicy {
         if (entryPoint == null) {
@@ -45,7 +49,9 @@ public record DelayedHitExecutionPolicy(
                 true,
                 true,
                 true,
-                true
+                true,
+                true,
+                false
         );
     }
 
