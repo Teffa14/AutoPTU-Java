@@ -34,7 +34,9 @@ class TrainerFeatureTargetResolutionOracleParityTest {
         cases.put("actor_missing", testCase(Map.of("scope", "self"), "missing", Map.of()));
         cases.put("target", testCase(Map.of("scope", "target"), "ally_active", Map.of("target_id", "enemy_active")));
         cases.put("target_missing", testCase(Map.of("scope", "action_target"), "ally_active", Map.of("target_id", "missing")));
+        cases.put("target_non_string_does_not_coerce", testCase(Map.of("scope", "target"), "ally_active", Map.of("target_id", 7)));
         cases.put("targets_preserve_payload_order", testCase(Map.of("scope", "targets"), "ally_active", Map.of("target_ids", List.of("enemy_active", "missing", "ally_active", "enemy_active"))));
+        cases.put("targets_ignore_non_string_ids", testCase(Map.of("scope", "targets"), "ally_active", Map.of("target_ids", List.of(7, "enemy_active"))));
         cases.put("targets_string_is_not_sequence", testCase(Map.of("scope", "action_targets"), "ally_active", Map.of("target_ids", "enemy_active")));
         cases.put("all_active_filters_fainted_later", testCase(Map.of("scope", "all_active"), "ally_active", Map.of()));
         cases.put("all_allies_includes_inactive_by_default", testCase(Map.of("scope", "all_allies"), "ally_active", Map.of()));
@@ -51,6 +53,7 @@ class TrainerFeatureTargetResolutionOracleParityTest {
         cases.put("float_string_limit_int_like", testCase(Map.of("scope", "all", "include_fainted", true, "limit", "2.9"), "ally_active", Map.of()));
         cases.put("unknown_scope_safe_default", testCase(Map.of("scope", "mystery"), "ally_active", Map.of()));
         cases.put("target_alias_precedence", testCase(Map.of("target", "all_enemies"), "ally_active", Map.of()));
+        cases.put("false_scope_falls_back_to_target", testCase(Map.of("scope", false, "target", "all_enemies"), "ally_active", Map.of()));
         cases.put("scope_precedes_target", testCase(Map.of("scope", "active_allies", "target", "all_enemies"), "ally_active", Map.of()));
         cases.put("bool_like_include_fainted", testCase(Map.of("scope", "all", "include_fainted", "yes"), "ally_active", Map.of()));
 
