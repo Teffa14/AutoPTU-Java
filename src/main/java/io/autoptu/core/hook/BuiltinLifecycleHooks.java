@@ -3,6 +3,7 @@ package io.autoptu.core.hook;
 import io.autoptu.core.runtime.BattleRuntime;
 import io.autoptu.core.runtime.DelayedHitRoundLifecycleHook;
 import io.autoptu.core.runtime.FieldRoundLifecycleHook;
+import io.autoptu.core.runtime.RoundTemporaryEffectExpiryHook;
 import io.autoptu.core.runtime.RuntimeCombatantState;
 
 import java.util.List;
@@ -49,6 +50,13 @@ public final class BuiltinLifecycleHooks {
                         LifecycleHookPoint.ROUND_START,
                         20,
                         new DelayedHitRoundLifecycleHook()
+                )
+                .register(
+                        "round-follow-me-foresight-expiry",
+                        HookSource.TEMPORARY_EFFECT,
+                        LifecycleHookPoint.ROUND_START,
+                        30,
+                        new RoundTemporaryEffectExpiryHook()
                 )
                 .register(
                         "round-move-frequency-reset",

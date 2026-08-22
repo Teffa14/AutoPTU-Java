@@ -57,6 +57,18 @@ public final class TemporaryEffectStore {
         return List.copyOf(entries);
     }
 
+    /** Remove the first occurrence, matching Python PokemonState.remove_temporary_effect. */
+    public boolean removeFirst(String effectName) {
+        String key = normalize(effectName);
+        for (int index = 0; index < entries.size(); index++) {
+            if (entries.get(index).name().equals(key)) {
+                entries.remove(index);
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Remove every occurrence and return the number removed. */
     public int removeAll(String effectName) {
         return removeIf(effectName, ignored -> true);
