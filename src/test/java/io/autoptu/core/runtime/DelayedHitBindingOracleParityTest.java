@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -101,7 +102,26 @@ class DelayedHitBindingOracleParityTest {
     }
 
     @Test
-    void bindingFailsClosedForMoveOrTargetNotOwnedByCanonicalState() {
+    void missingTargetRequestPreservesIdentityAndFallsBackToStoredPosition() {
+        GridCoord storedPosition = new GridCoord(7, 9);
+        Fixture setup = new Fixture("actor", "Future Sight", null, storedPosition, 2, "future_sight");
+        BattleRuntimeState state = stateFor(List.of(setup));
+        DelayedHitEntry entry = new DelayedHitEntry(
+                "actor", "Future Sight", "missing-target", storedPosition, 2, "future_sight"
+        );
+
+        DelayedHitTargetRequest request = DelayedHitBindingResolver.resolveTargetRequest(state, entry);
+
+        assertEquals("missing-target", request.targetId());
+        assertEquals(storedPosition, request.resolvedTargetPosition());
+        assertFalse(request.targetPresent());
+        assertEquals("Ranged", request.move().spec().targetKind(),
+                "missing defender must not rewrite the original move targeting model");
+        assertThrows(UnsupportedOperationException.class, () -> DelayedHitBindingResolver.bind(state, entry));
+    }
+
+    @Test
+    void bindingFailsClosedForMoveOrUnsupportedTargetBranch() {
         Fixture fixture = new Fixture("actor", "Future Sight", "target", null, 2, "future_sight");
         BattleRuntimeState state = stateFor(List.of(fixture));
 
@@ -109,7 +129,7 @@ class DelayedHitBindingOracleParityTest {
                 state,
                 new DelayedHitEntry("actor", "Injected Move", "target", null, 2, "forged")
         ));
-        assertThrows(IllegalArgumentException.class, () -> DelayedHitBindingResolver.bind(
+        assertThrows(UnsupportedOperationException.class, () -> DelayedHitBindingResolver.bind(
                 state,
                 new DelayedHitEntry("actor", "Future Sight", "missing-target", null, 2, "future_sight")
         ));
