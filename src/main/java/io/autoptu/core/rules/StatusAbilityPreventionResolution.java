@@ -35,9 +35,10 @@ public final class StatusAbilityPreventionResolution {
         String normalizedStatus = normalize(status);
         if (normalizedStatus.isEmpty()) return Optional.empty();
 
+        List<String> abilityList = List.copyOf(abilities);
         for (Rule rule : RULES) {
             if (rule.statuses().contains(normalizedStatus)
-                    && AbilityIdentityResolution.matchesRegistration(abilities, rule.ability())) {
+                    && AbilityIdentityResolution.matchesRegistration(abilityList, rule.ability())) {
                 return Optional.of(rule.ability());
             }
         }
