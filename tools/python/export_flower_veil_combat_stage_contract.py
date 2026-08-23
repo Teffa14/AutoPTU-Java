@@ -23,7 +23,7 @@ def main() -> None:
     source = (args.source_root / "auto_ptu" / "rules" / "battle_state.py").read_text(encoding="utf-8")
     helper = between(source, "def _flower_veil_blocker", "def ",)
     branch_start = source.find("flower_veil_blocker = self._flower_veil_blocker(target_id)")
-    branch_end = source.find('target.has_ability("Big Pecks")', branch_start)
+    branch_end = source.find("if not abilities_suppressed", branch_start)
     if branch_start < 0 or branch_end < 0:
         raise RuntimeError("Flower Veil combat-stage branch not found in pinned oracle")
     branch = source[branch_start:branch_end]
