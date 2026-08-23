@@ -93,6 +93,85 @@ class StatusApplicationResolutionTest {
     }
 
     @Test
+    void safeguardBlocksWithoutConsumingCanonicalStatus() {
+        BattleRuntimeState state = state(List.of());
+        StatusEntry safeguard = new StatusEntry("Safeguard", Map.of("remaining", 2));
+        state.replaceStatusEntries("target", List.of(safeguard));
+
+        StatusApplicationResult result = StatusApplicationResolution.apply(
+                state, BuiltinStatusApplicationHooks.registry(), "source", "target",
+                new StatusEntry("Burned"), "move", "Will-O-Wisp", "will-o-wisp"
+        );
+
+        assertFalse(result.applied());
+        assertFalse(state.hasStatus("target", "burned"));
+        assertEquals(safeguard, state.statusEntry("target", "safeguard").orElseThrow());
+        assertEquals(1, result.events().size());
+        RuleEffectEvent event = (RuleEffectEvent) result.events().getFirst();
+        assertEquals("status", event.sourceKind());
+        assertEquals("Safeguard", event.sourceName());
+        assertEquals("safeguard_block", event.effect());
+        assertEquals("target", event.actorId());
+    }
+
+    @Test
+    void safeguardUsesPythonIntLikeRemainingAndOnlyPositiveValuesBlock() {
+        BattleRuntimeState active = state(List.of());
+        active.replaceStatusEntries("target", List.of(new StatusEntry("Safeguard", Map.of("remaining", "2"))));
+        StatusApplicationResult blocked = StatusApplicationResolution.apply(
+                active, BuiltinStatusApplicationHooks.registry(), "source", "target",
+                new StatusEntry("Burned"), "move", "Will-O-Wisp", "will-o-wisp"
+        );
+        assertFalse(blocked.applied());
+
+        BattleRuntimeState spent = state(List.of());
+        spent.replaceStatusEntries("target", List.of(new StatusEntry("Safeguard", Map.of("remaining", 0))));
+        StatusApplicationResult applied = StatusApplicationResolution.apply(
+                spent, BuiltinStatusApplicationHooks.registry(), "source", "target",
+                new StatusEntry("Burned"), "move", "Will-O-Wisp", "will-o-wisp"
+        );
+        assertTrue(applied.applied());
+        assertTrue(spent.hasStatus("target", "burned"));
+    }
+
+    @Test
+    void infiltratorBypassesSafeguardEvenWhenSourceAbilitiesAreSuppressed() {
+        BattleRuntimeState state = state(List.of("Infiltrator"), List.of());
+        state.replaceStatusEntries("target", List.of(new StatusEntry("Safeguard", Map.of("remaining", 1))));
+        state.requireCombatant("source").setAbilitiesSuppressedFromRuntime(true);
+
+        StatusEntry burned = new StatusEntry("Burned");
+        StatusApplicationResult result = StatusApplicationResolution.apply(
+                state, BuiltinStatusApplicationHooks.registry(), "source", "target", burned,
+                "move", "Will-O-Wisp", "will-o-wisp"
+        );
+
+        assertTrue(result.applied());
+        assertEquals(burned, state.statusEntry("target", "burned").orElseThrow());
+        assertTrue(result.events().isEmpty());
+        assertEquals(1, state.statusEntry("target", "safeguard").orElseThrow().intPayload("remaining").orElseThrow());
+    }
+
+    @Test
+    void targetAbilityPreventionRunsBeforeSafeguard() {
+        BattleRuntimeState state = state(List.of("Immunity"));
+        state.replaceStatusEntries("target", List.of(new StatusEntry("Safeguard", Map.of("remaining", 1))));
+
+        StatusApplicationResult result = StatusApplicationResolution.apply(
+                state, BuiltinStatusApplicationHooks.registry(), "source", "target",
+                new StatusEntry("Poisoned"), "move", "Poison Powder", "poison-powder"
+        );
+
+        assertFalse(result.applied());
+        assertEquals(1, result.events().size());
+        RuleEffectEvent event = (RuleEffectEvent) result.events().getFirst();
+        assertEquals("ability", event.sourceKind());
+        assertEquals("Immunity", event.sourceName());
+        assertEquals(new StatusEntry("Safeguard", Map.of("remaining", 1)),
+                state.statusEntry("target", "safeguard").orElseThrow());
+    }
+
+    @Test
     void unrelatedStatusStillAppliesWithInnerFocus() {
         BattleRuntimeState state = state(List.of("Inner Focus"));
         StatusEntry burned = new StatusEntry("Burned", Map.of("source", "ember"));
@@ -135,7 +214,11 @@ class StatusApplicationResolutionTest {
     }
 
     private static BattleRuntimeState state(List<String> targetAbilities) {
-        RuntimeCombatantState source = combatant("source", List.of());
+        return state(List.of(), targetAbilities);
+    }
+
+    private static BattleRuntimeState state(List<String> sourceAbilities, List<String> targetAbilities) {
+        RuntimeCombatantState source = combatant("source", sourceAbilities);
         RuntimeCombatantState target = combatant("target", targetAbilities);
         return new BattleRuntimeState(
                 new MovementGrid(4, 4, Set.of(), Map.of()),
