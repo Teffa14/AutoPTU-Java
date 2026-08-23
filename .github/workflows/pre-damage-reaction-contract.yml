@@ -3,12 +3,14 @@ name: Pre-Damage Reaction Contract
 on:
   pull_request:
     paths:
+      - "src/main/java/io/autoptu/core/hook/BuiltinPreDamageReactionHooks.java"
       - "src/main/java/io/autoptu/core/hook/OutOfTurnDecisionGate.java"
       - "src/main/java/io/autoptu/core/hook/OutOfTurnDecisionRequest.java"
       - "src/main/java/io/autoptu/core/hook/PreDamageReactionContext.java"
       - "src/main/java/io/autoptu/core/hook/PreDamageReactionHook.java"
       - "src/main/java/io/autoptu/core/hook/PreDamageReactionHookRegistry.java"
       - "src/main/java/io/autoptu/core/hook/PreDamageReactionResult.java"
+      - "src/test/java/io/autoptu/core/hook/BuiltinPreDamageReactionHooksTest.java"
       - "src/test/java/io/autoptu/core/hook/PreDamageReactionContractTest.java"
       - "tools/python/export_pre_damage_reaction_contract.py"
       - ".github/workflows/pre-damage-reaction-contract.yml"
@@ -47,4 +49,8 @@ jobs:
       - name: Run pre-damage reaction contract parity
         env:
           AUTOPTU_PRE_DAMAGE_REACTION_ORACLE: ${{ github.workspace }}/build/oracle/pre-damage-reaction.tsv
-        run: gradle test --tests io.autoptu.core.hook.PreDamageReactionContractTest --stacktrace
+        run: |
+          gradle test \
+            --tests io.autoptu.core.hook.PreDamageReactionContractTest \
+            --tests io.autoptu.core.hook.BuiltinPreDamageReactionHooksTest \
+            --stacktrace
