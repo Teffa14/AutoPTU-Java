@@ -9,7 +9,7 @@ import io.autoptu.core.runtime.StatusEntry;
 import java.util.List;
 import java.util.Optional;
 
-/** Built-in target-owned ability/status gates for canonical status application. */
+/** Built-in ability/status gates for canonical status application. */
 public final class BuiltinStatusApplicationHooks {
     private BuiltinStatusApplicationHooks() {
     }
@@ -21,6 +21,12 @@ public final class BuiltinStatusApplicationHooks {
                         HookSource.ABILITY,
                         100,
                         BuiltinStatusApplicationHooks::targetAbilityPrevention
+                )
+                .register(
+                        "spatial-ability-status-prevention",
+                        HookSource.ABILITY,
+                        150,
+                        BuiltinStatusApplicationHooks::spatialAbilityPrevention
                 )
                 .register(
                         "safeguard-status-prevention",
@@ -46,6 +52,30 @@ public final class BuiltinStatusApplicationHooks {
                 "ability",
                 blockingAbility.orElseThrow(),
                 context.targetId(),
+                context.targetId(),
+                context.moveId(),
+                "status_block",
+                0.0,
+                target.hp()
+        );
+        return StatusApplicationHookResult.block(List.of(event));
+    }
+
+    private static StatusApplicationHookResult spatialAbilityPrevention(StatusApplicationContext context) {
+        Optional<SpatialStatusAbilityPreventionResolution.Blocker> blocker =
+                SpatialStatusAbilityPreventionResolution.findBlocker(
+                        context.state(),
+                        context.targetId(),
+                        context.status().name()
+                );
+        if (blocker.isEmpty()) return StatusApplicationHookResult.allow();
+
+        SpatialStatusAbilityPreventionResolution.Blocker resolved = blocker.orElseThrow();
+        RuntimeCombatantState target = context.state().requireCombatant(context.targetId());
+        RuleEffectEvent event = new RuleEffectEvent(
+                "ability",
+                resolved.abilityName(),
+                resolved.combatantId(),
                 context.targetId(),
                 context.moveId(),
                 "status_block",
