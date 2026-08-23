@@ -12,6 +12,7 @@ public record PreDamageReactionContext(
         String attackerId,
         String defenderId,
         String moveName,
+        String effectiveMoveName,
         List<GridCoord> threatenedTiles,
         OutOfTurnDecisionGate outOfTurnDecision
 ) {
@@ -19,7 +20,8 @@ public record PreDamageReactionContext(
         if (state == null) throw new IllegalArgumentException("state is required");
         attackerId = require(attackerId, "attackerId");
         defenderId = require(defenderId, "defenderId");
-        moveName = moveName == null ? "" : moveName.strip();
+        moveName = normalize(moveName);
+        effectiveMoveName = normalize(effectiveMoveName);
         threatenedTiles = threatenedTiles == null ? List.of() : List.copyOf(threatenedTiles);
         outOfTurnDecision = outOfTurnDecision == null
                 ? OutOfTurnDecisionGate.allowWhenUnconfigured()
@@ -33,15 +35,36 @@ public record PreDamageReactionContext(
             String moveName,
             Collection<GridCoord> threatenedTiles
     ) {
+        return of(state, attackerId, defenderId, moveName, moveName, threatenedTiles);
+    }
+
+    public static PreDamageReactionContext of(
+            BattleRuntimeState state,
+            String attackerId,
+            String defenderId,
+            String moveName,
+            String effectiveMoveName,
+            Collection<GridCoord> threatenedTiles
+    ) {
         return new PreDamageReactionContext(
-                state, attackerId, defenderId, moveName,
+                state, attackerId, defenderId, moveName, effectiveMoveName,
                 threatenedTiles == null ? List.of() : List.copyOf(threatenedTiles),
                 OutOfTurnDecisionGate.allowWhenUnconfigured()
+        );
+    }
+
+    public OutOfTurnDecisionRequest decisionRequest(String actorId, String label, boolean optional) {
+        return OutOfTurnDecisionRequest.preDamageInterrupt(
+                actorId, label, moveName, effectiveMoveName, attackerId, defenderId, optional
         );
     }
 
     private static String require(String value, String name) {
         if (value == null || value.isBlank()) throw new IllegalArgumentException(name + " is required");
         return value.strip();
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : value.strip();
     }
 }
