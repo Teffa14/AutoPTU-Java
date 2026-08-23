@@ -17,15 +17,52 @@ def main() -> None:
     position = source.find(needle)
     if position < 0:
         raise RuntimeError("Inner Focus status prevention branch not found in pinned oracle")
-    window = source[max(0, position - 500): position + 1200]
+    window = source[max(0, position - 9000): position + 4500]
 
     rows = {
         "inner_focus_checks_flinch_alias_set": int("status_key in _FLINCH_STATUS_NAMES" in window),
         "inner_focus_emits_status_block": int('"effect": "status_block"' in window),
         "inner_focus_returns_before_status_write": int("return" in window),
         "flinch_application_records_applied_round": int('payload["applied_round"] = self.round' in source),
+        "ability_prevention_respects_suppression": int("if not abilities_suppressed" in window),
+        "suppression_includes_ignore_defensive_abilities": int(
+            'attacker.get_temporary_effects("ignore_defensive_abilities")' in window
+        ),
+        "own_tempo_blocks_confusion": int(
+            'target.has_ability("Own Tempo")' in window and '{"confused", "confusion"}' in window
+        ),
+        "oblivious_blocks_enraged_infatuated": int(
+            'target.has_ability("Oblivious")' in window and '{"enraged", "infatuated"}' in window
+        ),
+        "run_away_blocks_slowed_stuck_trapped": int(
+            'target.has_ability("Run Away")' in window and '{"slowed", "stuck", "trapped"}' in window
+        ),
+        "immunity_blocks_poison_family": int(
+            'target.has_ability("Immunity")' in window
+            and '{"poison", "poisoned", "badly poisoned"}' in window
+        ),
+        "insomnia_blocks_sleep_family": int(
+            'target.has_ability("Insomnia")' in window and "status_key in _SLEEP_STATUS_NAMES" in window
+        ),
+        "vital_spirit_blocks_sleep_family": int(
+            'target.has_ability("Vital Spirit")' in window and "status_key in _SLEEP_STATUS_NAMES" in window
+        ),
     }
-    if not all(rows.values()):
+    expected = {
+        "inner_focus_checks_flinch_alias_set": 1,
+        "inner_focus_emits_status_block": 1,
+        "inner_focus_returns_before_status_write": 1,
+        "flinch_application_records_applied_round": 1,
+        "ability_prevention_respects_suppression": 1,
+        "suppression_includes_ignore_defensive_abilities": 0,
+        "own_tempo_blocks_confusion": 0,
+        "oblivious_blocks_enraged_infatuated": 0,
+        "run_away_blocks_slowed_stuck_trapped": 0,
+        "immunity_blocks_poison_family": 1,
+        "insomnia_blocks_sleep_family": 1,
+        "vital_spirit_blocks_sleep_family": 1,
+    }
+    if rows != expected:
         raise RuntimeError(f"pinned oracle status-application contract changed: {rows}")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
