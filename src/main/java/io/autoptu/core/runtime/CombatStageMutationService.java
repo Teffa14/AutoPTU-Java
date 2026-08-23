@@ -95,7 +95,8 @@ public final class CombatStageMutationService {
                 moveId,
                 stat,
                 requestedDelta,
-                effect
+                effect,
+                canonicalOptions
         ));
         if (prevention.blocked()) {
             return new CombatStageMutationResult(
