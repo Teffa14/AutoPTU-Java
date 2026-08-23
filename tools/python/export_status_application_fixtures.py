@@ -25,6 +25,12 @@ def main() -> None:
     safeguard_window = source[max(0, safeguard_position - 7000): safeguard_position + 3500]
     safeguard_lower = safeguard_window.lower()
 
+    aroma_position = source.find('target.has_ability("Aroma Veil")')
+    if aroma_position < 0:
+        raise RuntimeError("Aroma Veil status prevention branch not found in pinned oracle")
+    aroma_window = source[max(0, aroma_position - 1800): aroma_position + 2600]
+    aroma_lower = aroma_window.lower()
+
     rows = {
         "inner_focus_checks_flinch_alias_set": int("status_key in _FLINCH_STATUS_NAMES" in window),
         "inner_focus_emits_status_block": int('"effect": "status_block"' in window),
@@ -53,6 +59,12 @@ def main() -> None:
         "vital_spirit_blocks_sleep_family": int(
             'target.has_ability("Vital Spirit")' in window and "status_key in _SLEEP_STATUS_NAMES" in window
         ),
+        "aroma_veil_checks_confusion": int("confus" in aroma_lower),
+        "aroma_veil_checks_rage": int("rage" in aroma_lower or "enraged" in aroma_lower),
+        "aroma_veil_checks_suppression": int("suppress" in aroma_lower),
+        "aroma_veil_emits_status_block": int('"effect": "status_block"' in aroma_window),
+        "aroma_veil_returns_before_status_write": int("return" in aroma_window),
+        "aroma_veil_respects_ability_suppression": int("abilities_suppressed" in aroma_window),
         "safeguard_emits_status_block": int('"effect": "safeguard_block"' in safeguard_window),
         "safeguard_reads_remaining": int("remaining" in safeguard_lower),
         "safeguard_decrements_remaining_in_status_boundary": int(
@@ -79,6 +91,12 @@ def main() -> None:
         "immunity_blocks_poison_family": 1,
         "insomnia_blocks_sleep_family": 1,
         "vital_spirit_blocks_sleep_family": 1,
+        "aroma_veil_checks_confusion": 1,
+        "aroma_veil_checks_rage": 1,
+        "aroma_veil_checks_suppression": 1,
+        "aroma_veil_emits_status_block": 1,
+        "aroma_veil_returns_before_status_write": 1,
+        "aroma_veil_respects_ability_suppression": 1,
         "safeguard_emits_status_block": 1,
         "safeguard_reads_remaining": 1,
         "safeguard_decrements_remaining_in_status_boundary": 0,
