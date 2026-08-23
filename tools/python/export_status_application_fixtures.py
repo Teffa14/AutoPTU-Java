@@ -19,6 +19,12 @@ def main() -> None:
         raise RuntimeError("Inner Focus status prevention branch not found in pinned oracle")
     window = source[max(0, position - 9000): position + 4500]
 
+    safeguard_position = source.find('"effect": "safeguard_block"')
+    if safeguard_position < 0:
+        raise RuntimeError("Safeguard status prevention branch not found in pinned oracle")
+    safeguard_window = source[max(0, safeguard_position - 7000): safeguard_position + 3500]
+    safeguard_lower = safeguard_window.lower()
+
     rows = {
         "inner_focus_checks_flinch_alias_set": int("status_key in _FLINCH_STATUS_NAMES" in window),
         "inner_focus_emits_status_block": int('"effect": "status_block"' in window),
@@ -47,6 +53,18 @@ def main() -> None:
         "vital_spirit_blocks_sleep_family": int(
             'target.has_ability("Vital Spirit")' in window and "status_key in _SLEEP_STATUS_NAMES" in window
         ),
+        "safeguard_emits_status_block": int('"effect": "safeguard_block"' in safeguard_window),
+        "safeguard_reads_remaining": int("remaining" in safeguard_lower),
+        "safeguard_decrements_remaining_in_status_boundary": int(
+            "remaining" in safeguard_lower
+            and ("remaining - 1" in safeguard_lower or "remaining -= 1" in safeguard_lower)
+        ),
+        "safeguard_removes_when_spent_in_status_boundary": int(
+            "remove_temporary_effect" in safeguard_window and "safeguard" in safeguard_lower
+        ),
+        "safeguard_bypassed_by_infiltrator": int("infiltrator" in safeguard_lower),
+        "safeguard_bypassed_by_ignore_blessings_in_status_boundary": int("ignore_blessings" in safeguard_lower),
+        "safeguard_returns_before_status_write": int("return" in safeguard_window),
     }
     expected = {
         "inner_focus_checks_flinch_alias_set": 1,
@@ -61,6 +79,13 @@ def main() -> None:
         "immunity_blocks_poison_family": 1,
         "insomnia_blocks_sleep_family": 1,
         "vital_spirit_blocks_sleep_family": 1,
+        "safeguard_emits_status_block": 1,
+        "safeguard_reads_remaining": 1,
+        "safeguard_decrements_remaining_in_status_boundary": 0,
+        "safeguard_removes_when_spent_in_status_boundary": 0,
+        "safeguard_bypassed_by_infiltrator": 1,
+        "safeguard_bypassed_by_ignore_blessings_in_status_boundary": 0,
+        "safeguard_returns_before_status_write": 1,
     }
     if rows != expected:
         raise RuntimeError(f"pinned oracle status-application contract changed: {rows}")
