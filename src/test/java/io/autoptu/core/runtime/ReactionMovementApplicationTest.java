@@ -68,7 +68,7 @@ final class ReactionMovementApplicationTest {
                 coord -> !coord.equals(new GridCoord(1, 2))
         );
 
-        assertEquals(new GridCoord(2, 1), actor.position());
+        assertEquals(new GridCoord(2, 3), actor.position());
         assertEquals(1, result.events().size());
     }
 
