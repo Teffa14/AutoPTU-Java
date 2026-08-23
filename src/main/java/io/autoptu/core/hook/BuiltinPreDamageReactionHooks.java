@@ -39,7 +39,7 @@ public final class BuiltinPreDamageReactionHooks {
         RuntimeCombatantState attacker = state.requireCombatant(context.attackerId());
         RuntimeCombatantState defender = state.requireCombatant(context.defenderId());
 
-        if (attacker.hasAbilityExact("Mold Breaker")) return current;
+        if (AbilityIdentityResolution.matchesRegistration(attacker.abilities(), "Mold Breaker")) return current;
         if (defender.abilitiesSuppressed()) return current;
         if (!AbilityIdentityResolution.matchesRegistration(defender.abilities(), "Telepathy")) return current;
         if (!state.teamId(context.attackerId()).equals(state.teamId(context.defenderId()))) return current;
