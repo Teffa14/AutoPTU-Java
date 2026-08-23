@@ -10,9 +10,13 @@ import io.autoptu.core.event.BattleEventFactory;
 import io.autoptu.core.event.MoveResolvedEvent;
 import io.autoptu.core.event.StatusSkipEvent;
 import io.autoptu.core.event.TrainerFeatureEvent;
+import io.autoptu.core.hook.BuiltinPreDamageReactionHooks;
 import io.autoptu.core.hook.PostDamageHookContext;
 import io.autoptu.core.hook.PostDamageHookRegistry;
 import io.autoptu.core.hook.PostDamageHookResult;
+import io.autoptu.core.hook.PreDamageReactionContext;
+import io.autoptu.core.hook.PreDamageReactionHookRegistry;
+import io.autoptu.core.hook.PreDamageReactionResult;
 import io.autoptu.core.model.AccuracyResult;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.DamageResult;
@@ -35,6 +39,8 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 public final class BattleRuntime {
+    private static final PreDamageReactionHookRegistry PRE_DAMAGE_REACTIONS = BuiltinPreDamageReactionHooks.registry();
+
     private BattleRuntime() {}
 
     public static AppliedActionResult applyAction(BattleRuntimeState state, BattleChoice choice, Predicate<GridCoord> canFit) {
@@ -108,7 +114,8 @@ public final class BattleRuntime {
         if (postDamageHooks == null) throw new IllegalArgumentException("postDamageHooks is required");
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
-                rng, input, preResolutionEvents, postDamageHooks, null, null, true
+                rng, input, preResolutionEvents, PRE_DAMAGE_REACTIONS,
+                postDamageHooks, null, null, true
         );
     }
 
@@ -130,7 +137,28 @@ public final class BattleRuntime {
         if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
-                rng, input, preResolutionEvents, null, postDamageHookRegistry, effectiveMetadata, true
+                rng, input, preResolutionEvents, PRE_DAMAGE_REACTIONS,
+                null, postDamageHookRegistry, effectiveMetadata, true
+        );
+    }
+
+    /** Runtime-package composition seam. Adapters use public authoritative boundaries. */
+    static AppliedActionResult applyAuthoritativeMove(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            PythonRandom rng, MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            PreDamageReactionHookRegistry preDamageHookRegistry,
+            PostDamageHookRegistry postDamageHookRegistry,
+            MoveCombatProfile effectiveMetadata
+    ) {
+        if (preDamageHookRegistry == null) throw new IllegalArgumentException("preDamageHookRegistry is required");
+        if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHookRegistry is required");
+        if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
+        return applyAuthoritativeMoveInternal(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
+                rng, input, preResolutionEvents, preDamageHookRegistry,
+                null, postDamageHookRegistry, effectiveMetadata, true
         );
     }
 
@@ -168,6 +196,7 @@ public final class BattleRuntime {
                 rng,
                 input,
                 preResolutionEvents,
+                PRE_DAMAGE_REACTIONS,
                 null,
                 postDamageHookRegistry,
                 effectiveMetadata,
@@ -180,6 +209,7 @@ public final class BattleRuntime {
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
             PythonRandom rng, MoveResolutionInput input,
             List<? extends BattleEvent> preResolutionEvents,
+            PreDamageReactionHookRegistry preDamageReactionHooks,
             PostDamageHookResult precomputedPostDamageHooks,
             PostDamageHookRegistry deferredPostDamageHooks,
             MoveCombatProfile effectiveMetadata,
@@ -187,6 +217,7 @@ public final class BattleRuntime {
     ) {
         if (rng == null) throw new IllegalArgumentException("rng is required");
         if (input == null) throw new IllegalArgumentException("input is required");
+        if (preDamageReactionHooks == null) throw new IllegalArgumentException("preDamageReactionHooks is required");
 
         if (spendOrdinaryMoveResources) {
             MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
@@ -205,6 +236,30 @@ public final class BattleRuntime {
         }
 
         DamageResult damage = accuracy.hit() ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit())) : null;
+        List<? extends BattleEvent> preDamageEvents = List.of();
+        if (accuracy.hit() && spendOrdinaryMoveResources) {
+            PreDamageReactionContext reactionContext = RuntimePreDamageReactionContextFactory.fromState(
+                    state,
+                    choice.actorId(),
+                    choice.targetId(),
+                    move.moveId(),
+                    move.moveId(),
+                    move.spec(),
+                    null
+            );
+            PreDamageReactionResult reaction = preDamageReactionHooks.resolve(
+                    reactionContext,
+                    PreDamageReactionResult.of(true, damage.damage(), input.typeMultiplier())
+            );
+            preDamageEvents = reaction.events();
+            if (!reaction.hit()) {
+                accuracy = new AccuracyResult(false, false, accuracy.roll(), accuracy.needed());
+                damage = null;
+            } else if (reaction.damage() != damage.damage()) {
+                damage = withFinalDamage(damage, reaction.damage());
+            }
+        }
+
         PostDamageHookResult resolvedPostDamageHooks = precomputedPostDamageHooks == null
                 ? PostDamageHookResult.empty()
                 : precomputedPostDamageHooks;
@@ -228,6 +283,7 @@ public final class BattleRuntime {
         if (accuracy.hit()) {
             result = prependEvents(resolvedPostDamageHooks.events(), result);
         }
+        result = prependEvents(preDamageEvents, result);
         if (spendOrdinaryMoveResources) {
             actor.moveFrequencyUsage().recordUse(move);
         }
@@ -328,6 +384,11 @@ public final class BattleRuntime {
         if (damage == null) throw new IllegalArgumentException("damage is required");
         if (flatDamageAdjustment == 0) return damage;
         int finalDamage = Math.max(0, Math.addExact(damage.damage(), flatDamageAdjustment));
+        return withFinalDamage(damage, finalDamage);
+    }
+
+    private static DamageResult withFinalDamage(DamageResult damage, int finalDamage) {
+        if (damage == null) throw new IllegalArgumentException("damage is required");
         return new DamageResult(
                 damage.dice(),
                 damage.baseRoll(),
@@ -335,7 +396,7 @@ public final class BattleRuntime {
                 damage.damageRoll(),
                 damage.preModifierDamage(),
                 damage.preTypeDamage(),
-                finalDamage
+                Math.max(0, finalDamage)
         );
     }
 
