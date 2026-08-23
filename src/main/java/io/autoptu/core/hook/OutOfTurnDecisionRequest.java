@@ -25,12 +25,13 @@ public record OutOfTurnDecisionRequest(
             String actorId,
             String label,
             String moveName,
+            String triggerMoveName,
             String attackerId,
             String defenderId,
             boolean optional
     ) {
         return new OutOfTurnDecisionRequest(
-                actorId, label, "pre_damage_interrupt", moveName, moveName,
+                actorId, label, "pre_damage_interrupt", moveName, triggerMoveName,
                 attackerId, defenderId, optional
         );
     }
