@@ -12,7 +12,8 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
-    source = (args.source_root / "auto_ptu" / "rules" / "battle_state.py").read_text(encoding="utf-8")
+    source_path = args.source_root / "auto_ptu" / "rules" / "battle_state.py"
+    source = source_path.read_text(encoding="utf-8")
     needle = 'target.has_ability("Inner Focus")'
     position = source.find(needle)
     if position < 0:
@@ -25,21 +26,22 @@ def main() -> None:
     safeguard_window = source[max(0, safeguard_position - 7000): safeguard_position + 3500]
     safeguard_lower = safeguard_window.lower()
 
-    aroma_matches: list[str] = []
-    for path in sorted((args.source_root / "auto_ptu").rglob("*.py")):
-        text = path.read_text(encoding="utf-8", errors="ignore")
+    diagnostics: list[str] = []
+    for term in ("Aroma Veil", "Pastel Veil", "Sweet Veil"):
         cursor = 0
+        found = 0
         while True:
-            index = text.find("Aroma Veil", cursor)
+            index = source.find(term, cursor)
             if index < 0:
                 break
-            line = text.count("\n", 0, index) + 1
-            snippet = text[max(0, index - 180): index + 260].replace("\n", "\\n")
-            aroma_matches.append(f"{path.relative_to(args.source_root)}:{line}:{snippet}")
-            cursor = index + len("Aroma Veil")
-    if not aroma_matches:
-        raise RuntimeError("Aroma Veil implementation not found anywhere under pinned auto_ptu Python package")
-    raise RuntimeError("Aroma Veil implementation locations: " + " || ".join(aroma_matches[:20]))
+            found += 1
+            line = source.count("\n", 0, index) + 1
+            snippet = source[max(0, index - 1100): index + 1300].replace("\n", "\\n")
+            diagnostics.append(f"{term}@battle_state.py:{line}:{snippet}")
+            cursor = index + len(term)
+            if found >= 4:
+                break
+    raise RuntimeError("Spatial status prevention diagnostics: " + " || ".join(diagnostics))
 
     rows = {
         "inner_focus_checks_flinch_alias_set": int("status_key in _FLINCH_STATUS_NAMES" in window),
