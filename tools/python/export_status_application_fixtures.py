@@ -48,7 +48,21 @@ def main() -> None:
             'target.has_ability("Vital Spirit")' in window and "status_key in _SLEEP_STATUS_NAMES" in window
         ),
     }
-    if not all(rows.values()):
+    expected = {
+        "inner_focus_checks_flinch_alias_set": 1,
+        "inner_focus_emits_status_block": 1,
+        "inner_focus_returns_before_status_write": 1,
+        "flinch_application_records_applied_round": 1,
+        "ability_prevention_respects_suppression": 1,
+        "suppression_includes_ignore_defensive_abilities": 0,
+        "own_tempo_blocks_confusion": 0,
+        "oblivious_blocks_enraged_infatuated": 0,
+        "run_away_blocks_slowed_stuck_trapped": 0,
+        "immunity_blocks_poison_family": 1,
+        "insomnia_blocks_sleep_family": 1,
+        "vital_spirit_blocks_sleep_family": 1,
+    }
+    if rows != expected:
         raise RuntimeError(f"pinned oracle status-application contract changed: {rows}")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
