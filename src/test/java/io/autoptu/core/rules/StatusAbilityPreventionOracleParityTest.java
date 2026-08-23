@@ -46,6 +46,21 @@ class StatusAbilityPreventionOracleParityTest {
                 List.of("Blaze"), "Poisoned", false).isEmpty());
     }
 
+    @Test
+    void consumableSafeguardContractMatchesPinnedPythonBoundary() throws IOException {
+        String property = System.getProperty("autoptu.status.application.oracle");
+        Assumptions.assumeTrue(property != null && !property.isBlank());
+        Map<String, Integer> oracle = readOracle(Path.of(property));
+
+        assertEquals(1, oracle.get("safeguard_emits_status_block"));
+        assertEquals(1, oracle.get("safeguard_reads_remaining"));
+        assertEquals(1, oracle.get("safeguard_decrements_remaining"));
+        assertEquals(1, oracle.get("safeguard_removes_when_spent"));
+        assertEquals(1, oracle.get("safeguard_bypassed_by_infiltrator"));
+        assertEquals(1, oracle.get("safeguard_bypassed_by_ignore_blessings"));
+        assertEquals(1, oracle.get("safeguard_returns_before_status_write"));
+    }
+
     private static void assertBlocked(String ability, String status, String expected) {
         assertEquals(expected, StatusAbilityPreventionResolution.blockingAbility(
                 List.of(ability), status, false).orElseThrow());
