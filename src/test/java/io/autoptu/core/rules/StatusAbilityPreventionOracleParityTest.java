@@ -47,17 +47,17 @@ class StatusAbilityPreventionOracleParityTest {
     }
 
     @Test
-    void consumableSafeguardContractMatchesPinnedPythonBoundary() throws IOException {
+    void safeguardBoundaryMatchesPinnedPythonContract() throws IOException {
         String property = System.getProperty("autoptu.status.application.oracle");
         Assumptions.assumeTrue(property != null && !property.isBlank());
         Map<String, Integer> oracle = readOracle(Path.of(property));
 
         assertEquals(1, oracle.get("safeguard_emits_status_block"));
         assertEquals(1, oracle.get("safeguard_reads_remaining"));
-        assertEquals(1, oracle.get("safeguard_decrements_remaining"));
-        assertEquals(1, oracle.get("safeguard_removes_when_spent"));
+        assertEquals(0, oracle.get("safeguard_decrements_remaining_in_status_boundary"));
+        assertEquals(0, oracle.get("safeguard_removes_when_spent_in_status_boundary"));
         assertEquals(1, oracle.get("safeguard_bypassed_by_infiltrator"));
-        assertEquals(1, oracle.get("safeguard_bypassed_by_ignore_blessings"));
+        assertEquals(0, oracle.get("safeguard_bypassed_by_ignore_blessings_in_status_boundary"));
         assertEquals(1, oracle.get("safeguard_returns_before_status_write"));
     }
 
