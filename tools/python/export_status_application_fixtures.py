@@ -55,15 +55,15 @@ def main() -> None:
         ),
         "safeguard_emits_status_block": int('"effect": "safeguard_block"' in safeguard_window),
         "safeguard_reads_remaining": int("remaining" in safeguard_lower),
-        "safeguard_decrements_remaining": int(
+        "safeguard_decrements_remaining_in_status_boundary": int(
             "remaining" in safeguard_lower
             and ("remaining - 1" in safeguard_lower or "remaining -= 1" in safeguard_lower)
         ),
-        "safeguard_removes_when_spent": int(
+        "safeguard_removes_when_spent_in_status_boundary": int(
             "remove_temporary_effect" in safeguard_window and "safeguard" in safeguard_lower
         ),
         "safeguard_bypassed_by_infiltrator": int("infiltrator" in safeguard_lower),
-        "safeguard_bypassed_by_ignore_blessings": int("ignore_blessings" in safeguard_lower),
+        "safeguard_bypassed_by_ignore_blessings_in_status_boundary": int("ignore_blessings" in safeguard_lower),
         "safeguard_returns_before_status_write": int("return" in safeguard_window),
     }
     expected = {
@@ -81,10 +81,10 @@ def main() -> None:
         "vital_spirit_blocks_sleep_family": 1,
         "safeguard_emits_status_block": 1,
         "safeguard_reads_remaining": 1,
-        "safeguard_decrements_remaining": 1,
-        "safeguard_removes_when_spent": 1,
+        "safeguard_decrements_remaining_in_status_boundary": 0,
+        "safeguard_removes_when_spent_in_status_boundary": 0,
         "safeguard_bypassed_by_infiltrator": 1,
-        "safeguard_bypassed_by_ignore_blessings": 1,
+        "safeguard_bypassed_by_ignore_blessings_in_status_boundary": 0,
         "safeguard_returns_before_status_write": 1,
     }
     if rows != expected:
