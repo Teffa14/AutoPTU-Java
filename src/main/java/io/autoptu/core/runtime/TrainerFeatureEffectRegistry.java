@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Server-authoritative effect registry for generic Trainer Feature payloads.
@@ -178,7 +179,8 @@ public final class TrainerFeatureEffectRegistry {
     }
 
     private static EffectResult applyStatus(EffectContext context, Map<String, ?> effect) {
-        String statusName = String.valueOf(effect.containsKey("status") ? effect.get("status") : effect.getOrDefault("name", "")).strip();
+        Object rawStatus = effect.containsKey("status") ? effect.get("status") : (effect.containsKey("name") ? effect.get("name") : "");
+        String statusName = String.valueOf(rawStatus).strip();
         int duration = intLike(effect.containsKey("duration") ? effect.get("duration") : effect.get("remaining"), 0);
         boolean stack = boolLike(effect.get("stack"), false);
         List<String> targetIds = resolveTargets(context, effect);
