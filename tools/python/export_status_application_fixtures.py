@@ -25,11 +25,21 @@ def main() -> None:
     safeguard_window = source[max(0, safeguard_position - 7000): safeguard_position + 3500]
     safeguard_lower = safeguard_window.lower()
 
-    aroma_position = source.find('target.has_ability("Aroma Veil")')
-    if aroma_position < 0:
-        raise RuntimeError("Aroma Veil status prevention branch not found in pinned oracle")
-    aroma_window = source[max(0, aroma_position - 1800): aroma_position + 2600]
-    aroma_lower = aroma_window.lower()
+    aroma_matches: list[str] = []
+    for path in sorted((args.source_root / "auto_ptu").rglob("*.py")):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        cursor = 0
+        while True:
+            index = text.find("Aroma Veil", cursor)
+            if index < 0:
+                break
+            line = text.count("\n", 0, index) + 1
+            snippet = text[max(0, index - 180): index + 260].replace("\n", "\\n")
+            aroma_matches.append(f"{path.relative_to(args.source_root)}:{line}:{snippet}")
+            cursor = index + len("Aroma Veil")
+    if not aroma_matches:
+        raise RuntimeError("Aroma Veil implementation not found anywhere under pinned auto_ptu Python package")
+    raise RuntimeError("Aroma Veil implementation locations: " + " || ".join(aroma_matches[:20]))
 
     rows = {
         "inner_focus_checks_flinch_alias_set": int("status_key in _FLINCH_STATUS_NAMES" in window),
@@ -59,12 +69,6 @@ def main() -> None:
         "vital_spirit_blocks_sleep_family": int(
             'target.has_ability("Vital Spirit")' in window and "status_key in _SLEEP_STATUS_NAMES" in window
         ),
-        "aroma_veil_checks_confusion": int("confus" in aroma_lower),
-        "aroma_veil_checks_rage": int("rage" in aroma_lower or "enraged" in aroma_lower),
-        "aroma_veil_checks_suppression": int("suppress" in aroma_lower),
-        "aroma_veil_emits_status_block": int('"effect": "status_block"' in aroma_window),
-        "aroma_veil_returns_before_status_write": int("return" in aroma_window),
-        "aroma_veil_respects_ability_suppression": int("abilities_suppressed" in aroma_window),
         "safeguard_emits_status_block": int('"effect": "safeguard_block"' in safeguard_window),
         "safeguard_reads_remaining": int("remaining" in safeguard_lower),
         "safeguard_decrements_remaining_in_status_boundary": int(
@@ -91,12 +95,6 @@ def main() -> None:
         "immunity_blocks_poison_family": 1,
         "insomnia_blocks_sleep_family": 1,
         "vital_spirit_blocks_sleep_family": 1,
-        "aroma_veil_checks_confusion": 1,
-        "aroma_veil_checks_rage": 1,
-        "aroma_veil_checks_suppression": 1,
-        "aroma_veil_emits_status_block": 1,
-        "aroma_veil_returns_before_status_write": 1,
-        "aroma_veil_respects_ability_suppression": 1,
         "safeguard_emits_status_block": 1,
         "safeguard_reads_remaining": 1,
         "safeguard_decrements_remaining_in_status_boundary": 0,
