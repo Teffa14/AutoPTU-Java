@@ -8,16 +8,14 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Pure contract for target-owned abilities that block status application.
+ * Pure contract for target-owned abilities that block status application in the pinned Python
+ * status-application boundary.
  *
- * <p>The caller must supply whether defensive abilities are currently suppressed. That flag remains
- * separate until Neutralizing Gas / ignore-defensive-abilities state is fully owned by the runtime.</p>
+ * <p>The caller supplies whether target abilities are currently suppressed. Other status immunity
+ * families that Python resolves in different subsystems must not be inferred here.</p>
  */
 public final class StatusAbilityPreventionResolution {
     private static final List<Rule> RULES = List.of(
-            new Rule("Own Tempo", Set.of("confused", "confusion")),
-            new Rule("Oblivious", Set.of("enraged", "infatuated")),
-            new Rule("Run Away", Set.of("slowed", "stuck", "trapped")),
             new Rule("Inner Focus", Set.of("flinch", "flinched")),
             new Rule("Immunity", Set.of("poison", "poisoned", "badly poisoned")),
             new Rule("Insomnia", Set.of("sleep", "asleep")),
