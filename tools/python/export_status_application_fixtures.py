@@ -6,14 +6,21 @@ import argparse
 from pathlib import Path
 
 
+def function_window(source: str, name: str, next_name: str) -> str:
+    start = source.find(f"def {name}(")
+    end = source.find(f"def {next_name}(", start + 1)
+    if start < 0 or end < 0:
+        raise RuntimeError(f"unable to locate {name} in pinned oracle")
+    return source[start:end]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
-    source_path = args.source_root / "auto_ptu" / "rules" / "battle_state.py"
-    source = source_path.read_text(encoding="utf-8")
+    source = (args.source_root / "auto_ptu" / "rules" / "battle_state.py").read_text(encoding="utf-8")
     needle = 'target.has_ability("Inner Focus")'
     position = source.find(needle)
     if position < 0:
@@ -26,22 +33,11 @@ def main() -> None:
     safeguard_window = source[max(0, safeguard_position - 7000): safeguard_position + 3500]
     safeguard_lower = safeguard_window.lower()
 
-    diagnostics: list[str] = []
-    for term in ("Aroma Veil", "Pastel Veil", "Sweet Veil"):
-        cursor = 0
-        found = 0
-        while True:
-            index = source.find(term, cursor)
-            if index < 0:
-                break
-            found += 1
-            line = source.count("\n", 0, index) + 1
-            snippet = source[max(0, index - 1100): index + 1300].replace("\n", "\\n")
-            diagnostics.append(f"{term}@battle_state.py:{line}:{snippet}")
-            cursor = index + len(term)
-            if found >= 4:
-                break
-    raise RuntimeError("Spatial status prevention diagnostics: " + " || ".join(diagnostics))
+    aroma = function_window(source, "_aroma_veil_blocker", "_pastel_veil_blocker")
+    pastel = function_window(source, "_pastel_veil_blocker", "_sweet_veil_blocker")
+    sweet = function_window(source, "_sweet_veil_blocker", "_flower_veil_blocker")
+    spatial_call_window = source[max(0, source.find('blocker = self._sweet_veil_blocker(target_id)') - 1500):
+                                 source.find('blocker = self._aroma_veil_blocker(target_id)') + 1200]
 
     rows = {
         "inner_focus_checks_flinch_alias_set": int("status_key in _FLINCH_STATUS_NAMES" in window),
@@ -71,6 +67,28 @@ def main() -> None:
         "vital_spirit_blocks_sleep_family": int(
             'target.has_ability("Vital Spirit")' in window and "status_key in _SLEEP_STATUS_NAMES" in window
         ),
+        "aroma_veil_normal_radius_3": int('radius = 1 if mon.has_ability("Aroma Veil [Errata]") else 3' in aroma),
+        "aroma_veil_errata_radius_1": int('mon.has_ability("Aroma Veil [Errata]")' in aroma),
+        "pastel_veil_radius_3": int("<= 3" in pastel),
+        "sweet_veil_radius_3": int("<= 3" in sweet),
+        "spatial_veil_skips_fainted_inactive": int(
+            all("if mon.fainted or not mon.active" in section for section in (aroma, pastel, sweet))
+        ),
+        "spatial_veil_has_no_team_filter": int(
+            all("team" not in section.lower() and "controller" not in section.lower() for section in (aroma, pastel, sweet))
+        ),
+        "aroma_veil_blocks_confused_enraged_suppressed": int(
+            'status_key in {"confused", "enraged", "suppressed"}' in spatial_call_window
+        ),
+        "pastel_veil_blocks_poison_family": int(
+            'status_key in {"poison", "poisoned", "badly poisoned"}' in spatial_call_window
+        ),
+        "sweet_veil_blocks_sleep_family": int(
+            "status_key in _SLEEP_STATUS_NAMES" in spatial_call_window
+        ),
+        "spatial_veil_respects_ability_suppression": int(
+            spatial_call_window.count("not abilities_suppressed") >= 3
+        ),
         "safeguard_emits_status_block": int('"effect": "safeguard_block"' in safeguard_window),
         "safeguard_reads_remaining": int("remaining" in safeguard_lower),
         "safeguard_decrements_remaining_in_status_boundary": int(
@@ -97,6 +115,16 @@ def main() -> None:
         "immunity_blocks_poison_family": 1,
         "insomnia_blocks_sleep_family": 1,
         "vital_spirit_blocks_sleep_family": 1,
+        "aroma_veil_normal_radius_3": 1,
+        "aroma_veil_errata_radius_1": 1,
+        "pastel_veil_radius_3": 1,
+        "sweet_veil_radius_3": 1,
+        "spatial_veil_skips_fainted_inactive": 1,
+        "spatial_veil_has_no_team_filter": 1,
+        "aroma_veil_blocks_confused_enraged_suppressed": 1,
+        "pastel_veil_blocks_poison_family": 1,
+        "sweet_veil_blocks_sleep_family": 1,
+        "spatial_veil_respects_ability_suppression": 1,
         "safeguard_emits_status_block": 1,
         "safeguard_reads_remaining": 1,
         "safeguard_decrements_remaining_in_status_boundary": 0,
