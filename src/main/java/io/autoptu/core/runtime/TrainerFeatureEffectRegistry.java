@@ -5,6 +5,7 @@ import io.autoptu.core.rules.TrainerFeatureTargetResolution;
 import io.autoptu.core.rules.TrainerFeatureTrainerTargetResolution;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -59,6 +60,8 @@ public final class TrainerFeatureEffectRegistry {
         register("grant_temp_hp", TrainerFeatureEffectRegistry::applyGrantTempHp);
         register("raise_cs", TrainerFeatureEffectRegistry::applyRaiseCs);
         register("grant_ap", TrainerFeatureEffectRegistry::applyGrantAp);
+        register("apply_status", TrainerFeatureEffectRegistry::applyStatus);
+        register("remove_status", TrainerFeatureEffectRegistry::removeStatus);
     }
 
     public void register(String effectType, EffectHandler handler) {
@@ -174,6 +177,87 @@ public final class TrainerFeatureEffectRegistry {
         return new EffectResult(!changedTargets.isEmpty(), "raise_cs", changedTargets, Map.of("stats", changes));
     }
 
+    private static EffectResult applyStatus(EffectContext context, Map<String, ?> effect) {
+        String statusName = String.valueOf(effect.containsKey("status") ? effect.get("status") : effect.getOrDefault("name", "")).strip();
+        int duration = intLike(effect.containsKey("duration") ? effect.get("duration") : effect.get("remaining"), 0);
+        boolean stack = boolLike(effect.get("stack"), false);
+        List<String> targetIds = resolveTargets(context, effect);
+        Map<String, Object> details = Map.of("status", statusName, "duration", duration);
+        if (statusName.isBlank() || targetIds.isEmpty()) {
+            return new EffectResult(false, "apply_status", List.of(), details);
+        }
+
+        ArrayList<String> changed = new ArrayList<>();
+        for (String targetId : targetIds) {
+            var existing = context.state().statusEntry(targetId, statusName);
+            if (existing.isPresent() && !stack) {
+                if (duration > 0) {
+                    StatusEntry entry = existing.get();
+                    int current = entry.intPayload("remaining").orElse(entry.intPayload("duration").orElse(0));
+                    if (current < duration) {
+                        LinkedHashMap<String, Object> payload = new LinkedHashMap<>(entry.payload());
+                        payload.put("remaining", duration);
+                        payload.put("duration", duration);
+                        context.state().putStatus(targetId, new StatusEntry(statusName, payload));
+                        changed.add(targetId);
+                    }
+                }
+                continue;
+            }
+
+            LinkedHashMap<String, Object> payload = new LinkedHashMap<>();
+            payload.put("source", "trainer_feature:" + featureIdentifier(context.feature()));
+            if (duration > 0) {
+                payload.put("remaining", duration);
+                payload.put("duration", duration);
+            }
+            StatusEntry entry = new StatusEntry(statusName, payload);
+            if (stack && existing.isPresent()) {
+                ArrayList<StatusEntry> entries = new ArrayList<>(context.state().statusEntries(targetId));
+                entries.add(entry);
+                context.state().replaceStatusEntries(targetId, entries);
+            } else {
+                context.state().putStatus(targetId, entry);
+            }
+            changed.add(targetId);
+        }
+        return new EffectResult(!changed.isEmpty(), "apply_status", changed, details);
+    }
+
+    private static EffectResult removeStatus(EffectContext context, Map<String, ?> effect) {
+        Object rawStatuses = effect.get("statuses");
+        if (!pythonTruthy(rawStatuses)) rawStatuses = effect.get("status");
+        List<String> statuses = normalizeTokens(rawStatuses);
+        boolean removeAll = boolLike(effect.get("all"), false);
+        List<String> targetIds = resolveTargets(context, effect);
+        if ((statuses.isEmpty() && !removeAll) || targetIds.isEmpty()) {
+            return new EffectResult(false, "remove_status", List.of(), Map.of("removed", List.of()));
+        }
+
+        ArrayList<String> changed = new ArrayList<>();
+        ArrayList<String> removedNames = new ArrayList<>();
+        for (String targetId : targetIds) {
+            boolean localRemoved = false;
+            if (removeAll) {
+                int count = context.state().statusEntries(targetId).size();
+                if (count > 0) {
+                    context.state().replaceStatusEntries(targetId, List.of());
+                    localRemoved = true;
+                    removedNames.add("all");
+                }
+            } else {
+                for (String status : statuses) {
+                    while (context.state().removeStatus(targetId, status)) {
+                        localRemoved = true;
+                        removedNames.add(status);
+                    }
+                }
+            }
+            if (localRemoved) changed.add(targetId);
+        }
+        return new EffectResult(!changed.isEmpty(), "remove_status", changed, Map.of("removed", List.copyOf(removedNames)));
+    }
+
     private static List<String> resolveTargets(EffectContext context, Map<String, ?> effect) {
         LinkedHashMap<String, Object> rules = new LinkedHashMap<>();
         copyMap(context.feature().get("target_rules"), rules);
@@ -206,6 +290,53 @@ public final class TrainerFeatureEffectRegistry {
             case "acc", "accuracy" -> "accuracy";
             default -> "";
         };
+    }
+
+    private static String featureIdentifier(Map<String, ?> feature) {
+        Object raw = feature.get("feature_id");
+        if (!pythonTruthy(raw)) raw = feature.get("id");
+        if (!pythonTruthy(raw)) raw = feature.get("name");
+        String token = normalize(raw).replace(" ", "-");
+        return token.isBlank() ? "feature" : token;
+    }
+
+    private static List<String> normalizeTokens(Object raw) {
+        if (raw == null) return List.of();
+        ArrayList<String> out = new ArrayList<>();
+        if (raw instanceof Collection<?> values) {
+            for (Object value : values) {
+                String token = normalize(value);
+                if (!token.isBlank()) out.add(token);
+            }
+        } else if (raw instanceof Object[] values) {
+            for (Object value : values) {
+                String token = normalize(value);
+                if (!token.isBlank()) out.add(token);
+            }
+        } else {
+            String token = normalize(raw);
+            if (!token.isBlank()) out.add(token);
+        }
+        return List.copyOf(out);
+    }
+
+    private static boolean boolLike(Object value, boolean fallback) {
+        if (value == null) return fallback;
+        if (value instanceof Boolean bool) return bool;
+        String token = normalize(value);
+        if (Set.of("1", "true", "yes", "y", "on").contains(token)) return true;
+        if (Set.of("0", "false", "no", "n", "off").contains(token)) return false;
+        return fallback;
+    }
+
+    private static boolean pythonTruthy(Object value) {
+        if (value == null) return false;
+        if (value instanceof Boolean bool) return bool;
+        if (value instanceof Number number) return number.doubleValue() != 0.0;
+        if (value instanceof CharSequence chars) return !chars.isEmpty();
+        if (value instanceof Collection<?> collection) return !collection.isEmpty();
+        if (value instanceof Map<?, ?> map) return !map.isEmpty();
+        return true;
     }
 
     private static void copyMap(Object raw, Map<String, Object> destination) {
