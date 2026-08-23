@@ -11,6 +11,7 @@ import io.autoptu.core.model.MovementProfile;
 import io.autoptu.core.rules.ActionBudget;
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,6 +67,7 @@ class RuntimeAreaMoveTargetingTest {
                 new MoveSpec("Ranged", "Ranged", 6, 6, "Burst", 1, "Burst 1"),
                 ActionType.STANDARD,
                 false,
+                null,
                 "Scene x1"
         );
         RuntimeCombatantState actor = combatant("actor", 0, 2);
@@ -95,18 +97,20 @@ class RuntimeAreaMoveTargetingTest {
         List<RuntimeCombatantState> combatants = second == null
                 ? List.of(actor, first)
                 : List.of(actor, first, second);
+        LinkedHashMap<String, CombatantAffiliationState> affiliation = new LinkedHashMap<>();
+        affiliation.put(actor.combatantId(), CombatantAffiliationState.active("alpha"));
+        affiliation.put(first.combatantId(), CombatantAffiliationState.active("beta"));
+        if (second != null) {
+            affiliation.put(second.combatantId(), CombatantAffiliationState.active("beta"));
+        }
         return new BattleRuntimeState(
                 new MovementGrid(8, 8, Set.of(), Map.of()),
                 combatants,
                 Map.of(),
                 Map.of(),
                 Map.of(),
-                Map.of(
-                        "actor", CombatantAffiliationState.active("alpha"),
-                        "first", CombatantAffiliationState.active("beta"),
-                        second == null ? "target" : "second", CombatantAffiliationState.active("beta")
-                ),
-                Map.of("actor", List.of(move))
+                affiliation,
+                Map.of(actor.combatantId(), List.of(move))
         );
     }
 
