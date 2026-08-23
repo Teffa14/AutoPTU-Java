@@ -1,17 +1,23 @@
 package io.autoptu.core.hook;
 
+import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.rules.AbilityIdentityResolution;
 import io.autoptu.core.rules.CombatStageAbilityPreventionResolution;
 import io.autoptu.core.rules.Targeting;
+import io.autoptu.core.runtime.CombatStageMutationResult;
+import io.autoptu.core.runtime.CombatStageMutationService;
 import io.autoptu.core.runtime.RuntimeCombatantState;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
 /** Built-in pre-mutation Combat Stage blockers frozen from the pinned Python oracle. */
 public final class BuiltinCombatStagePreventionHooks {
+    static final String MIRROR_ARMOR_HOOK_ID = "ability.mirror-armor.pre-apply";
+
     private BuiltinCombatStagePreventionHooks() {}
 
     public static CombatStagePreventionHookRegistry registry() {
@@ -20,6 +26,8 @@ public final class BuiltinCombatStagePreventionHooks {
                         BuiltinCombatStagePreventionHooks::flowerVeilBlocksExternalDrop)
                 .register("ability.target-owned-stage-drop-prevention", HookSource.ABILITY, 20,
                         BuiltinCombatStagePreventionHooks::targetOwnedAbilityBlocksDrop)
+                .register(MIRROR_ARMOR_HOOK_ID, HookSource.ABILITY, 30,
+                        BuiltinCombatStagePreventionHooks::mirrorArmorReflectsExternalDrop)
                 .build();
     }
 
@@ -92,6 +100,42 @@ public final class BuiltinCombatStagePreventionHooks {
                 target.hp()
         );
         return CombatStagePreventionResult.block(List.of(event));
+    }
+
+    private static CombatStagePreventionResult mirrorArmorReflectsExternalDrop(CombatStagePreventionContext context) {
+        if (context.suppresses(MIRROR_ARMOR_HOOK_ID)) return CombatStagePreventionResult.allow();
+        if (context.requestedDelta() >= 0 || context.targetId().equals(context.attackerId())) {
+            return CombatStagePreventionResult.allow();
+        }
+        RuntimeCombatantState target = context.target();
+        if (target.abilitiesSuppressed()) return CombatStagePreventionResult.allow();
+        if (!AbilityIdentityResolution.matchesRegistration(target.abilities(), "Mirror Armor")) {
+            return CombatStagePreventionResult.allow();
+        }
+
+        RuleEffectEvent reflectEvent = new RuleEffectEvent(
+                "ability",
+                "Mirror Armor",
+                context.targetId(),
+                context.attackerId(),
+                context.moveId(),
+                "reflect",
+                context.requestedDelta(),
+                target.hp()
+        );
+        CombatStageMutationResult reflected = CombatStageMutationService.authoritative(context.state()).apply(
+                context.targetId(),
+                context.attackerId(),
+                "Mirror Armor",
+                context.stat(),
+                context.requestedDelta(),
+                "mirror_armor",
+                context.options().suppressing(MIRROR_ARMOR_HOOK_ID)
+        );
+        ArrayList<BattleEvent> events = new ArrayList<>();
+        events.add(reflectEvent);
+        events.addAll(reflected.events());
+        return CombatStagePreventionResult.block(events);
     }
 
     private static String normalize(String value) {
