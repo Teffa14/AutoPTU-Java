@@ -1,35 +1,42 @@
 package io.autoptu.core.hook;
 
 import io.autoptu.core.event.RuleEffectEvent;
-import io.autoptu.core.rules.AbilityIdentityResolution;
+import io.autoptu.core.rules.StatusAbilityPreventionResolution;
 import io.autoptu.core.runtime.RuntimeCombatantState;
 
 import java.util.List;
-import java.util.Locale;
+import java.util.Optional;
 
-/** First built-in status prevention hooks ported from the Python oracle. */
+/** Built-in target-owned ability gates for canonical status application. */
 public final class BuiltinStatusApplicationHooks {
     private BuiltinStatusApplicationHooks() {
     }
 
     public static StatusApplicationHookRegistry registry() {
         return StatusApplicationHookRegistry.builder()
-                .register("inner-focus-flinch", HookSource.ABILITY, 100, BuiltinStatusApplicationHooks::innerFocus)
+                .register(
+                        "target-ability-status-prevention",
+                        HookSource.ABILITY,
+                        100,
+                        BuiltinStatusApplicationHooks::targetAbilityPrevention
+                )
                 .build();
     }
 
-    private static StatusApplicationHookResult innerFocus(StatusApplicationContext context) {
-        String status = context.status().name().toLowerCase(Locale.ROOT);
-        if (!status.equals("flinch") && !status.equals("flinched")) {
-            return StatusApplicationHookResult.allow();
-        }
+    private static StatusApplicationHookResult targetAbilityPrevention(StatusApplicationContext context) {
         RuntimeCombatantState target = context.state().requireCombatant(context.targetId());
-        if (!AbilityIdentityResolution.matchesRegistration(target.abilities(), "Inner Focus")) {
+        Optional<String> blockingAbility = StatusAbilityPreventionResolution.blockingAbility(
+                target.abilities(),
+                context.status().name(),
+                target.abilitiesSuppressed()
+        );
+        if (blockingAbility.isEmpty()) {
             return StatusApplicationHookResult.allow();
         }
+
         RuleEffectEvent event = new RuleEffectEvent(
                 "ability",
-                "Inner Focus",
+                blockingAbility.orElseThrow(),
                 context.targetId(),
                 context.targetId(),
                 context.moveId(),
