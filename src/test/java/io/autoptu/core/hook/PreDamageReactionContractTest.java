@@ -96,7 +96,15 @@ final class PreDamageReactionContractTest {
                 "telepathy_cancels_hit",
                 "telepathy_zeroes_damage",
                 "telepathy_zeroes_type_multiplier",
-                "ability_registry_continues_after_hook"
+                "ability_registry_continues_after_hook",
+                "pre_damage_interrupt_only_runs_after_hit",
+                "ordinary_move_resolution_precedes_pre_damage_interrupt",
+                "pre_damage_interrupt_precedes_post_result",
+                "interrupt_result_replaces_result_before_post_result",
+                "shield_block_check_sits_between_pre_damage_and_post_result",
+                "interrupt_suppression_precedes_pre_damage_interrupt",
+                "post_result_precedes_attacker_item_damage_bonus",
+                "post_result_precedes_hp_mutation"
         )) {
             assertEquals(1, values.get(property), property);
         }
