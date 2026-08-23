@@ -2,11 +2,13 @@ package io.autoptu.core.hook;
 
 import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.rules.AbilityIdentityResolution;
+import io.autoptu.core.rules.CombatStageAbilityPreventionResolution;
 import io.autoptu.core.rules.Targeting;
 import io.autoptu.core.runtime.RuntimeCombatantState;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 /** Built-in pre-mutation Combat Stage blockers frozen from the pinned Python oracle. */
 public final class BuiltinCombatStagePreventionHooks {
@@ -16,6 +18,8 @@ public final class BuiltinCombatStagePreventionHooks {
         return CombatStagePreventionHookRegistry.builder()
                 .register("ability.flower-veil", HookSource.ABILITY, 10,
                         BuiltinCombatStagePreventionHooks::flowerVeilBlocksExternalDrop)
+                .register("ability.target-owned-stage-drop-prevention", HookSource.ABILITY, 20,
+                        BuiltinCombatStagePreventionHooks::targetOwnedAbilityBlocksDrop)
                 .build();
     }
 
@@ -58,6 +62,30 @@ public final class BuiltinCombatStagePreventionHooks {
                 abilityName,
                 holderId,
                 context.targetId(),
+                context.moveId(),
+                "combat_stage_block",
+                0,
+                target.hp()
+        );
+        return CombatStagePreventionResult.block(List.of(event));
+    }
+
+    private static CombatStagePreventionResult targetOwnedAbilityBlocksDrop(CombatStagePreventionContext context) {
+        RuntimeCombatantState target = context.target();
+        Optional<String> ability = CombatStageAbilityPreventionResolution.blockingAbility(
+                target.abilities(),
+                context.stat(),
+                context.requestedDelta(),
+                !context.targetId().equals(context.attackerId()),
+                target.abilitiesSuppressed()
+        );
+        if (ability.isEmpty()) return CombatStagePreventionResult.allow();
+
+        RuleEffectEvent event = new RuleEffectEvent(
+                "ability",
+                ability.orElseThrow(),
+                context.targetId(),
+                context.attackerId(),
                 context.moveId(),
                 "combat_stage_block",
                 0,
