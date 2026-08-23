@@ -114,7 +114,8 @@ public final class BattleRuntime {
         if (postDamageHooks == null) throw new IllegalArgumentException("postDamageHooks is required");
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
-                rng, input, preResolutionEvents, postDamageHooks, null, null, true
+                rng, input, preResolutionEvents, PRE_DAMAGE_REACTIONS,
+                postDamageHooks, null, null, true
         );
     }
 
@@ -136,7 +137,28 @@ public final class BattleRuntime {
         if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
-                rng, input, preResolutionEvents, null, postDamageHookRegistry, effectiveMetadata, true
+                rng, input, preResolutionEvents, PRE_DAMAGE_REACTIONS,
+                null, postDamageHookRegistry, effectiveMetadata, true
+        );
+    }
+
+    /** Runtime-package composition seam. Adapters use public authoritative boundaries. */
+    static AppliedActionResult applyAuthoritativeMove(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            PythonRandom rng, MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            PreDamageReactionHookRegistry preDamageHookRegistry,
+            PostDamageHookRegistry postDamageHookRegistry,
+            MoveCombatProfile effectiveMetadata
+    ) {
+        if (preDamageHookRegistry == null) throw new IllegalArgumentException("preDamageHookRegistry is required");
+        if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHookRegistry is required");
+        if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
+        return applyAuthoritativeMoveInternal(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
+                rng, input, preResolutionEvents, preDamageHookRegistry,
+                null, postDamageHookRegistry, effectiveMetadata, true
         );
     }
 
@@ -174,6 +196,7 @@ public final class BattleRuntime {
                 rng,
                 input,
                 preResolutionEvents,
+                PRE_DAMAGE_REACTIONS,
                 null,
                 postDamageHookRegistry,
                 effectiveMetadata,
@@ -186,6 +209,7 @@ public final class BattleRuntime {
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
             PythonRandom rng, MoveResolutionInput input,
             List<? extends BattleEvent> preResolutionEvents,
+            PreDamageReactionHookRegistry preDamageReactionHooks,
             PostDamageHookResult precomputedPostDamageHooks,
             PostDamageHookRegistry deferredPostDamageHooks,
             MoveCombatProfile effectiveMetadata,
@@ -193,6 +217,7 @@ public final class BattleRuntime {
     ) {
         if (rng == null) throw new IllegalArgumentException("rng is required");
         if (input == null) throw new IllegalArgumentException("input is required");
+        if (preDamageReactionHooks == null) throw new IllegalArgumentException("preDamageReactionHooks is required");
 
         if (spendOrdinaryMoveResources) {
             MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
@@ -222,7 +247,7 @@ public final class BattleRuntime {
                     move.spec(),
                     null
             );
-            PreDamageReactionResult reaction = PRE_DAMAGE_REACTIONS.resolve(
+            PreDamageReactionResult reaction = preDamageReactionHooks.resolve(
                     reactionContext,
                     PreDamageReactionResult.of(true, damage.damage(), input.typeMultiplier())
             );
