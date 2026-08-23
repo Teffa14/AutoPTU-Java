@@ -1,0 +1,25 @@
+name: Combat Stage Ability Prevention Diagnostic
+
+on:
+  pull_request:
+  push:
+    branches:
+      - port/combat-stage-ability-prevention-family
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Print pinned prevention window
+        run: |
+          python3 tools/python/diagnose_combat_stage_ability_prevention.py --source-root python-oracle
