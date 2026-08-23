@@ -28,6 +28,9 @@ final class ForcedMovementInstructionOracleParityTest {
     @Test
     void matchesPinnedPythonOracleWhenFixtureIsProvided() throws IOException {
         String fixturePath = System.getProperty("autoptu.forced.movement.instruction.oracle");
+        if (fixturePath == null || fixturePath.isBlank()) {
+            fixturePath = System.getenv("AUTOPTU_FORCED_MOVEMENT_INSTRUCTION_ORACLE");
+        }
         if (fixturePath == null || fixturePath.isBlank()) return;
 
         List<String> lines = Files.readAllLines(Path.of(fixturePath));
