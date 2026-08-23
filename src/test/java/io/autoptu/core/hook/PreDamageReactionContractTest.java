@@ -21,14 +21,31 @@ final class PreDamageReactionContractTest {
     @Test
     void defaultDecisionAllowsOptionalReactionAndBuildsPythonPayload() {
         OutOfTurnDecisionRequest request = OutOfTurnDecisionRequest.preDamageInterrupt(
-                "defender", "Telepathy", "Surf", "attacker", "defender", true
+                "defender", "Telepathy", "Surf", "Effective Surf",
+                "attacker", "defender", true
         );
 
         assertTrue(OutOfTurnDecisionGate.allowWhenUnconfigured().shouldTrigger(request));
         assertEquals("pre_damage_interrupt", request.phase());
         assertEquals("Surf", request.moveName());
-        assertEquals("Surf", request.triggerMoveName());
+        assertEquals("Effective Surf", request.triggerMoveName());
         assertTrue(request.optional());
+    }
+
+    @Test
+    void contextPreservesOriginalAndEffectiveMoveIdentityForDecisionGate() {
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(2, 2, Set.of(), Map.of()), List.of()
+        );
+        PreDamageReactionContext context = PreDamageReactionContext.of(
+                state, "attacker", "defender", "Surf", "Effective Surf", List.of()
+        );
+
+        OutOfTurnDecisionRequest request = context.decisionRequest("defender", "Telepathy", true);
+        assertEquals("Surf", request.moveName());
+        assertEquals("Effective Surf", request.triggerMoveName());
+        assertEquals("attacker", request.attackerId());
+        assertEquals("defender", request.defenderId());
     }
 
     @Test
