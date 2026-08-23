@@ -36,6 +36,7 @@ public final class RuntimeCombatantState {
     private int hp;
     private int tempHp;
     private boolean probabilityControl;
+    private boolean abilitiesSuppressed;
     private List<String> types = List.of();
     private List<AttackModifier> damageModifiers = List.of();
     private List<String> abilities = List.of();
@@ -355,6 +356,14 @@ public final class RuntimeCombatantState {
         return probabilityControl;
     }
 
+    /**
+     * Server-owned projection of Python's target-ability suppression gate.
+     * Action requests and Minecraft adapters cannot supply this value to status resolution.
+     */
+    public boolean abilitiesSuppressed() {
+        return abilitiesSuppressed;
+    }
+
     public List<String> types() {
         return types;
     }
@@ -382,6 +391,11 @@ public final class RuntimeCombatantState {
         }
         probabilityControl = false;
         return true;
+    }
+
+    /** Core-owned ability suppression mutation boundary for future ability/lifecycle resolvers. */
+    void setAbilitiesSuppressedFromRuntime(boolean abilitiesSuppressed) {
+        this.abilitiesSuppressed = abilitiesSuppressed;
     }
 
     void moveTo(GridCoord destination) {

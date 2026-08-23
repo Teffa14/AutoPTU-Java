@@ -42,6 +42,57 @@ class StatusApplicationResolutionTest {
     }
 
     @Test
+    void immunityBlocksPoisonBeforeCanonicalMutation() {
+        BattleRuntimeState state = state(List.of("Immunity"));
+
+        StatusApplicationResult result = StatusApplicationResolution.apply(
+                state, BuiltinStatusApplicationHooks.registry(), "source", "target",
+                new StatusEntry("Badly Poisoned"), "move", "Toxic", "toxic"
+        );
+
+        assertFalse(result.applied());
+        assertFalse(state.hasStatus("target", "badly poisoned"));
+        RuleEffectEvent event = (RuleEffectEvent) result.events().getFirst();
+        assertEquals("Immunity", event.sourceName());
+        assertEquals("status_block", event.effect());
+    }
+
+    @Test
+    void insomniaAndVitalSpiritBlockSleep() {
+        for (String ability : List.of("Insomnia", "Vital Spirit")) {
+            BattleRuntimeState state = state(List.of(ability));
+            StatusApplicationResult result = StatusApplicationResolution.apply(
+                    state, BuiltinStatusApplicationHooks.registry(), "source", "target",
+                    new StatusEntry("Asleep"), "move", "Hypnosis", "hypnosis"
+            );
+
+            assertFalse(result.applied(), ability);
+            assertFalse(state.hasStatus("target", "asleep"), ability);
+            RuleEffectEvent event = (RuleEffectEvent) result.events().getFirst();
+            assertEquals(ability, event.sourceName());
+        }
+    }
+
+    @Test
+    void canonicalSuppressionDisablesAbilityPrevention() {
+        BattleRuntimeState state = state(List.of("Immunity"));
+        RuntimeCombatantState target = state.requireCombatant("target");
+        assertFalse(target.abilitiesSuppressed());
+        target.setAbilitiesSuppressedFromRuntime(true);
+
+        StatusEntry poisoned = new StatusEntry("Poisoned");
+        StatusApplicationResult result = StatusApplicationResolution.apply(
+                state, BuiltinStatusApplicationHooks.registry(), "source", "target", poisoned,
+                "move", "Poison Powder", "poison-powder"
+        );
+
+        assertTrue(target.abilitiesSuppressed());
+        assertTrue(result.applied());
+        assertEquals(poisoned, state.statusEntry("target", "poisoned").orElseThrow());
+        assertTrue(result.events().isEmpty());
+    }
+
+    @Test
     void unrelatedStatusStillAppliesWithInnerFocus() {
         BattleRuntimeState state = state(List.of("Inner Focus"));
         StatusEntry burned = new StatusEntry("Burned", Map.of("source", "ember"));
