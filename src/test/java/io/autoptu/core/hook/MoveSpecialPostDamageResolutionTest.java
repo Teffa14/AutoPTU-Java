@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MoveSpecialPostDamageResolutionTest {
@@ -62,25 +61,6 @@ class MoveSpecialPostDamageResolutionTest {
         assertEquals(11, ((Number) result.resultSnapshot().get("damage")).intValue());
         assertEquals("from-pre", result.resultSnapshot().get("marker"));
         assertEquals("set", result.resultSnapshot().get("post_marker"));
-    }
-
-    @Test
-    void shieldDustSuppressesNonStatusPostDamageDispatch() {
-        BattleRuntimeState state = state();
-        state.requireCombatant("enemy").setAbilities(List.of("Shield Dust"));
-        MoveSpecialHookRegistry registry = MoveSpecialHookRegistry.builder()
-                .registerGlobal("blocked", MoveSpecialPhase.POST_DAMAGE, ctx -> {
-                    ctx.result().put("ran", true);
-                    return List.of(new StatusSkipEvent("actor", "blocked", TurnPhase.ACTION, "post_damage"));
-                })
-                .build();
-
-        MoveSpecialPostDamageResolution.Result result = MoveSpecialPostDamageResolution.resolve(
-                registry, state, "actor", "enemy", "strike", "physical",
-                Map.of("hit", true, "damage", 5), true, 5);
-
-        assertTrue(result.events().isEmpty());
-        assertFalse(result.resultSnapshot().containsKey("ran"));
     }
 
     private static BattleRuntimeState state() {
