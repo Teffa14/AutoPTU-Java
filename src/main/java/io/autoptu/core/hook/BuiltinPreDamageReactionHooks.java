@@ -21,6 +21,8 @@ public final class BuiltinPreDamageReactionHooks {
         return PreDamageReactionHookRegistry.builder()
                 .register("perception-area-escape", HookSource.ABILITY, 90,
                         BuiltinPreDamageReactionHooks::perception)
+                .register("perception-errata-area-escape", HookSource.ABILITY, 95,
+                        BuiltinPreDamageReactionHooks::perceptionErrata)
                 .register("telepathy-area-escape", HookSource.ABILITY, 100,
                         BuiltinPreDamageReactionHooks::telepathy)
                 .build();
@@ -97,6 +99,57 @@ public final class BuiltinPreDamageReactionHooks {
                 context.attackerId(),
                 context.moveName(),
                 "shift",
+                0.0,
+                defender.hp()
+        );
+        return current.cancelHit(List.of(event));
+    }
+
+    /**
+     * Python Perception [Errata] parity for allied damaging area attacks.
+     *
+     * <p>The errata variant is exact-name only, never uses Perception readiness/usage
+     * bookkeeping, and only reacts to a different allied attacker. If the defender is inside
+     * the incoming threatened area, it may disengage at most one tile to a safe legal Shift
+     * destination. A successful disengage preserves the normal SHIFT bucket, emits the ability
+     * event, and cancels the incoming hit.</p>
+     */
+    private static PreDamageReactionResult perceptionErrata(
+            PreDamageReactionContext context,
+            PreDamageReactionResult current
+    ) {
+        BattleRuntimeState state = context.state();
+        RuntimeCombatantState attacker = state.requireCombatant(context.attackerId());
+        RuntimeCombatantState defender = state.requireCombatant(context.defenderId());
+
+        if (AbilityIdentityResolution.matchesRegistration(attacker.abilities(), "Mold Breaker")) return current;
+        if (defender.abilitiesSuppressed()) return current;
+        if (!AbilityIdentityResolution.matchesExact(defender.abilities(), "Perception [Errata]")) return current;
+        if (context.attackerId().equals(context.defenderId())) return current;
+        if (!state.teamId(context.attackerId()).equals(state.teamId(context.defenderId()))) return current;
+
+        GridCoord origin = defender.position();
+        if (context.threatenedTiles().isEmpty() || !context.threatenedTiles().contains(origin)) {
+            return current;
+        }
+
+        AppliedActionResult movement = ReactionMovementApplication.escapeThreatenedArea(
+                state,
+                context.defenderId(),
+                context.threatenedTiles(),
+                1
+        );
+        if (movement.events().isEmpty() || defender.position().equals(origin)) {
+            return current;
+        }
+
+        RuleEffectEvent event = new RuleEffectEvent(
+                "ability",
+                "Perception [Errata]",
+                context.defenderId(),
+                context.attackerId(),
+                context.moveName(),
+                "disengage",
                 0.0,
                 defender.hp()
         );

@@ -52,6 +52,7 @@ def main() -> None:
 
     allow = segment(interrupt_text, function(interrupt_tree, "_allow_out_of_turn"))
     perception = segment(interrupt_text, function(interrupt_tree, "_perception_interrupt"))
+    perception_errata = segment(interrupt_text, function(interrupt_tree, "_perception_errata_interrupt"))
     telepathy = segment(interrupt_text, function(interrupt_tree, "_telepathy_interrupt"))
     apply_hooks = segment(registry_text, function(registry_tree, "apply_ability_hooks"))
     resolve_targets_fn = function(battle_tree, "resolve_move_targets")
@@ -114,6 +115,29 @@ def main() -> None:
         "perception_zeroes_damage": int('ctx.result["damage"] = 0' in perception),
         "perception_zeroes_type_multiplier": int(
             'ctx.result["type_multiplier"] = 0.0' in perception
+        ),
+        "perception_errata_requires_exact_variant": int(
+            'has_ability_exact(ctx.defender, "Perception [Errata]")' in perception_errata
+        ),
+        "perception_errata_requires_distinct_attacker": int(
+            'ctx.attacker_id == ctx.defender_id' in perception_errata
+        ),
+        "perception_errata_requires_allied_attacker": int(
+            'ctx.battle._team_for(ctx.attacker_id) != ctx.battle._team_for(ctx.defender_id)' in perception_errata
+        ),
+        "perception_errata_rejects_status_moves": int(
+            '(ctx.effective_move.category or "").strip().lower() == "status"' in perception_errata
+        ),
+        "perception_errata_limits_escape_to_one": int(
+            'targeting.chebyshev_distance(ctx.defender.position, coord) <= 1' in perception_errata
+        ),
+        "perception_errata_has_no_ready_usage_bookkeeping": int(
+            "perception_ready" not in perception_errata and "perception_used" not in perception_errata
+        ),
+        "perception_errata_cancels_hit": int('ctx.result["hit"] = False' in perception_errata),
+        "perception_errata_zeroes_damage": int('ctx.result["damage"] = 0' in perception_errata),
+        "perception_errata_zeroes_type_multiplier": int(
+            'ctx.result["type_multiplier"] = 0.0' in perception_errata
         ),
         "telepathy_uses_optional_decision": int(
             '_allow_out_of_turn(ctx, ctx.defender_id, "Telepathy", optional=True)' in telepathy
