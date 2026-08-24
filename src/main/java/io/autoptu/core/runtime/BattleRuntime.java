@@ -297,7 +297,7 @@ public final class BattleRuntime {
         DamageResult damage = accuracy.hit() ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit())) : null;
         double typeMultiplier = input.typeMultiplier();
         List<? extends BattleEvent> moveSpecialPreDamageEvents = List.of();
-        if (accuracy.hit() && damage != null) {
+        if (!moveSpecialHookRegistry.isEmpty() && accuracy.hit() && damage != null) {
             MoveCombatProfile specialMetadata = effectiveMetadata == null ? move.requireCombatProfile() : effectiveMetadata;
             MoveSpecialPreDamageResolution.Result special = MoveSpecialPreDamageResolution.resolve(
                     moveSpecialHookRegistry,
