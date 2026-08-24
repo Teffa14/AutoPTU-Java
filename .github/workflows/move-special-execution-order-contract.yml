@@ -18,7 +18,17 @@ jobs:
           ref: 16d228efa63aabecb67fa788959a359aac7f8f03
           path: python-oracle
 
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
       - name: Inspect move-special execution order
         env:
           AUTOPTU_PYTHON_ROOT: ${{ github.workspace }}/python-oracle
         run: python3 tools/python/export_move_special_execution_order_contract.py
+
+      - name: Test PRE-damage move-special bridge
+        run: gradle test --tests io.autoptu.core.hook.MoveSpecialPreDamageResolutionTest
