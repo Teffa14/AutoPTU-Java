@@ -35,18 +35,20 @@ def main() -> None:
     if post_marker not in handle:
         raise RuntimeError("missing post_damage dispatch branch")
     post_block, other_block = handle.split(post_marker, 1)[1].split("else:", 1)
-    post_specific = post_block.find("phase_handlers")
-    post_global = post_block.find("_GLOBAL_MOVE_SPECIAL_HANDLERS")
-    other_global = other_block.find("_GLOBAL_MOVE_SPECIAL_HANDLERS")
-    other_specific = other_block.find("phase_handlers")
+    specific_expr = "_MOVE_SPECIAL_HANDLERS.get(move_name, {}).get(resolved_phase, [])"
+    global_expr = "_GLOBAL_MOVE_SPECIAL_HANDLERS.get(resolved_phase, [])"
+    post_specific = post_block.find(specific_expr)
+    post_global = post_block.find(global_expr)
+    other_global = other_block.find(global_expr)
+    other_specific = other_block.find(specific_expr)
     post_specific_before_global = 0 <= post_specific < post_global
     other_global_before_specific = 0 <= other_global < other_specific
 
     shield_dust_guard = 'has_ability("Shield Dust")' in handle
-    shield_non_status = 'str(ctx.move.category or "").strip().lower() != "status"' in handle
+    shield_non_status = '(move.category or "").strip().lower() != "status"' in handle
     shield_post_damage = 'resolved_phase in {"post_damage", "post_result"}' in handle
-    shield_returns_empty = "return []" in handle
-    shield_skips_non_status = all((shield_dust_guard, shield_non_status, shield_post_damage, shield_returns_empty))
+    shield_returns_events = "return events" in handle
+    shield_skips_non_status = all((shield_dust_guard, shield_non_status, shield_post_damage, shield_returns_events))
     shield_allows_status = shield_skips_non_status and shield_non_status
 
     values = [
