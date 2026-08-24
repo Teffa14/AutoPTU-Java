@@ -18,9 +18,90 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class BuiltinPreDamageReactionHooksTest {
+    @Test
+    void perceptionConsumesReadyMovesAndRecordsRoundScopedUsage() {
+        RuntimeCombatantState attacker = combatant("attacker", new GridCoord(0, 0), 2, List.of());
+        RuntimeCombatantState defender = combatant("defender", new GridCoord(1, 1), 3, List.of("Perception"));
+        defender.temporaryEffects().add("perception_ready");
+        BattleRuntimeState state = state(attacker, defender, "B", "A");
+        GridCoord origin = defender.position();
+
+        PreDamageReactionResult result = BuiltinPreDamageReactionHooks.registry().resolve(
+                PreDamageReactionContext.of(
+                        state,
+                        "attacker",
+                        "defender",
+                        "Oracle Area Move",
+                        List.of(new GridCoord(1, 1), new GridCoord(2, 1))
+                ),
+                PreDamageReactionResult.of(true, 9, 1.0)
+        );
+
+        assertFalse(result.hit());
+        assertEquals(0, result.damage());
+        assertNotEquals(origin, defender.position());
+        assertFalse(defender.temporaryEffects().has("perception_ready"));
+        assertEquals(1, defender.temporaryEffects().count("perception_used"));
+        assertEquals(1, defender.temporaryEffects().getAll("perception_used").getFirst().payload().get("expires_round"));
+        assertTrue(defender.actionBudget().hasActionAvailable(ActionType.SHIFT));
+        RuleEffectEvent event = (RuleEffectEvent) result.events().getFirst();
+        assertEquals("Perception", event.sourceName());
+        assertEquals("shift", event.effect());
+    }
+
+    @Test
+    void rejectedFirstPerceptionDecisionPreservesReadiness() {
+        RuntimeCombatantState attacker = combatant("attacker", new GridCoord(0, 0), 2, List.of());
+        RuntimeCombatantState defender = combatant("defender", new GridCoord(1, 1), 3, List.of("Perception"));
+        defender.temporaryEffects().add("perception_ready");
+        BattleRuntimeState state = state(attacker, defender, "B", "A");
+
+        PreDamageReactionContext context = new PreDamageReactionContext(
+                state,
+                "attacker",
+                "defender",
+                "Original Move",
+                "Effective Move",
+                List.of(new GridCoord(1, 1)),
+                request -> !request.label().equals("Perception")
+        );
+        PreDamageReactionResult result = BuiltinPreDamageReactionHooks.registry().resolve(
+                context,
+                PreDamageReactionResult.of(true, 9, 1.0)
+        );
+
+        assertTrue(result.hit());
+        assertTrue(defender.temporaryEffects().has("perception_ready"));
+        assertEquals(new GridCoord(1, 1), defender.position());
+        assertTrue(result.events().isEmpty());
+    }
+
+    @Test
+    void activePerceptionUsageBlocksAfterReadinessWasAcceptedAndConsumed() {
+        RuntimeCombatantState attacker = combatant("attacker", new GridCoord(0, 0), 2, List.of());
+        RuntimeCombatantState defender = combatant("defender", new GridCoord(1, 1), 3, List.of("Perception"));
+        defender.temporaryEffects().add("perception_ready");
+        defender.temporaryEffects().add("perception_used", Map.of("expires_round", 1));
+        BattleRuntimeState state = state(attacker, defender, "B", "A");
+
+        PreDamageReactionResult result = BuiltinPreDamageReactionHooks.registry().resolve(
+                PreDamageReactionContext.of(
+                        state, "attacker", "defender", "Area", List.of(new GridCoord(1, 1))
+                ),
+                PreDamageReactionResult.of(true, 9, 1.0)
+        );
+
+        assertTrue(result.hit());
+        assertFalse(defender.temporaryEffects().has("perception_ready"));
+        assertEquals(1, defender.temporaryEffects().count("perception_used"));
+        assertEquals(new GridCoord(1, 1), defender.position());
+        assertTrue(result.events().isEmpty());
+    }
+
     @Test
     void telepathyMovesAlliedDefenderAndCancelsIncomingAreaHit() {
         RuntimeCombatantState attacker = combatant("attacker", new GridCoord(0, 0), 2, List.of());
