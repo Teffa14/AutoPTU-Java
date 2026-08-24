@@ -49,7 +49,7 @@ class BattleRuntimeMoveSpecialPreDamagePipelineTest {
         MoveSpecialHookRegistry moveSpecials = MoveSpecialHookRegistry.builder()
                 .registerGlobal("set-damage", MoveSpecialPhase.PRE_DAMAGE, context -> {
                     assertTrue(context.hit());
-                    assertTrue(context.result().damage() > 0);
+                    assertTrue(((Number) context.result().get("damage")).intValue() > 0);
                     context.result().put("damage", 3);
                     context.result().put("type_multiplier", 0.5d);
                     return List.of(new RuleEffectEvent(
@@ -114,7 +114,7 @@ class BattleRuntimeMoveSpecialPreDamagePipelineTest {
         assertEquals(3, resolved.damage());
         assertEquals(97, resolved.targetHp());
         assertEquals(97, target.hp());
-        assertEquals(3, state.damageHistory().damageReceivedThisRound().get("target"));
+        assertEquals(3, state.damageHistory().damageReceivedThisRound().get("target").intValue());
         assertFalse(actor.actionBudget().hasActionAvailable(ActionType.STANDARD));
         assertTrue(target.actionBudget().hasActionAvailable(ActionType.SHIFT));
     }
