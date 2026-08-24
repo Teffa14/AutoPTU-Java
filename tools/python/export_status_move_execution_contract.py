@@ -31,22 +31,6 @@ def dict_values(node: ast.Return) -> dict[str, ast.AST]:
     return result
 
 
-def status_return(resolve_move_action: ast.FunctionDef) -> ast.Return:
-    required_keys = {"hit", "crit", "damage", "damage_roll"}
-    for node in ast.walk(resolve_move_action):
-        if not isinstance(node, ast.If):
-            continue
-        test = ast.unparse(node.test).lower()
-        if "move.category.lower()" not in test or "status" not in test:
-            continue
-        for statement in node.body:
-            if not isinstance(statement, ast.Return) or not isinstance(statement.value, ast.Dict):
-                continue
-            if required_keys.issubset(dict_values(statement)):
-                return statement
-    raise AssertionError("Could not locate Status result return in resolve_move_action")
-
-
 def is_literal(node: ast.AST | None, expected: object) -> bool:
     return isinstance(node, ast.Constant) and node.value == expected
 
@@ -66,6 +50,28 @@ def hit_uses_accuracy(node: ast.AST | None) -> bool:
         return False
     key = inner.args[0]
     return isinstance(key, ast.Constant) and key.value == "hit"
+
+
+def status_return(resolve_move_action: ast.FunctionDef) -> ast.Return:
+    """Locate the exact zero-damage Status return instead of the first Status-related branch."""
+    for node in ast.walk(resolve_move_action):
+        if not isinstance(node, ast.If):
+            continue
+        test = ast.unparse(node.test).lower()
+        if "move.category.lower()" not in test or "status" not in test:
+            continue
+        for statement in ast.walk(node):
+            if not isinstance(statement, ast.Return) or not isinstance(statement.value, ast.Dict):
+                continue
+            values = dict_values(statement)
+            if (
+                hit_uses_accuracy(values.get("hit"))
+                and is_literal(values.get("crit"), False)
+                and is_literal(values.get("damage"), 0)
+                and is_literal(values.get("damage_roll"), 0)
+            ):
+                return statement
+    raise AssertionError("Could not locate zero-damage Status result return in resolve_move_action")
 
 
 def main() -> int:
