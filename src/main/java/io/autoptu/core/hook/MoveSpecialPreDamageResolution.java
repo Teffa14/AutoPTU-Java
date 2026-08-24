@@ -3,6 +3,7 @@ package io.autoptu.core.hook;
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.runtime.BattleRuntimeState;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,7 +96,8 @@ public final class MoveSpecialPreDamageResolution {
     ) {
         public Result {
             events = List.copyOf(events == null ? List.of() : events);
-            resultSnapshot = Map.copyOf(resultSnapshot == null ? Map.of() : resultSnapshot);
+            resultSnapshot = Collections.unmodifiableMap(new LinkedHashMap<>(
+                    resultSnapshot == null ? Map.of() : resultSnapshot));
         }
     }
 }
