@@ -16,6 +16,32 @@ def function_source(source: str, tree: ast.Module, name: str) -> str:
     raise RuntimeError(f"missing function: {name}")
 
 
+def call_name(node: ast.Call) -> str:
+    func = node.func
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return ""
+
+
+def keyword_value(node: ast.Call, name: str) -> ast.expr | None:
+    for keyword in node.keywords:
+        if keyword.arg == name:
+            return keyword.value
+    return None
+
+
+def constant_string(node: ast.expr | None) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    return None
+
+
+def name_value(node: ast.expr | None) -> str | None:
+    return node.id if isinstance(node, ast.Name) else None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True)
@@ -32,16 +58,40 @@ def main() -> None:
 
     handle = function_source(specials_source, specials_tree, "handle_move_specials")
     resolve_targets = function_source(battle_source, battle_tree, "resolve_move_targets")
+    resolve_tree = ast.parse(resolve_targets)
 
     context_has_damage_dealt = "damage_dealt: int" in specials_source
     context_forwards_damage_dealt = "damage_dealt=damage_dealt" in handle
-    post_marker = 'phase="post_damage"'
-    post_index = resolve_targets.find(post_marker)
-    post_passes_applied_damage = post_index >= 0 and "damage_dealt=damage" in resolve_targets[max(0, post_index - 800):post_index + 400]
 
-    damage_apply_index = resolve_targets.find("_apply_damage_with_injury_rules")
-    history_index = resolve_targets.find("_record_damage_exchange", damage_apply_index if damage_apply_index >= 0 else 0)
-    post_after_hp_and_history = damage_apply_index >= 0 and history_index >= 0 and post_index > history_index
+    post_call: ast.Call | None = None
+    for node in ast.walk(resolve_tree):
+        if not isinstance(node, ast.Call) or call_name(node) != "handle_move_specials":
+            continue
+        if constant_string(keyword_value(node, "phase")) != "post_damage":
+            continue
+        if name_value(keyword_value(node, "damage_dealt")) == "damage":
+            post_call = node
+            break
+
+    post_passes_applied_damage = post_call is not None
+
+    damage_apply_line = -1
+    history_line = -1
+    for node in ast.walk(resolve_tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if call_name(node) == "_apply_damage_with_injury_rules" and damage_apply_line < 0:
+            damage_apply_line = node.lineno
+        if call_name(node) == "_record_damage_exchange" and history_line < 0:
+            history_line = node.lineno
+
+    post_after_hp_and_history = (
+        post_call is not None
+        and damage_apply_line >= 0
+        and history_line >= 0
+        and post_call.lineno > damage_apply_line
+        and post_call.lineno > history_line
+    )
 
     values = [
         context_has_damage_dealt,
