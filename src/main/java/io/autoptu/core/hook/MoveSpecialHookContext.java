@@ -13,6 +13,7 @@ public record MoveSpecialHookContext(
         String defenderId,
         String moveName,
         String moveCategory,
+        MoveSpecialResultState result,
         boolean hit,
         MoveSpecialPhase phase
 ) {
@@ -24,7 +25,35 @@ public record MoveSpecialHookContext(
         if (!defenderId.isEmpty()) state.requireCombatant(defenderId);
         moveName = moveName == null ? "" : moveName.strip().toLowerCase(Locale.ROOT);
         moveCategory = moveCategory == null ? "" : moveCategory.strip().toLowerCase(Locale.ROOT);
+        result = Objects.requireNonNull(result, "result");
         phase = phase == null ? MoveSpecialPhase.POST_DAMAGE : phase;
+    }
+
+    /** Compatibility constructor for hooks that only need the dispatch-start hit snapshot. */
+    public MoveSpecialHookContext(
+            BattleRuntimeState state,
+            String attackerId,
+            String defenderId,
+            String moveName,
+            String moveCategory,
+            boolean hit,
+            MoveSpecialPhase phase
+    ) {
+        this(state, attackerId, defenderId, moveName, moveCategory,
+                MoveSpecialResultState.withHit(hit), hit, phase);
+    }
+
+    /** Python-compatible constructor: hit is snapshotted before handlers mutate the shared result. */
+    public MoveSpecialHookContext(
+            BattleRuntimeState state,
+            String attackerId,
+            String defenderId,
+            String moveName,
+            String moveCategory,
+            MoveSpecialResultState result,
+            MoveSpecialPhase phase
+    ) {
+        this(state, attackerId, defenderId, moveName, moveCategory, result, result.hit(), phase);
     }
 
     public RuntimeCombatantState attacker() {
