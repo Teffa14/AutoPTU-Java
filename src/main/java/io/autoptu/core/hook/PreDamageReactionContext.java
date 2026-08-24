@@ -13,6 +13,7 @@ public record PreDamageReactionContext(
         String defenderId,
         String moveName,
         String effectiveMoveName,
+        String effectiveTargetKind,
         List<GridCoord> threatenedTiles,
         OutOfTurnDecisionGate outOfTurnDecision
 ) {
@@ -22,10 +23,24 @@ public record PreDamageReactionContext(
         defenderId = require(defenderId, "defenderId");
         moveName = normalize(moveName);
         effectiveMoveName = normalize(effectiveMoveName);
+        effectiveTargetKind = normalize(effectiveTargetKind).toLowerCase(java.util.Locale.ROOT);
         threatenedTiles = threatenedTiles == null ? List.of() : List.copyOf(threatenedTiles);
         outOfTurnDecision = outOfTurnDecision == null
                 ? OutOfTurnDecisionGate.allowWhenUnconfigured()
                 : outOfTurnDecision;
+    }
+
+    /** Backwards-compatible constructor for callers that do not yet need target-kind semantics. */
+    public PreDamageReactionContext(
+            BattleRuntimeState state,
+            String attackerId,
+            String defenderId,
+            String moveName,
+            String effectiveMoveName,
+            List<GridCoord> threatenedTiles,
+            OutOfTurnDecisionGate outOfTurnDecision
+    ) {
+        this(state, attackerId, defenderId, moveName, effectiveMoveName, "", threatenedTiles, outOfTurnDecision);
     }
 
     public static PreDamageReactionContext of(
@@ -47,7 +62,23 @@ public record PreDamageReactionContext(
             Collection<GridCoord> threatenedTiles
     ) {
         return new PreDamageReactionContext(
-                state, attackerId, defenderId, moveName, effectiveMoveName,
+                state, attackerId, defenderId, moveName, effectiveMoveName, "",
+                threatenedTiles == null ? List.of() : List.copyOf(threatenedTiles),
+                OutOfTurnDecisionGate.allowWhenUnconfigured()
+        );
+    }
+
+    public static PreDamageReactionContext of(
+            BattleRuntimeState state,
+            String attackerId,
+            String defenderId,
+            String moveName,
+            String effectiveMoveName,
+            String effectiveTargetKind,
+            Collection<GridCoord> threatenedTiles
+    ) {
+        return new PreDamageReactionContext(
+                state, attackerId, defenderId, moveName, effectiveMoveName, effectiveTargetKind,
                 threatenedTiles == null ? List.of() : List.copyOf(threatenedTiles),
                 OutOfTurnDecisionGate.allowWhenUnconfigured()
         );

@@ -23,23 +23,13 @@ public final class BuiltinPreDamageReactionHooks {
                         BuiltinPreDamageReactionHooks::perception)
                 .register("perception-errata-area-escape", HookSource.ABILITY, 95,
                         BuiltinPreDamageReactionHooks::perceptionErrata)
+                .register("parry-melee-avoid", HookSource.ABILITY, 97,
+                        BuiltinPreDamageReactionHooks::parry)
                 .register("telepathy-area-escape", HookSource.ABILITY, 100,
                         BuiltinPreDamageReactionHooks::telepathy)
                 .build();
     }
 
-    /**
-     * Python Perception parity for the reusable PRE-damage boundary.
-     *
-     * <p>Perception requires a server-owned {@code perception_ready} temporary effect.
-     * The first optional decision happens before that readiness is consumed. Once accepted,
-     * readiness is consumed even if later geometry/cooldown checks prevent movement. A
-     * non-expired {@code perception_used} entry blocks the reaction; expired entries are
-     * removed in Python snapshot order. If the second optional decision is accepted and a
-     * safe tile exists, the defender shifts without spending its normal SHIFT, records
-     * {@code perception_used(expires_round=currentRound+1)}, emits the ability event, and
-     * cancels the incoming hit.</p>
-     */
     private static PreDamageReactionResult perception(
             PreDamageReactionContext context,
             PreDamageReactionResult current
@@ -105,15 +95,6 @@ public final class BuiltinPreDamageReactionHooks {
         return current.cancelHit(List.of(event));
     }
 
-    /**
-     * Python Perception [Errata] parity for allied damaging area attacks.
-     *
-     * <p>The errata variant is exact-name only, never uses Perception readiness/usage
-     * bookkeeping, and only reacts to a different allied attacker. If the defender is inside
-     * the incoming threatened area, it may disengage at most one tile to a safe legal Shift
-     * destination. A successful disengage preserves the normal SHIFT bucket, emits the ability
-     * event, and cancels the incoming hit.</p>
-     */
     private static PreDamageReactionResult perceptionErrata(
             PreDamageReactionContext context,
             PreDamageReactionResult current
@@ -156,15 +137,48 @@ public final class BuiltinPreDamageReactionHooks {
         return current.cancelHit(List.of(event));
     }
 
-    /**
-     * Python Telepathy parity for the reusable PRE-damage boundary.
-     *
-     * <p>The Python ability registry suppresses defender-owned hooks when the defender's
-     * abilities are suppressed or when the attacker has Mold Breaker. Telepathy then
-     * requires an allied attacker, asks the optional out-of-turn decision gate, requires
-     * the defender to be inside the threatened area, shifts to the farthest legal safe
-     * tile, emits the ability event, and cancels hit/damage/type effectiveness.</p>
-     */
+    /** Python Parry parity for melee PRE-damage avoidance. */
+    private static PreDamageReactionResult parry(
+            PreDamageReactionContext context,
+            PreDamageReactionResult current
+    ) {
+        BattleRuntimeState state = context.state();
+        RuntimeCombatantState attacker = state.requireCombatant(context.attackerId());
+        RuntimeCombatantState defender = state.requireCombatant(context.defenderId());
+
+        if (AbilityIdentityResolution.matchesRegistration(attacker.abilities(), "Mold Breaker")) return current;
+        if (defender.abilitiesSuppressed()) return current;
+        if (!AbilityIdentityResolution.matchesRegistration(defender.abilities(), "Parry")) return current;
+        if (!defender.temporaryEffects().has("parry_ready")) return current;
+
+        if (!context.outOfTurnDecision().shouldTrigger(
+                context.decisionRequest(context.defenderId(), "Parry", true))) {
+            return current;
+        }
+        defender.temporaryEffects().removeFirst("parry_ready");
+
+        if (!context.effectiveTargetKind().equals("melee")) return current;
+
+        for (TemporaryEffectEntry entry : defender.temporaryEffects().getAll("parry_used")) {
+            Object round = entry.payload().get("round");
+            if (round != null && intLike(round) == state.currentRound()) return current;
+            defender.temporaryEffects().removeFirst("parry_used");
+        }
+        defender.temporaryEffects().add("parry_used", Map.of("round", state.currentRound()));
+
+        RuleEffectEvent event = new RuleEffectEvent(
+                "ability",
+                "Parry",
+                context.defenderId(),
+                context.attackerId(),
+                context.moveName(),
+                "avoid",
+                0.0,
+                defender.hp()
+        );
+        return current.cancelHit(List.of(event));
+    }
+
     private static PreDamageReactionResult telepathy(
             PreDamageReactionContext context,
             PreDamageReactionResult current
