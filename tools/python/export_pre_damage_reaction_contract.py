@@ -55,6 +55,7 @@ def main() -> None:
     perception_errata = segment(interrupt_text, function(interrupt_tree, "_perception_errata_interrupt"))
     parry = segment(interrupt_text, function(interrupt_tree, "_parry_interrupt"))
     telepathy = segment(interrupt_text, function(interrupt_tree, "_telepathy_interrupt"))
+    sway = segment(interrupt_text, function(interrupt_tree, "_sway_interrupt"))
     apply_hooks = segment(registry_text, function(registry_tree, "apply_ability_hooks"))
     resolve_targets_fn = function(battle_tree, "resolve_move_targets")
     resolve_targets = segment(battle_text, resolve_targets_fn)
@@ -87,6 +88,22 @@ def main() -> None:
     parry_melee_check = parry.find('targeting.normalized_target_kind(ctx.effective_move) != "melee"')
     parry_used_check = parry.find('get_temporary_effects("parry_used")')
     parry_add_used = parry.find('add_temporary_effect("parry_used", round=ctx.battle.round)')
+
+    sway_redirect_guard = sway.find('ctx.attacker.get_temporary_effects("sway_redirect")')
+    sway_melee_guard = sway.find('targeting.normalized_target_kind(ctx.effective_move) != "melee"')
+    sway_status_guard = sway.find('(ctx.effective_move.category or "").strip().lower() == "status"')
+    sway_used_check = sway.find('get_temporary_effects("sway_used")')
+    sway_standard_check = sway.find('has_action_available(ActionType.STANDARD)')
+    sway_decision = sway.find('_allow_out_of_turn(ctx, ctx.defender_id, "Sway", optional=True)')
+    sway_mark_standard = sway.find('mark_action(ActionType.STANDARD, "Sway")')
+    sway_add_redirect = sway.find('add_temporary_effect("sway_redirect", expires_round=ctx.battle.round)')
+    sway_redirect_event = sway.find('"effect": "redirect"')
+    sway_recursive_resolution = sway.find('ctx.battle.resolve_move_targets(')
+    sway_remove_redirect = sway.find('remove_temporary_effect("sway_redirect")')
+    sway_push_candidates = sway.find('for coord in (')
+    sway_sorted_destination = sway.find('destination = sorted(candidates)[0]')
+    sway_push_event = sway.find('"effect": "push"')
+    sway_cancel_hit = sway.find('ctx.result["hit"] = False')
 
     required_payload = (
         '"actor_id": actor_id',
@@ -151,6 +168,60 @@ def main() -> None:
         "telepathy_cancels_hit": int('ctx.result["hit"] = False' in telepathy),
         "telepathy_zeroes_damage": int('ctx.result["damage"] = 0' in telepathy),
         "telepathy_zeroes_type_multiplier": int('ctx.result["type_multiplier"] = 0.0' in telepathy),
+        "sway_rejects_recursive_redirect": int(sway_redirect_guard >= 0),
+        "sway_requires_melee_non_status": int(
+            sway_melee_guard > sway_redirect_guard and sway_status_guard > sway_melee_guard
+        ),
+        "sway_checks_single_use_before_standard": int(
+            sway_used_check > sway_status_guard and sway_standard_check > sway_used_check
+        ),
+        "sway_decides_before_spending_standard": int(
+            sway_decision > sway_standard_check and sway_mark_standard > sway_decision
+        ),
+        "sway_records_usage_after_spending_standard": int(
+            'add_temporary_effect("sway_used", count=1)' in sway
+            and 'used_entry["count"] = used_count + 1' in sway
+            and sway.find('add_temporary_effect("sway_used", count=1)') > sway_mark_standard
+        ),
+        "sway_installs_round_scoped_recursion_guard": int(
+            sway_add_redirect > sway_mark_standard
+            and 'expires_round=ctx.battle.round' in sway
+        ),
+        "sway_emits_redirect_before_recursive_resolution": int(
+            sway_redirect_event > sway_add_redirect and sway_recursive_resolution > sway_redirect_event
+        ),
+        "sway_redirects_attacker_into_own_move": int(
+            'attacker_id=ctx.attacker_id' in sway
+            and 'target_id=ctx.attacker_id' in sway
+            and 'target_position=ctx.attacker.position' in sway
+        ),
+        "sway_swallows_recursive_resolution_errors": int(
+            'except Exception:' in sway and 'pass' in sway
+        ),
+        "sway_clears_recursion_guard_after_resolution": int(
+            sway_remove_redirect > sway_recursive_resolution
+            and 'while ctx.attacker.remove_temporary_effect("sway_redirect")' in sway
+        ),
+        "sway_pushes_from_eight_neighbor_candidates": int(
+            sway_push_candidates > sway_remove_redirect
+            and '(x + 1, y + 1)' in sway
+            and '(x - 1, y - 1)' in sway
+        ),
+        "sway_push_filters_bounds_blockers_and_live_occupancy": int(
+            'ctx.battle.grid.in_bounds(coord)' in sway
+            and 'coord in ctx.battle.grid.blockers' in sway
+            and 'pid not in {ctx.attacker_id, ctx.defender_id}' in sway
+            and 'mon.hp > 0' in sway
+        ),
+        "sway_push_chooses_lexicographically_first_candidate": int(
+            sway_sorted_destination > sway_push_candidates
+        ),
+        "sway_emits_push_before_cancelling_original_hit": int(
+            sway_push_event > sway_sorted_destination and sway_cancel_hit > sway_push_event
+        ),
+        "sway_cancels_original_hit": int('ctx.result["hit"] = False' in sway),
+        "sway_zeroes_original_damage": int('ctx.result["damage"] = 0' in sway),
+        "sway_zeroes_original_type_multiplier": int('ctx.result["type_multiplier"] = 0.0' in sway),
         "ability_registry_continues_after_hook": int(
             "func(ctx)" in apply_hooks and "for ability, holder, func in hooks:" in apply_hooks
         ),
