@@ -29,6 +29,8 @@ public final class BuiltinPreDamageReactionHooks {
                         BuiltinPreDamageReactionHooks::perceptionErrata)
                 .register("parry-melee-avoid", HookSource.ABILITY, 97,
                         BuiltinPreDamageReactionHooks::parry)
+                .register("shell-shield-withdraw", HookSource.ABILITY, 99,
+                        ShellShieldPreDamageReaction::apply)
                 .register("telepathy-area-escape", HookSource.ABILITY, 100,
                         BuiltinPreDamageReactionHooks::telepathy)
                 .register("sway-melee-redirect", HookSource.ABILITY, 110,
