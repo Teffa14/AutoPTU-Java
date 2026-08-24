@@ -51,6 +51,7 @@ def main() -> None:
     battle_text, battle_tree = source(battle_path)
 
     allow = segment(interrupt_text, function(interrupt_tree, "_allow_out_of_turn"))
+    perception = segment(interrupt_text, function(interrupt_tree, "_perception_interrupt"))
     telepathy = segment(interrupt_text, function(interrupt_tree, "_telepathy_interrupt"))
     apply_hooks = segment(registry_text, function(registry_tree, "apply_ability_hooks"))
     resolve_targets_fn = function(battle_tree, "resolve_move_targets")
@@ -69,6 +70,16 @@ def main() -> None:
     unseen_fist_index = resolve_targets.find('attacker.has_ability("Unseen Fist")', skip_interrupt_index)
     interrupt_result_index = resolve_targets.find("result = interrupt_ctx.result or result", pre_index)
 
+    perception_first_decision = perception.find(
+        '_allow_out_of_turn(ctx, ctx.defender_id, "Perception", optional=True)'
+    )
+    perception_ready_removal = perception.find('remove_temporary_effect("perception_ready")')
+    perception_used_check = perception.find('get_temporary_effects("perception_used")')
+    perception_second_decision = perception.find(
+        '_allow_out_of_turn(ctx, ctx.defender_id, "Perception [Errata]", optional=True)'
+    )
+    perception_add_used = perception.find('add_temporary_effect("perception_used", expires_round=ctx.battle.round + 1)')
+
     required_payload = (
         '"actor_id": actor_id',
         '"label": label',
@@ -84,6 +95,26 @@ def main() -> None:
             "return True" in allow and "should_trigger_out_of_turn" in allow
         ),
         "decision_payload_complete": int(all(token in allow for token in required_payload)),
+        "perception_requires_ready": int('get_temporary_effects("perception_ready")' in perception),
+        "perception_first_decision_precedes_ready_consumption": int(
+            perception_first_decision >= 0
+            and perception_ready_removal > perception_first_decision
+        ),
+        "perception_checks_round_scoped_usage": int(
+            perception_used_check > perception_ready_removal
+            and 'ctx.battle.round > int(expires_round)' in perception
+        ),
+        "perception_uses_second_optional_decision": int(
+            perception_second_decision > perception_used_check
+        ),
+        "perception_records_next_round_expiry": int(
+            perception_add_used > perception_second_decision
+        ),
+        "perception_cancels_hit": int('ctx.result["hit"] = False' in perception),
+        "perception_zeroes_damage": int('ctx.result["damage"] = 0' in perception),
+        "perception_zeroes_type_multiplier": int(
+            'ctx.result["type_multiplier"] = 0.0' in perception
+        ),
         "telepathy_uses_optional_decision": int(
             '_allow_out_of_turn(ctx, ctx.defender_id, "Telepathy", optional=True)' in telepathy
         ),
