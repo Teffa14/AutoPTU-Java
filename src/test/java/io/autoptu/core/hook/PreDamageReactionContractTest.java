@@ -33,17 +33,18 @@ final class PreDamageReactionContractTest {
     }
 
     @Test
-    void contextPreservesOriginalAndEffectiveMoveIdentityForDecisionGate() {
+    void contextPreservesOriginalEffectiveMoveAndTargetKind() {
         BattleRuntimeState state = new BattleRuntimeState(
                 new MovementGrid(2, 2, Set.of(), Map.of()), List.of()
         );
         PreDamageReactionContext context = PreDamageReactionContext.of(
-                state, "attacker", "defender", "Surf", "Effective Surf", List.of()
+                state, "attacker", "defender", "Slash", "Effective Slash", "Melee", List.of()
         );
 
-        OutOfTurnDecisionRequest request = context.decisionRequest("defender", "Telepathy", true);
-        assertEquals("Surf", request.moveName());
-        assertEquals("Effective Surf", request.triggerMoveName());
+        OutOfTurnDecisionRequest request = context.decisionRequest("defender", "Parry", true);
+        assertEquals("Slash", request.moveName());
+        assertEquals("Effective Slash", request.triggerMoveName());
+        assertEquals("melee", context.effectiveTargetKind());
         assertEquals("attacker", request.attackerId());
         assertEquals("defender", request.defenderId());
     }
@@ -100,6 +101,24 @@ final class PreDamageReactionContractTest {
                 "perception_cancels_hit",
                 "perception_zeroes_damage",
                 "perception_zeroes_type_multiplier",
+                "perception_errata_requires_exact_variant",
+                "perception_errata_requires_distinct_attacker",
+                "perception_errata_requires_allied_attacker",
+                "perception_errata_rejects_status_moves",
+                "perception_errata_limits_escape_to_one",
+                "perception_errata_has_no_ready_usage_bookkeeping",
+                "perception_errata_cancels_hit",
+                "perception_errata_zeroes_damage",
+                "perception_errata_zeroes_type_multiplier",
+                "parry_requires_ready",
+                "parry_uses_optional_decision",
+                "parry_consumes_ready_after_decision",
+                "parry_checks_melee_after_ready_consumption",
+                "parry_checks_round_scoped_usage",
+                "parry_records_current_round_usage",
+                "parry_cancels_hit",
+                "parry_zeroes_damage",
+                "parry_zeroes_type_multiplier",
                 "telepathy_uses_optional_decision",
                 "telepathy_cancels_hit",
                 "telepathy_zeroes_damage",
