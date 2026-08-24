@@ -12,10 +12,11 @@ import java.util.List;
 /**
  * Builds PRE-damage reaction context from canonical battle state.
  *
- * <p>Area geometry is derived inside the core from authoritative positions and the effective move.
- * Ordinary combatant-target moves use the defender position as their anchor. TILE/AoE execution
- * supplies the already revalidated authoritative tile anchor so every affected defender observes
- * the same incoming area. Minecraft/Cobblemon never supplies the threatened tiles themselves.</p>
+ * <p>Area geometry and effective target kind are derived inside the core from authoritative
+ * positions and the effective move. Ordinary combatant-target moves use the defender position
+ * as their anchor. TILE/AoE execution supplies the already revalidated authoritative tile anchor
+ * so every affected defender observes the same incoming area. Minecraft/Cobblemon never supplies
+ * threatened tiles or targeting semantics themselves.</p>
  */
 public final class RuntimePreDamageReactionContextFactory {
     private RuntimePreDamageReactionContextFactory() {
@@ -70,6 +71,7 @@ public final class RuntimePreDamageReactionContextFactory {
                 defenderId,
                 moveName,
                 effectiveMoveName,
+                Targeting.normalizedTargetKind(effectiveMove),
                 threatenedTiles,
                 decisionGate
         );
