@@ -22,19 +22,6 @@ def find_function(root: ast.AST, name: str) -> ast.FunctionDef:
     raise AssertionError(f"Could not locate function {name}")
 
 
-def status_return(resolve_move_action: ast.FunctionDef) -> ast.Return:
-    for node in ast.walk(resolve_move_action):
-        if not isinstance(node, ast.If):
-            continue
-        test = ast.unparse(node.test).lower()
-        if "move.category.lower()" not in test or "status" not in test:
-            continue
-        for statement in node.body:
-            if isinstance(statement, ast.Return) and isinstance(statement.value, ast.Dict):
-                return statement
-    raise AssertionError("Could not locate Status return in resolve_move_action")
-
-
 def dict_values(node: ast.Return) -> dict[str, ast.AST]:
     assert isinstance(node.value, ast.Dict)
     result: dict[str, ast.AST] = {}
@@ -44,15 +31,41 @@ def dict_values(node: ast.Return) -> dict[str, ast.AST]:
     return result
 
 
+def status_return(resolve_move_action: ast.FunctionDef) -> ast.Return:
+    required_keys = {"hit", "crit", "damage", "damage_roll"}
+    for node in ast.walk(resolve_move_action):
+        if not isinstance(node, ast.If):
+            continue
+        test = ast.unparse(node.test).lower()
+        if "move.category.lower()" not in test or "status" not in test:
+            continue
+        for statement in node.body:
+            if not isinstance(statement, ast.Return) or not isinstance(statement.value, ast.Dict):
+                continue
+            if required_keys.issubset(dict_values(statement)):
+                return statement
+    raise AssertionError("Could not locate Status result return in resolve_move_action")
+
+
 def is_literal(node: ast.AST | None, expected: object) -> bool:
     return isinstance(node, ast.Constant) and node.value == expected
 
 
 def hit_uses_accuracy(node: ast.AST | None) -> bool:
-    if node is None:
+    """Require the oracle's explicit bool(accuracy.get('hit')) Status result."""
+    if not isinstance(node, ast.Call):
         return False
-    source = ast.unparse(node)
-    return "accuracy" in source and "hit" in source
+    if not isinstance(node.func, ast.Name) or node.func.id != "bool" or len(node.args) != 1:
+        return False
+    inner = node.args[0]
+    if not isinstance(inner, ast.Call) or not isinstance(inner.func, ast.Attribute):
+        return False
+    if inner.func.attr != "get" or not isinstance(inner.func.value, ast.Name):
+        return False
+    if inner.func.value.id != "accuracy" or len(inner.args) != 1:
+        return False
+    key = inner.args[0]
+    return isinstance(key, ast.Constant) and key.value == "hit"
 
 
 def main() -> int:
