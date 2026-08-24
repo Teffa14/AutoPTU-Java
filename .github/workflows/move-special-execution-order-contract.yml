@@ -31,4 +31,6 @@ jobs:
         run: python3 tools/python/export_move_special_execution_order_contract.py
 
       - name: Test PRE-damage move-special bridge
-        run: gradle test --tests io.autoptu.core.hook.MoveSpecialPreDamageResolutionTest
+        run: |
+          gradle test --tests io.autoptu.core.hook.MoveSpecialPreDamageResolutionTest
+          gradle test --tests io.autoptu.core.runtime.BattleRuntimeMoveSpecialPreDamagePipelineTest

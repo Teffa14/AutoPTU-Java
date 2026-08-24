@@ -11,6 +11,8 @@ import io.autoptu.core.event.MoveResolvedEvent;
 import io.autoptu.core.event.StatusSkipEvent;
 import io.autoptu.core.event.TrainerFeatureEvent;
 import io.autoptu.core.hook.BuiltinPreDamageReactionHooks;
+import io.autoptu.core.hook.MoveSpecialHookRegistry;
+import io.autoptu.core.hook.MoveSpecialPreDamageResolution;
 import io.autoptu.core.hook.PostDamageHookContext;
 import io.autoptu.core.hook.PostDamageHookRegistry;
 import io.autoptu.core.hook.PostDamageHookResult;
@@ -40,6 +42,7 @@ import java.util.function.Predicate;
 
 public final class BattleRuntime {
     private static final PreDamageReactionHookRegistry PRE_DAMAGE_REACTIONS = BuiltinPreDamageReactionHooks.registry();
+    private static final MoveSpecialHookRegistry NO_MOVE_SPECIALS = MoveSpecialHookRegistry.builder().build();
 
     private BattleRuntime() {}
 
@@ -114,7 +117,7 @@ public final class BattleRuntime {
         if (postDamageHooks == null) throw new IllegalArgumentException("postDamageHooks is required");
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
-                rng, input, preResolutionEvents, PRE_DAMAGE_REACTIONS,
+                rng, input, preResolutionEvents, NO_MOVE_SPECIALS, PRE_DAMAGE_REACTIONS,
                 postDamageHooks, null, null, null, true, true
         );
     }
@@ -137,7 +140,7 @@ public final class BattleRuntime {
         if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
-                rng, input, preResolutionEvents, PRE_DAMAGE_REACTIONS,
+                rng, input, preResolutionEvents, NO_MOVE_SPECIALS, PRE_DAMAGE_REACTIONS,
                 null, postDamageHookRegistry, effectiveMetadata, null, true, true
         );
     }
@@ -152,12 +155,31 @@ public final class BattleRuntime {
             PostDamageHookRegistry postDamageHookRegistry,
             MoveCombatProfile effectiveMetadata
     ) {
+        return applyAuthoritativeMove(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
+                rng, input, preResolutionEvents, NO_MOVE_SPECIALS, preDamageHookRegistry,
+                postDamageHookRegistry, effectiveMetadata
+        );
+    }
+
+    /** Runtime-package composition seam for parity tests and move-special wiring. */
+    static AppliedActionResult applyAuthoritativeMove(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            PythonRandom rng, MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            MoveSpecialHookRegistry moveSpecialHookRegistry,
+            PreDamageReactionHookRegistry preDamageHookRegistry,
+            PostDamageHookRegistry postDamageHookRegistry,
+            MoveCombatProfile effectiveMetadata
+    ) {
+        if (moveSpecialHookRegistry == null) throw new IllegalArgumentException("moveSpecialHookRegistry is required");
         if (preDamageHookRegistry == null) throw new IllegalArgumentException("preDamageHookRegistry is required");
         if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHookRegistry is required");
         if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
-                rng, input, preResolutionEvents, preDamageHookRegistry,
+                rng, input, preResolutionEvents, moveSpecialHookRegistry, preDamageHookRegistry,
                 null, postDamageHookRegistry, effectiveMetadata, null, true, true
         );
     }
@@ -188,7 +210,7 @@ public final class BattleRuntime {
         requireAreaResolvedCombatantChoice(state, choice, move);
         return applyAuthoritativeMoveInternal(
                 state, choice, move, "", "", Set.of(), source,
-                rng, input, preResolutionEvents, preDamageHookRegistry,
+                rng, input, preResolutionEvents, NO_MOVE_SPECIALS, preDamageHookRegistry,
                 null, postDamageHookRegistry, effectiveMetadata, areaAnchor, false, true
         );
     }
@@ -224,6 +246,7 @@ public final class BattleRuntime {
                 rng,
                 input,
                 preResolutionEvents,
+                NO_MOVE_SPECIALS,
                 PRE_DAMAGE_REACTIONS,
                 null,
                 postDamageHookRegistry,
@@ -239,6 +262,7 @@ public final class BattleRuntime {
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
             PythonRandom rng, MoveResolutionInput input,
             List<? extends BattleEvent> preResolutionEvents,
+            MoveSpecialHookRegistry moveSpecialHookRegistry,
             PreDamageReactionHookRegistry preDamageReactionHooks,
             PostDamageHookResult precomputedPostDamageHooks,
             PostDamageHookRegistry deferredPostDamageHooks,
@@ -249,6 +273,7 @@ public final class BattleRuntime {
     ) {
         if (rng == null) throw new IllegalArgumentException("rng is required");
         if (input == null) throw new IllegalArgumentException("input is required");
+        if (moveSpecialHookRegistry == null) throw new IllegalArgumentException("moveSpecialHookRegistry is required");
         if (preDamageReactionHooks == null) throw new IllegalArgumentException("preDamageReactionHooks is required");
 
         if (spendOrdinaryMoveResources) {
@@ -270,6 +295,32 @@ public final class BattleRuntime {
         }
 
         DamageResult damage = accuracy.hit() ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit())) : null;
+        double typeMultiplier = input.typeMultiplier();
+        List<? extends BattleEvent> moveSpecialPreDamageEvents = List.of();
+        if (!moveSpecialHookRegistry.isEmpty() && accuracy.hit() && damage != null) {
+            MoveCombatProfile specialMetadata = effectiveMetadata == null ? move.requireCombatProfile() : effectiveMetadata;
+            MoveSpecialPreDamageResolution.Result special = MoveSpecialPreDamageResolution.resolve(
+                    moveSpecialHookRegistry,
+                    state,
+                    choice.actorId(),
+                    choice.targetId(),
+                    move.moveId(),
+                    specialMetadata.damageCategory(),
+                    true,
+                    accuracy.crit(),
+                    damage.damage(),
+                    typeMultiplier
+            );
+            moveSpecialPreDamageEvents = special.events();
+            typeMultiplier = special.typeMultiplier();
+            accuracy = new AccuracyResult(special.hit(), special.crit(), accuracy.roll(), accuracy.needed());
+            if (!special.hit()) {
+                damage = null;
+            } else if (special.damage() != damage.damage()) {
+                damage = withFinalDamage(damage, special.damage());
+            }
+        }
+
         List<? extends BattleEvent> preDamageEvents = List.of();
         if (accuracy.hit() && runPreDamageReactions) {
             PreDamageReactionContext reactionContext = RuntimePreDamageReactionContextFactory.fromState(
@@ -284,9 +335,10 @@ public final class BattleRuntime {
             );
             PreDamageReactionResult reaction = preDamageReactionHooks.resolve(
                     reactionContext,
-                    PreDamageReactionResult.of(true, damage.damage(), input.typeMultiplier())
+                    PreDamageReactionResult.of(true, damage.damage(), typeMultiplier)
             );
             preDamageEvents = reaction.events();
+            typeMultiplier = reaction.typeMultiplier();
             if (!reaction.hit()) {
                 accuracy = new AccuracyResult(false, false, accuracy.roll(), accuracy.needed());
                 damage = null;
@@ -319,6 +371,7 @@ public final class BattleRuntime {
             result = prependEvents(resolvedPostDamageHooks.events(), result);
         }
         result = prependEvents(preDamageEvents, result);
+        result = prependEvents(moveSpecialPreDamageEvents, result);
         if (spendOrdinaryMoveResources) {
             actor.moveFrequencyUsage().recordUse(move);
         }
