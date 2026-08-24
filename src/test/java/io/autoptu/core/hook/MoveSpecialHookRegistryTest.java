@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MoveSpecialHookRegistryTest {
@@ -39,6 +41,34 @@ class MoveSpecialHookRegistryTest {
 
         registry.dispatch(context(state(false), "growl", "status", MoveSpecialPhase.PRE_DAMAGE));
         assertEquals(List.of("global", "specific"), order);
+    }
+
+    @Test
+    void handlersShareMutableResultButHitRemainsDispatchStartSnapshot() {
+        BattleRuntimeState state = state(false);
+        MoveSpecialResultState result = new MoveSpecialResultState(Map.of("hit", false, "damage", 7));
+        ArrayList<Boolean> observations = new ArrayList<>();
+        MoveSpecialHookRegistry registry = MoveSpecialHookRegistry.builder()
+                .registerGlobal("mutate", MoveSpecialPhase.PRE_DAMAGE, ctx -> {
+                    assertSame(result, ctx.result());
+                    assertFalse(ctx.hit());
+                    ctx.result().put("hit", true);
+                    ctx.result().put("damage", 11);
+                    return List.of();
+                })
+                .registerMove("observe", MoveSpecialPhase.PRE_DAMAGE, List.of("growl"), ctx -> {
+                    observations.add(ctx.result().hit());
+                    observations.add(ctx.hit());
+                    return List.of();
+                })
+                .build();
+
+        registry.dispatch(new MoveSpecialHookContext(
+                state, "actor", "enemy", "growl", "status", result, MoveSpecialPhase.PRE_DAMAGE));
+
+        assertEquals(List.of(true, false), observations);
+        assertTrue(result.hit());
+        assertEquals(11, result.get("damage"));
     }
 
     @Test

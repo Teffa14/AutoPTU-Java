@@ -27,6 +27,8 @@ class MoveSpecialRegistryOracleParityTest {
         assertEquals(asBool(parts[4]), policy.moveNamesNormalizeTrimLower());
         assertEquals(asBool(parts[5]), policy.shieldDustSkipsNonStatusPostDamage());
         assertEquals(asBool(parts[6]), policy.shieldDustAllowsStatusPostDamage());
+        assertEquals(asBool(parts[7]), policy.contextRetainsSharedMutableResult());
+        assertEquals(asBool(parts[8]), policy.hitIsSnapshotTakenBeforeHandlerMutation());
     }
 
     private static boolean asBool(String raw) {

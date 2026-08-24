@@ -51,6 +51,9 @@ def main() -> None:
     shield_skips_non_status = all((shield_dust_guard, shield_non_status, shield_post_damage, shield_returns_events))
     shield_allows_status = shield_skips_non_status and shield_non_status
 
+    shared_result = "result=result" in handle
+    hit_snapshot = 'hit = bool(result.get("hit"))' in handle and "hit=hit" in handle
+
     values = [
         unknown_defaults,
         post_specific_before_global,
@@ -58,6 +61,8 @@ def main() -> None:
         move_name_normalization,
         shield_skips_non_status,
         shield_allows_status,
+        shared_result,
+        hit_snapshot,
     ]
     if not all(values):
         raise RuntimeError(f"move-special registry contract changed: {values}")
