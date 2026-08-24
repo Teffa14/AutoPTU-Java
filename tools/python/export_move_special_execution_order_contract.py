@@ -14,7 +14,7 @@ import json
 import os
 from pathlib import Path
 
-EXPECTED_DIGEST = "DISCOVER"
+EXPECTED_DIGEST = "743ef231a164727cee549d39d4c2b7a898c64cd7c4365931b71008267bdeff53"
 INTERESTING_TOKENS = (
     "move_special",
     "pre_damage",
@@ -127,8 +127,6 @@ def main() -> None:
     missing = required - phases
     if missing:
         raise AssertionError(f"missing move-special phases in oracle callsites: {sorted(missing)}")
-    if EXPECTED_DIGEST == "DISCOVER":
-        raise AssertionError(f"freeze discovered digest after reviewing manifest: {digest}")
     if digest != EXPECTED_DIGEST:
         raise AssertionError(f"move-special execution order changed: expected {EXPECTED_DIGEST}, got {digest}")
 
