@@ -59,7 +59,7 @@ def main() -> int:
     args = parse_args()
     source_root = Path(args.source_root).resolve()
     tree = ast.parse(
-        (source_root / "auto_ptu" / "rules" / "battle_state.py").read_text(encoding="utf-8")
+        (source_root / "auto_ptu" / "rules" / "calculations.py").read_text(encoding="utf-8")
     )
     resolve_move_action = find_function(tree, "resolve_move_action")
     status_result = status_return(resolve_move_action)
