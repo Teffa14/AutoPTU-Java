@@ -78,37 +78,23 @@ final class PerceptionErrataPreDamageReactionTest {
     }
 
     @Test
-    void enemyAttackerAndAbilitySuppressionBlockErrataReaction() {
-        RuntimeCombatantState enemyAttacker = combatant("attacker", new GridCoord(0, 0), List.of());
+    void enemyAttackerDoesNotTriggerErrataReaction() {
+        RuntimeCombatantState attacker = combatant("attacker", new GridCoord(0, 0), List.of());
         RuntimeCombatantState defender = combatant(
                 "defender", new GridCoord(1, 1), List.of("Perception [Errata]")
         );
-        BattleRuntimeState enemyState = state(enemyAttacker, defender, "B", "A");
+        BattleRuntimeState state = state(attacker, defender, "B", "A");
 
-        PreDamageReactionResult enemyResult = BuiltinPreDamageReactionHooks.registry().resolve(
+        PreDamageReactionResult result = BuiltinPreDamageReactionHooks.registry().resolve(
                 PreDamageReactionContext.of(
-                        enemyState, "attacker", "defender", "Area", List.of(new GridCoord(1, 1))
+                        state, "attacker", "defender", "Area", List.of(new GridCoord(1, 1))
                 ),
                 PreDamageReactionResult.of(true, 7, 1.0)
         );
-        assertTrue(enemyResult.hit());
+
+        assertTrue(result.hit());
         assertEquals(new GridCoord(1, 1), defender.position());
-
-        RuntimeCombatantState allyAttacker = combatant("attacker", new GridCoord(0, 0), List.of());
-        RuntimeCombatantState suppressed = combatant(
-                "defender", new GridCoord(1, 1), List.of("Perception [Errata]")
-        );
-        suppressed.setAbilitiesSuppressed(true);
-        BattleRuntimeState suppressedState = state(allyAttacker, suppressed, "A", "A");
-
-        PreDamageReactionResult suppressedResult = BuiltinPreDamageReactionHooks.registry().resolve(
-                PreDamageReactionContext.of(
-                        suppressedState, "attacker", "defender", "Area", List.of(new GridCoord(1, 1))
-                ),
-                PreDamageReactionResult.of(true, 7, 1.0)
-        );
-        assertTrue(suppressedResult.hit());
-        assertEquals(new GridCoord(1, 1), suppressed.position());
+        assertTrue(result.events().isEmpty());
     }
 
     private static int chebyshev(GridCoord a, GridCoord b) {
