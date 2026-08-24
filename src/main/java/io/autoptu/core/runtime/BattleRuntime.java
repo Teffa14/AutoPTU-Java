@@ -115,7 +115,7 @@ public final class BattleRuntime {
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
                 rng, input, preResolutionEvents, PRE_DAMAGE_REACTIONS,
-                postDamageHooks, null, null, true
+                postDamageHooks, null, null, null, true, true
         );
     }
 
@@ -138,7 +138,7 @@ public final class BattleRuntime {
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
                 rng, input, preResolutionEvents, PRE_DAMAGE_REACTIONS,
-                null, postDamageHookRegistry, effectiveMetadata, true
+                null, postDamageHookRegistry, effectiveMetadata, null, true, true
         );
     }
 
@@ -158,7 +158,38 @@ public final class BattleRuntime {
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
                 rng, input, preResolutionEvents, preDamageHookRegistry,
-                null, postDamageHookRegistry, effectiveMetadata, true
+                null, postDamageHookRegistry, effectiveMetadata, null, true, true
+        );
+    }
+
+    /**
+     * Runtime-only AoE target seam. The TILE action has already been revalidated and its ordered
+     * targets expanded from authoritative state. Each target still receives the ordinary
+     * accuracy/damage/PRE/post pipeline, but action economy and move frequency are owned by the
+     * surrounding multi-target declaration and are therefore not spent here.
+     */
+    static AppliedActionResult applyAuthoritativeAreaMoveTarget(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            MoveOption move,
+            GridCoord areaAnchor,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            PreDamageReactionHookRegistry preDamageHookRegistry,
+            PostDamageHookRegistry postDamageHookRegistry,
+            MoveCombatProfile effectiveMetadata
+    ) {
+        if (areaAnchor == null) throw new IllegalArgumentException("areaAnchor is required");
+        if (preDamageHookRegistry == null) throw new IllegalArgumentException("preDamageHookRegistry is required");
+        if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHookRegistry is required");
+        if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
+        requireAreaResolvedCombatantChoice(state, choice, move);
+        return applyAuthoritativeMoveInternal(
+                state, choice, move, "", "", Set.of(), source,
+                rng, input, preResolutionEvents, preDamageHookRegistry,
+                null, postDamageHookRegistry, effectiveMetadata, areaAnchor, false, true
         );
     }
 
@@ -167,9 +198,6 @@ public final class BattleRuntime {
      * HP, history, and event pipeline as an ordinary move without spending action economy or
      * move frequency a second time. The scheduling action already owned that bookkeeping in
      * the pinned Python oracle.
-     *
-     * <p>This boundary currently supports combatant-target delayed hits. TILE resolution is
-     * intentionally left to a later slice because it requires area/target expansion parity.</p>
      */
     public static AppliedActionResult applyDelayedAuthoritativeMove(
             BattleRuntimeState state,
@@ -200,6 +228,8 @@ public final class BattleRuntime {
                 null,
                 postDamageHookRegistry,
                 effectiveMetadata,
+                null,
+                false,
                 false
         );
     }
@@ -213,7 +243,9 @@ public final class BattleRuntime {
             PostDamageHookResult precomputedPostDamageHooks,
             PostDamageHookRegistry deferredPostDamageHooks,
             MoveCombatProfile effectiveMetadata,
-            boolean spendOrdinaryMoveResources
+            GridCoord reactionAnchor,
+            boolean spendOrdinaryMoveResources,
+            boolean runPreDamageReactions
     ) {
         if (rng == null) throw new IllegalArgumentException("rng is required");
         if (input == null) throw new IllegalArgumentException("input is required");
@@ -221,6 +253,8 @@ public final class BattleRuntime {
 
         if (spendOrdinaryMoveResources) {
             MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
+        } else if (runPreDamageReactions) {
+            requireAreaResolvedCombatantChoice(state, choice, move);
         } else {
             requireDelayedCombatantChoice(state, choice, move);
         }
@@ -237,7 +271,7 @@ public final class BattleRuntime {
 
         DamageResult damage = accuracy.hit() ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit())) : null;
         List<? extends BattleEvent> preDamageEvents = List.of();
-        if (accuracy.hit() && spendOrdinaryMoveResources) {
+        if (accuracy.hit() && runPreDamageReactions) {
             PreDamageReactionContext reactionContext = RuntimePreDamageReactionContextFactory.fromState(
                     state,
                     choice.actorId(),
@@ -245,6 +279,7 @@ public final class BattleRuntime {
                     move.moveId(),
                     move.moveId(),
                     move.spec(),
+                    reactionAnchor,
                     null
             );
             PreDamageReactionResult reaction = preDamageReactionHooks.resolve(
@@ -375,6 +410,20 @@ public final class BattleRuntime {
         }
         if (!choice.moveId().equals(move.moveId())) {
             throw new IllegalArgumentException("move metadata does not match delayed choice moveId");
+        }
+        state.requireCombatant(choice.actorId());
+        state.requireCombatant(choice.targetId());
+    }
+
+    private static void requireAreaResolvedCombatantChoice(BattleRuntimeState state, MoveChoice choice, MoveOption move) {
+        if (state == null) throw new IllegalArgumentException("state is required");
+        if (choice == null) throw new IllegalArgumentException("choice is required");
+        if (move == null) throw new IllegalArgumentException("move is required");
+        if (choice.targetMode() != ChoiceTargetMode.COMBATANT || choice.targetId().isBlank()) {
+            throw new IllegalArgumentException("area move target execution requires a combatant target");
+        }
+        if (!choice.moveId().equals(move.moveId()) || choice.actionType() != move.actionType()) {
+            throw new IllegalArgumentException("move metadata does not match area target choice");
         }
         state.requireCombatant(choice.actorId());
         state.requireCombatant(choice.targetId());
