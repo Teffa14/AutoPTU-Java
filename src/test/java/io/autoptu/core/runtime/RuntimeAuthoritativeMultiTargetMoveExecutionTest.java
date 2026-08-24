@@ -4,6 +4,7 @@ import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.event.MoveResolvedEvent;
+import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.model.CombatantStatProfile;
@@ -25,6 +26,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RuntimeAuthoritativeMultiTargetMoveExecutionTest {
@@ -60,6 +62,64 @@ class RuntimeAuthoritativeMultiTargetMoveExecutionTest {
         assertTrue(second.hp() < 100);
         assertEquals(100 - first.hp(), state.damageHistory().damageReceivedThisRound().get("first"));
         assertEquals(100 - second.hp(), state.damageHistory().damageReceivedThisRound().get("second"));
+        assertFalse(actor.actionBudget().hasActionAvailable(ActionType.STANDARD));
+        assertEquals(1, actor.moveFrequencyUsage().battleUses("burst"));
+    }
+
+    @Test
+    void telepathyEscapesADeclaredAreaBeforeDamageWithoutSpendingShift() {
+        MoveOption burst = burstMove();
+        RuntimeCombatantState actor = combatant("actor", 0, 2, 100);
+        RuntimeCombatantState telepath = combatantWithAbilities("telepath", 3, 2, 100, List.of("Telepathy"));
+        RuntimeCombatantState enemy = combatant("enemy", 3, 3, 100);
+        LinkedHashMap<String, CombatantAffiliationState> affiliation = new LinkedHashMap<>();
+        affiliation.put("actor", CombatantAffiliationState.active("alpha"));
+        affiliation.put("telepath", CombatantAffiliationState.active("alpha"));
+        affiliation.put("enemy", CombatantAffiliationState.active("beta"));
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(8, 8, Set.of(), Map.of()),
+                List.of(actor, telepath, enemy),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                affiliation,
+                Map.of("actor", List.of(burst))
+        );
+        MoveChoice choice = new MoveChoice(
+                "actor", "burst", ChoiceTargetMode.TILE, "", new GridCoord(3, 2), ActionType.STANDARD);
+        GridCoord telepathOrigin = telepath.position();
+
+        MultiTargetAppliedActionResult result = RuntimeMoveResolution.applyAreaUsingAuthoritativeCombatState(
+                state,
+                choice,
+                "AI",
+                new PythonRandom(73),
+                legacyInput(),
+                false,
+                false
+        );
+
+        assertEquals(List.of("telepath", "enemy"), result.targetIds());
+        assertNotEquals(telepathOrigin, telepath.position());
+        assertEquals(100, telepath.hp());
+        assertTrue(telepath.actionBudget().hasActionAvailable(ActionType.SHIFT));
+        assertFalse(state.damageHistory().damageReceivedThisRound().containsKey("telepath"));
+        assertTrue(enemy.hp() < 100);
+        assertEquals(100 - enemy.hp(), state.damageHistory().damageReceivedThisRound().get("enemy"));
+        assertTrue(result.events().stream()
+                .filter(RuleEffectEvent.class::isInstance)
+                .map(RuleEffectEvent.class::cast)
+                .anyMatch(event -> event.sourceName().equals("Telepathy")
+                        && event.actorId().equals("telepath")
+                        && event.effect().equals("shift")));
+        MoveResolvedEvent telepathEvent = result.events().stream()
+                .filter(MoveResolvedEvent.class::isInstance)
+                .map(MoveResolvedEvent.class::cast)
+                .filter(event -> event.targetId().equals("telepath"))
+                .findFirst()
+                .orElseThrow();
+        assertFalse(telepathEvent.hit());
+        assertEquals(0, telepathEvent.damage());
         assertFalse(actor.actionBudget().hasActionAvailable(ActionType.STANDARD));
         assertEquals(1, actor.moveFrequencyUsage().battleUses("burst"));
     }
@@ -129,6 +189,16 @@ class RuntimeAuthoritativeMultiTargetMoveExecutionTest {
     }
 
     private static RuntimeCombatantState combatant(String id, int x, int y, int hp) {
+        return combatantWithAbilities(id, x, y, hp, List.of());
+    }
+
+    private static RuntimeCombatantState combatantWithAbilities(
+            String id,
+            int x,
+            int y,
+            int hp,
+            List<String> abilities
+    ) {
         CombatantStatProfile stats = new CombatantStatProfile(
                 Map.of(
                         CombatStat.ATK, 20,
@@ -148,7 +218,15 @@ class RuntimeAuthoritativeMultiTargetMoveExecutionTest {
                 hp,
                 new ActionBudget(),
                 stats,
-                new EvasionProfile(stats, 0, 0, 0, false, false)
+                new EvasionProfile(stats, 0, 0, 0, false, false),
+                0,
+                false,
+                false,
+                false,
+                false,
+                List.of(),
+                List.of(),
+                abilities
         );
     }
 
