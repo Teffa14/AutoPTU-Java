@@ -7,9 +7,11 @@ public record MoveSpecialDispatchPolicy(
         boolean otherPhasesRunGlobalBeforeSpecific,
         boolean moveNamesNormalizeTrimLower,
         boolean shieldDustSkipsNonStatusPostDamage,
-        boolean shieldDustAllowsStatusPostDamage
+        boolean shieldDustAllowsStatusPostDamage,
+        boolean contextRetainsSharedMutableResult,
+        boolean hitIsSnapshotTakenBeforeHandlerMutation
 ) {
     public static MoveSpecialDispatchPolicy pythonOracleContract() {
-        return new MoveSpecialDispatchPolicy(true, true, true, true, true, true);
+        return new MoveSpecialDispatchPolicy(true, true, true, true, true, true, true, true);
     }
 }
