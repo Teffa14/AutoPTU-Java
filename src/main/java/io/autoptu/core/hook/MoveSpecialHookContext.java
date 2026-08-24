@@ -15,6 +15,7 @@ public record MoveSpecialHookContext(
         String moveCategory,
         MoveSpecialResultState result,
         boolean hit,
+        int damageDealt,
         MoveSpecialPhase phase
 ) {
     public MoveSpecialHookContext {
@@ -26,7 +27,22 @@ public record MoveSpecialHookContext(
         moveName = moveName == null ? "" : moveName.strip().toLowerCase(Locale.ROOT);
         moveCategory = moveCategory == null ? "" : moveCategory.strip().toLowerCase(Locale.ROOT);
         result = Objects.requireNonNull(result, "result");
+        damageDealt = Math.max(0, damageDealt);
         phase = phase == null ? MoveSpecialPhase.POST_DAMAGE : phase;
+    }
+
+    /** Compatibility constructor for callers predating explicit Python damage_dealt transport. */
+    public MoveSpecialHookContext(
+            BattleRuntimeState state,
+            String attackerId,
+            String defenderId,
+            String moveName,
+            String moveCategory,
+            MoveSpecialResultState result,
+            boolean hit,
+            MoveSpecialPhase phase
+    ) {
+        this(state, attackerId, defenderId, moveName, moveCategory, result, hit, 0, phase);
     }
 
     /** Compatibility constructor for hooks that only need the dispatch-start hit snapshot. */
@@ -40,7 +56,7 @@ public record MoveSpecialHookContext(
             MoveSpecialPhase phase
     ) {
         this(state, attackerId, defenderId, moveName, moveCategory,
-                MoveSpecialResultState.withHit(hit), hit, phase);
+                MoveSpecialResultState.withHit(hit), hit, 0, phase);
     }
 
     /** Python-compatible constructor: hit is snapshotted before handlers mutate the shared result. */
@@ -53,7 +69,7 @@ public record MoveSpecialHookContext(
             MoveSpecialResultState result,
             MoveSpecialPhase phase
     ) {
-        this(state, attackerId, defenderId, moveName, moveCategory, result, result.hit(), phase);
+        this(state, attackerId, defenderId, moveName, moveCategory, result, result.hit(), 0, phase);
     }
 
     public RuntimeCombatantState attacker() {
