@@ -80,17 +80,18 @@ final class RuntimeSwayFollowUpMoveIntegrationTest {
         assertEquals(4, result.events().size());
         assertEquals("redirect", ((RuleEffectEvent) result.events().get(0)).effect());
         MoveResolvedEvent redirected = (MoveResolvedEvent) result.events().get(1);
-        assertEquals("attacker", redirected.actorId());
+        assertEquals("attacker", redirected.attackerId());
         assertEquals("attacker", redirected.targetId());
         assertTrue(redirected.hit());
         assertEquals("push", ((RuleEffectEvent) result.events().get(2)).effect());
         MoveResolvedEvent original = (MoveResolvedEvent) result.events().get(3);
-        assertEquals("attacker", original.actorId());
+        assertEquals("attacker", original.attackerId());
         assertEquals("defender", original.targetId());
         assertFalse(original.hit());
 
-        assertTrue(state.damageHistory().damageThisRound().get("attacker") > 0);
-        assertFalse(state.damageHistory().damageThisRound().containsKey("defender"));
+        assertTrue(state.damageHistory().damageThisRound().contains("attacker"));
+        assertTrue(state.damageHistory().damageReceivedThisRound().getOrDefault("attacker", 0) > 0);
+        assertFalse(state.damageHistory().damageThisRound().contains("defender"));
     }
 
     private static RuntimeCombatantState combatant(
@@ -105,7 +106,7 @@ final class RuntimeSwayFollowUpMoveIntegrationTest {
                         CombatStat.DEF, 10,
                         CombatStat.SPATK, 20,
                         CombatStat.SPDEF, 10,
-                        CombatStat.SPEED, 10
+                        CombatStat.SPD, 10
                 ),
                 Map.of(),
                 Map.of(),
