@@ -10,10 +10,12 @@ on:
       - "src/main/java/io/autoptu/core/hook/PreDamageReactionHook.java"
       - "src/main/java/io/autoptu/core/hook/PreDamageReactionHookRegistry.java"
       - "src/main/java/io/autoptu/core/hook/PreDamageReactionResult.java"
+      - "src/main/java/io/autoptu/core/runtime/ReactionPushApplication.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimePreDamageReactionContextFactory.java"
       - "src/test/java/io/autoptu/core/hook/BuiltinPreDamageReactionHooksTest.java"
       - "src/test/java/io/autoptu/core/hook/ParryPreDamageReactionTest.java"
       - "src/test/java/io/autoptu/core/hook/PreDamageReactionContractTest.java"
+      - "src/test/java/io/autoptu/core/hook/SwayPreDamageReactionTest.java"
       - "tools/python/export_pre_damage_reaction_contract.py"
       - ".github/workflows/pre-damage-reaction-contract.yml"
   push:
@@ -56,4 +58,5 @@ jobs:
             --tests io.autoptu.core.hook.PreDamageReactionContractTest \
             --tests io.autoptu.core.hook.BuiltinPreDamageReactionHooksTest \
             --tests io.autoptu.core.hook.ParryPreDamageReactionTest \
+            --tests io.autoptu.core.hook.SwayPreDamageReactionTest \
             --stacktrace
