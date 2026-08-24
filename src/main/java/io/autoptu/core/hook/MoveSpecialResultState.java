@@ -1,8 +1,8 @@
 package io.autoptu.core.hook;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Mutable result mapping shared by move-special handlers during one dispatch.
@@ -51,7 +51,7 @@ public final class MoveSpecialResultState {
     }
 
     public Map<String, Object> snapshot() {
-        return Map.copyOf(values);
+        return Collections.unmodifiableMap(new LinkedHashMap<>(values));
     }
 
     private static boolean pythonTruthy(Object value) {
