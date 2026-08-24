@@ -20,10 +20,14 @@ public final class MoveSpecialHookRegistry {
         LinkedHashMap<MoveSpecialPhase, List<Registration>> globalCopy = new LinkedHashMap<>();
         LinkedHashMap<MoveSpecialPhase, Map<String, List<Registration>>> specificCopy = new LinkedHashMap<>();
         for (MoveSpecialPhase phase : MoveSpecialPhase.values()) {
-            globalCopy.put(phase, List.copyOf(builder.globals.getOrDefault(phase, List.of())));
+            ArrayList<Registration> globalRegistrations = builder.globals.get(phase);
+            globalCopy.put(phase, globalRegistrations == null ? List.of() : List.copyOf(globalRegistrations));
             LinkedHashMap<String, List<Registration>> byMove = new LinkedHashMap<>();
-            for (Map.Entry<String, ArrayList<Registration>> entry : builder.specifics.getOrDefault(phase, new LinkedHashMap<>()).entrySet()) {
-                byMove.put(entry.getKey(), List.copyOf(entry.getValue()));
+            LinkedHashMap<String, ArrayList<Registration>> registeredByMove = builder.specifics.get(phase);
+            if (registeredByMove != null) {
+                for (Map.Entry<String, ArrayList<Registration>> entry : registeredByMove.entrySet()) {
+                    byMove.put(entry.getKey(), List.copyOf(entry.getValue()));
+                }
             }
             specificCopy.put(phase, Map.copyOf(byMove));
         }
