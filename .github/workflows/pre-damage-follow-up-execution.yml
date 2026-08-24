@@ -4,7 +4,13 @@ on:
   pull_request:
     paths:
       - "src/main/java/io/autoptu/core/hook/PreDamageFollowUpExecutionPolicy.java"
+      - "src/main/java/io/autoptu/core/hook/PreDamageFollowUpMoveExecutionScope.java"
+      - "src/main/java/io/autoptu/core/hook/PreDamageFollowUpMoveExecutor.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeAuthoritativeMovePreparation.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimePreDamageFollowUpMoveExecution.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeMoveResolutionWithFollowUps.java"
       - "src/test/java/io/autoptu/core/hook/PreDamageFollowUpExecutionPolicyTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeSwayFollowUpMoveIntegrationTest.java"
       - "tools/python/export_pre_damage_follow_up_execution_contract.py"
       - ".github/workflows/pre-damage-follow-up-execution.yml"
   push:
@@ -45,4 +51,5 @@ jobs:
         run: |
           gradle test \
             --tests io.autoptu.core.hook.PreDamageFollowUpExecutionPolicyTest \
+            --tests io.autoptu.core.runtime.RuntimeSwayFollowUpMoveIntegrationTest \
             --stacktrace
