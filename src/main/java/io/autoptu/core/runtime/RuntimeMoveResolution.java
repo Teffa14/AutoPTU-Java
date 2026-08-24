@@ -1,11 +1,13 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.hook.BuiltinDamageModifierHooks;
 import io.autoptu.core.hook.BuiltinEffectiveMoveHooks;
 import io.autoptu.core.hook.BuiltinPostDamageHooks;
+import io.autoptu.core.hook.BuiltinPreDamageReactionHooks;
 import io.autoptu.core.hook.DamageModifierHookContext;
 import io.autoptu.core.hook.DamageModifierHookRegistry;
 import io.autoptu.core.hook.DamageModifierHookResult;
@@ -13,11 +15,12 @@ import io.autoptu.core.hook.EffectiveMoveHookContext;
 import io.autoptu.core.hook.EffectiveMoveHookRegistry;
 import io.autoptu.core.hook.EffectiveMoveHookResult;
 import io.autoptu.core.hook.PostDamageHookRegistry;
+import io.autoptu.core.hook.PreDamageReactionHookRegistry;
 import io.autoptu.core.model.AttackModifier;
 import io.autoptu.core.model.CombatantStatProfile;
+import io.autoptu.core.model.EvasionProfile;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveCombatProfile;
-import io.autoptu.core.model.EvasionProfile;
 import io.autoptu.core.random.PythonRandom;
 import io.autoptu.core.rules.EvasionResolution;
 import io.autoptu.core.rules.PtuTables;
@@ -44,6 +47,8 @@ public final class RuntimeMoveResolution {
             BuiltinDamageModifierHooks.standardRegistry();
     private static final PostDamageHookRegistry POST_DAMAGE_HOOKS =
             BuiltinPostDamageHooks.standardRegistry();
+    private static final PreDamageReactionHookRegistry PRE_DAMAGE_HOOKS =
+            BuiltinPreDamageReactionHooks.registry();
 
     private RuntimeMoveResolution() {
     }
@@ -157,6 +162,65 @@ public final class RuntimeMoveResolution {
     }
 
     /**
+     * Executes one legal TILE declaration across the authoritative target expansion.
+     * The action and frequency are spent exactly once, while every target independently
+     * re-derives current PTU stats/hooks and consumes the same battle RNG in target order.
+     */
+    public static MultiTargetAppliedActionResult applyAreaUsingAuthoritativeCombatState(
+            BattleRuntimeState state,
+            MoveChoice tileChoice,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput legacyInput,
+            boolean ignorePositiveAttackStage,
+            boolean ignorePositiveDefenseStage
+    ) {
+        if (state == null) throw new IllegalArgumentException("state is required");
+        if (tileChoice == null) throw new IllegalArgumentException("tileChoice is required");
+        if (rng == null) throw new IllegalArgumentException("rng is required");
+        if (legacyInput == null) throw new IllegalArgumentException("legacyInput is required");
+        if (tileChoice.targetMode() != ChoiceTargetMode.TILE || !tileChoice.targetId().isBlank()) {
+            throw new IllegalArgumentException("multi-target move execution requires a TILE move choice");
+        }
+
+        EffectiveMoveTargetResolution targeting = RuntimeAreaMoveTargeting.resolve(state, tileChoice);
+        MoveOption move = requireCanonicalMove(state, tileChoice.actorId(), tileChoice.moveId());
+        RuntimeCombatantState actor = state.requireCombatant(tileChoice.actorId());
+        if (!actor.actionBudget().consume(tileChoice.actionType(), tileChoice.moveId())) {
+            throw new IllegalStateException(tileChoice.actionType().value() + " action is already consumed");
+        }
+
+        ArrayList<BattleEvent> events = new ArrayList<>();
+        ArrayList<String> resolvedTargetIds = new ArrayList<>();
+        for (String targetId : targeting.targetIds()) {
+            RuntimeCombatantState target = state.requireCombatant(targetId);
+            MoveChoice targetChoice = new MoveChoice(
+                    tileChoice.actorId(),
+                    tileChoice.moveId(),
+                    ChoiceTargetMode.COMBATANT,
+                    targetId,
+                    target.position(),
+                    tileChoice.actionType()
+            );
+            AppliedActionResult targetResult = applyAreaTargetUsingAuthoritativeCombatState(
+                    state,
+                    targetChoice,
+                    move,
+                    targeting.anchor(),
+                    source,
+                    rng,
+                    legacyInput,
+                    ignorePositiveAttackStage,
+                    ignorePositiveDefenseStage
+            );
+            resolvedTargetIds.add(targetId);
+            events.addAll(targetResult.events());
+        }
+        actor.moveFrequencyUsage().recordUse(move);
+        return new MultiTargetAppliedActionResult(events, resolvedTargetIds);
+    }
+
+    /**
      * Preferred matured delayed-hit boundary for combatant targets.
      *
      * The delayed entry only preserves attacker, move and target identity. Effective move
@@ -209,6 +273,52 @@ public final class RuntimeMoveResolution {
                 rng,
                 stateBoundInput,
                 combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
+                POST_DAMAGE_HOOKS,
+                effectiveMetadata
+        );
+    }
+
+    private static AppliedActionResult applyAreaTargetUsingAuthoritativeCombatState(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            MoveOption move,
+            GridCoord areaAnchor,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput legacyInput,
+            boolean ignorePositiveAttackStage,
+            boolean ignorePositiveDefenseStage
+    ) {
+        MoveCombatProfile metadata = move.requireCombatProfile();
+        RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
+        RuntimeCombatantState target = state.requireCombatant(choice.targetId());
+        EffectiveMoveHookResult effectiveMoveHooks = authoritativeEffectiveMoveHooks(
+                state, choice, move, actor, target, metadata);
+        MoveCombatProfile effectiveMetadata = effectiveMoveHooks.profile();
+        MoveResolutionInput stateBoundInput = authoritativeStateBoundInput(
+                state,
+                choice,
+                move,
+                actor,
+                target,
+                effectiveMetadata,
+                legacyInput,
+                ignorePositiveAttackStage,
+                ignorePositiveDefenseStage
+        );
+        DamageModifierHookResult damageHooks = authoritativeDamageHooks(
+                state, choice, move, actor, target, effectiveMetadata);
+        stateBoundInput = withModifiers(stateBoundInput, damageHooks.modifiers());
+        return BattleRuntime.applyAuthoritativeAreaMoveTarget(
+                state,
+                choice,
+                move,
+                areaAnchor,
+                source,
+                rng,
+                stateBoundInput,
+                combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
+                PRE_DAMAGE_HOOKS,
                 POST_DAMAGE_HOOKS,
                 effectiveMetadata
         );
@@ -320,6 +430,13 @@ public final class RuntimeMoveResolution {
         if (first != null) events.addAll(first);
         if (second != null) events.addAll(second);
         return List.copyOf(events);
+    }
+
+    private static MoveOption requireCanonicalMove(BattleRuntimeState state, String actorId, String moveId) {
+        for (MoveOption move : state.moveOptions(actorId)) {
+            if (move != null && move.moveId().equals(moveId)) return move;
+        }
+        throw new IllegalArgumentException("move is not present in the actor's canonical moveset: " + moveId);
     }
 
     private static boolean isMelee(MoveOption move) {
