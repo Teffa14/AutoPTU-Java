@@ -44,6 +44,6 @@ jobs:
 
       - name: Run multi-target execution parity test
         run: >-
-          ./gradlew test
+          gradle test
           --tests io.autoptu.core.runtime.MultiTargetMoveExecutionContractOracleParityTest
           -Dautoptu.multi.target.move.execution.oracle=build/oracle/multi-target-move-execution.tsv
