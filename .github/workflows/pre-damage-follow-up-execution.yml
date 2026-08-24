@@ -1,0 +1,48 @@
+name: Pre-Damage Follow-Up Execution Contract
+
+on:
+  pull_request:
+    paths:
+      - "src/main/java/io/autoptu/core/hook/PreDamageFollowUpExecutionPolicy.java"
+      - "src/test/java/io/autoptu/core/hook/PreDamageFollowUpExecutionPolicyTest.java"
+      - "tools/python/export_pre_damage_follow_up_execution_contract.py"
+      - ".github/workflows/pre-damage-follow-up-execution.yml"
+  push:
+    branches:
+      - main
+
+jobs:
+  parity:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Export Python oracle contract
+        run: |
+          python3 -m py_compile tools/python/export_pre_damage_follow_up_execution_contract.py
+          python3 tools/python/export_pre_damage_follow_up_execution_contract.py \
+            --source-root python-oracle \
+            --output build/oracle/pre-damage-follow-up-execution.tsv
+
+      - name: Run PRE-damage follow-up execution parity
+        env:
+          AUTOPTU_PRE_DAMAGE_FOLLOW_UP_ORACLE: ${{ github.workspace }}/build/oracle/pre-damage-follow-up-execution.tsv
+        run: |
+          gradle test \
+            --tests io.autoptu.core.hook.PreDamageFollowUpExecutionPolicyTest \
+            --stacktrace
