@@ -1,14 +1,18 @@
 package io.autoptu.core.hook;
 
+import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.event.RuleEffectEvent;
+import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.rules.AbilityIdentityResolution;
 import io.autoptu.core.runtime.AppliedActionResult;
 import io.autoptu.core.runtime.BattleRuntimeState;
 import io.autoptu.core.runtime.ReactionMovementApplication;
+import io.autoptu.core.runtime.ReactionPushApplication;
 import io.autoptu.core.runtime.RuntimeCombatantState;
 import io.autoptu.core.runtime.TemporaryEffectEntry;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -27,6 +31,8 @@ public final class BuiltinPreDamageReactionHooks {
                         BuiltinPreDamageReactionHooks::parry)
                 .register("telepathy-area-escape", HookSource.ABILITY, 100,
                         BuiltinPreDamageReactionHooks::telepathy)
+                .register("sway-melee-redirect", HookSource.ABILITY, 110,
+                        BuiltinPreDamageReactionHooks::sway)
                 .build();
     }
 
@@ -223,6 +229,80 @@ public final class BuiltinPreDamageReactionHooks {
                 defender.hp()
         );
         return current.cancelHit(List.of(event));
+    }
+
+    /** Python Sway parity for a once-per-scene melee redirect plus adjacent push. */
+    private static PreDamageReactionResult sway(
+            PreDamageReactionContext context,
+            PreDamageReactionResult current
+    ) {
+        BattleRuntimeState state = context.state();
+        RuntimeCombatantState attacker = state.requireCombatant(context.attackerId());
+        RuntimeCombatantState defender = state.requireCombatant(context.defenderId());
+
+        if (AbilityIdentityResolution.matchesRegistration(attacker.abilities(), "Mold Breaker")) return current;
+        if (defender.abilitiesSuppressed()) return current;
+        if (!AbilityIdentityResolution.matchesRegistration(defender.abilities(), "Sway")) return current;
+        if (attacker.temporaryEffects().has("sway_redirect")) return current;
+        if (!context.effectiveTargetKind().equals("melee")) return current;
+
+        TemporaryEffectEntry usedEntry = defender.temporaryEffects().getAll("sway_used").stream()
+                .findFirst()
+                .orElse(null);
+        int usedCount = usedEntry == null ? 0 : intLike(usedEntry.payload().getOrDefault("count", 0));
+        if (usedCount >= 1) return current;
+        if (!defender.actionBudget().hasActionAvailable(ActionType.STANDARD)) return current;
+        if (!context.outOfTurnDecision().shouldTrigger(
+                context.decisionRequest(context.defenderId(), "Sway", true))) {
+            return current;
+        }
+
+        defender.actionBudget().markAction(ActionType.STANDARD, "Sway");
+        if (usedEntry != null) defender.temporaryEffects().removeFirst("sway_used");
+        defender.temporaryEffects().add("sway_used", Map.of("count", usedCount + 1));
+        attacker.temporaryEffects().add("sway_redirect", Map.of("expires_round", state.currentRound()));
+
+        ArrayList<BattleEvent> events = new ArrayList<>();
+        events.add(new RuleEffectEvent(
+                "ability",
+                "Sway",
+                context.defenderId(),
+                context.attackerId(),
+                context.moveName(),
+                "redirect",
+                0.0,
+                defender.hp()
+        ));
+        try {
+            PreDamageFollowUpMoveResult redirected = context.resolveFollowUpMove(
+                    PreDamageFollowUpMoveRequest.originalMove(
+                            context.attackerId(),
+                            context.attackerId(),
+                            attacker.position()
+                    )
+            );
+            events.addAll(redirected.events());
+        } catch (RuntimeException ignored) {
+            // Python swallows nested move-resolution errors and continues into push/cancel logic.
+        } finally {
+            attacker.temporaryEffects().removeAll("sway_redirect");
+        }
+
+        ReactionPushApplication.pushToFirstOpenAdjacent(
+                state,
+                context.defenderId(),
+                context.attackerId()
+        ).ifPresent(destination -> events.add(new RuleEffectEvent(
+                "ability",
+                "Sway",
+                context.defenderId(),
+                context.attackerId(),
+                context.moveName(),
+                "push",
+                0.0,
+                attacker.hp()
+        )));
+        return current.cancelHit(events);
     }
 
     private static int intLike(Object value) {
