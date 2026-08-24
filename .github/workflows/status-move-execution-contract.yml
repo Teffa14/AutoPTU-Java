@@ -1,0 +1,49 @@
+name: Status Move Execution Contract
+
+on:
+  push:
+    branches:
+      - main
+      - 'freeze/**'
+      - 'port/**'
+  pull_request:
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Java port
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: AutoPTU-python
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Export pinned Python contract
+        run: >-
+          python tools/python/export_status_move_execution_contract.py
+          --source-root AutoPTU-python
+          --output build/oracle/status-move-execution.tsv
+
+      - name: Run status move execution parity test
+        run: >-
+          gradle test
+          --tests io.autoptu.core.runtime.StatusMoveExecutionContractOracleParityTest
+          -Dautoptu.status.move.execution.oracle=build/oracle/status-move-execution.tsv
