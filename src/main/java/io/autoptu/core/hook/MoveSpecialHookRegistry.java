@@ -15,28 +15,39 @@ import java.util.Set;
 public final class MoveSpecialHookRegistry {
     private final Map<MoveSpecialPhase, List<Registration>> globals;
     private final Map<MoveSpecialPhase, Map<String, List<Registration>>> specifics;
+    private final boolean empty;
 
     private MoveSpecialHookRegistry(Builder builder) {
         LinkedHashMap<MoveSpecialPhase, List<Registration>> globalCopy = new LinkedHashMap<>();
         LinkedHashMap<MoveSpecialPhase, Map<String, List<Registration>>> specificCopy = new LinkedHashMap<>();
+        boolean hasRegistrations = false;
         for (MoveSpecialPhase phase : MoveSpecialPhase.values()) {
             ArrayList<Registration> globalRegistrations = builder.globals.get(phase);
-            globalCopy.put(phase, globalRegistrations == null ? List.of() : List.copyOf(globalRegistrations));
+            List<Registration> globalPhase = globalRegistrations == null ? List.of() : List.copyOf(globalRegistrations);
+            globalCopy.put(phase, globalPhase);
+            hasRegistrations |= !globalPhase.isEmpty();
             LinkedHashMap<String, List<Registration>> byMove = new LinkedHashMap<>();
             LinkedHashMap<String, ArrayList<Registration>> registeredByMove = builder.specifics.get(phase);
             if (registeredByMove != null) {
                 for (Map.Entry<String, ArrayList<Registration>> entry : registeredByMove.entrySet()) {
-                    byMove.put(entry.getKey(), List.copyOf(entry.getValue()));
+                    List<Registration> registrations = List.copyOf(entry.getValue());
+                    byMove.put(entry.getKey(), registrations);
+                    hasRegistrations |= !registrations.isEmpty();
                 }
             }
             specificCopy.put(phase, Map.copyOf(byMove));
         }
         globals = Map.copyOf(globalCopy);
         specifics = Map.copyOf(specificCopy);
+        empty = !hasRegistrations;
     }
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    public boolean isEmpty() {
+        return empty;
     }
 
     public List<BattleEvent> dispatch(MoveSpecialHookContext context) {
