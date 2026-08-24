@@ -53,6 +53,7 @@ def main() -> None:
     allow = segment(interrupt_text, function(interrupt_tree, "_allow_out_of_turn"))
     perception = segment(interrupt_text, function(interrupt_tree, "_perception_interrupt"))
     perception_errata = segment(interrupt_text, function(interrupt_tree, "_perception_errata_interrupt"))
+    parry = segment(interrupt_text, function(interrupt_tree, "_parry_interrupt"))
     telepathy = segment(interrupt_text, function(interrupt_tree, "_telepathy_interrupt"))
     apply_hooks = segment(registry_text, function(registry_tree, "apply_ability_hooks"))
     resolve_targets_fn = function(battle_tree, "resolve_move_targets")
@@ -81,6 +82,12 @@ def main() -> None:
     )
     perception_add_used = perception.find('add_temporary_effect("perception_used", expires_round=ctx.battle.round + 1)')
 
+    parry_decision = parry.find('_allow_out_of_turn(ctx, ctx.defender_id, "Parry", optional=True)')
+    parry_ready_removal = parry.find('remove_temporary_effect("parry_ready")')
+    parry_melee_check = parry.find('targeting.normalized_target_kind(ctx.effective_move) != "melee"')
+    parry_used_check = parry.find('get_temporary_effects("parry_used")')
+    parry_add_used = parry.find('add_temporary_effect("parry_used", round=ctx.battle.round)')
+
     required_payload = (
         '"actor_id": actor_id',
         '"label": label',
@@ -98,30 +105,20 @@ def main() -> None:
         "decision_payload_complete": int(all(token in allow for token in required_payload)),
         "perception_requires_ready": int('get_temporary_effects("perception_ready")' in perception),
         "perception_first_decision_precedes_ready_consumption": int(
-            perception_first_decision >= 0
-            and perception_ready_removal > perception_first_decision
+            perception_first_decision >= 0 and perception_ready_removal > perception_first_decision
         ),
         "perception_checks_round_scoped_usage": int(
-            perception_used_check > perception_ready_removal
-            and 'ctx.battle.round > int(expires_round)' in perception
+            perception_used_check > perception_ready_removal and 'ctx.battle.round > int(expires_round)' in perception
         ),
-        "perception_uses_second_optional_decision": int(
-            perception_second_decision > perception_used_check
-        ),
-        "perception_records_next_round_expiry": int(
-            perception_add_used > perception_second_decision
-        ),
+        "perception_uses_second_optional_decision": int(perception_second_decision > perception_used_check),
+        "perception_records_next_round_expiry": int(perception_add_used > perception_second_decision),
         "perception_cancels_hit": int('ctx.result["hit"] = False' in perception),
         "perception_zeroes_damage": int('ctx.result["damage"] = 0' in perception),
-        "perception_zeroes_type_multiplier": int(
-            'ctx.result["type_multiplier"] = 0.0' in perception
-        ),
+        "perception_zeroes_type_multiplier": int('ctx.result["type_multiplier"] = 0.0' in perception),
         "perception_errata_requires_exact_variant": int(
             'has_ability_exact(ctx.defender, "Perception [Errata]")' in perception_errata
         ),
-        "perception_errata_requires_distinct_attacker": int(
-            'ctx.attacker_id == ctx.defender_id' in perception_errata
-        ),
+        "perception_errata_requires_distinct_attacker": int('ctx.attacker_id == ctx.defender_id' in perception_errata),
         "perception_errata_requires_allied_attacker": int(
             'ctx.battle._team_for(ctx.attacker_id) != ctx.battle._team_for(ctx.defender_id)' in perception_errata
         ),
@@ -136,17 +133,24 @@ def main() -> None:
         ),
         "perception_errata_cancels_hit": int('ctx.result["hit"] = False' in perception_errata),
         "perception_errata_zeroes_damage": int('ctx.result["damage"] = 0' in perception_errata),
-        "perception_errata_zeroes_type_multiplier": int(
-            'ctx.result["type_multiplier"] = 0.0' in perception_errata
+        "perception_errata_zeroes_type_multiplier": int('ctx.result["type_multiplier"] = 0.0' in perception_errata),
+        "parry_requires_ready": int('get_temporary_effects("parry_ready")' in parry),
+        "parry_uses_optional_decision": int(parry_decision >= 0),
+        "parry_consumes_ready_after_decision": int(parry_ready_removal > parry_decision),
+        "parry_checks_melee_after_ready_consumption": int(parry_melee_check > parry_ready_removal),
+        "parry_checks_round_scoped_usage": int(
+            parry_used_check > parry_melee_check and 'entry.get("round") == ctx.battle.round' in parry
         ),
+        "parry_records_current_round_usage": int(parry_add_used > parry_used_check),
+        "parry_cancels_hit": int('ctx.result["hit"] = False' in parry),
+        "parry_zeroes_damage": int('ctx.result["damage"] = 0' in parry),
+        "parry_zeroes_type_multiplier": int('ctx.result["type_multiplier"] = 0.0' in parry),
         "telepathy_uses_optional_decision": int(
             '_allow_out_of_turn(ctx, ctx.defender_id, "Telepathy", optional=True)' in telepathy
         ),
         "telepathy_cancels_hit": int('ctx.result["hit"] = False' in telepathy),
         "telepathy_zeroes_damage": int('ctx.result["damage"] = 0' in telepathy),
-        "telepathy_zeroes_type_multiplier": int(
-            'ctx.result["type_multiplier"] = 0.0' in telepathy
-        ),
+        "telepathy_zeroes_type_multiplier": int('ctx.result["type_multiplier"] = 0.0' in telepathy),
         "ability_registry_continues_after_hook": int(
             "func(ctx)" in apply_hooks and "for ability, holder, func in hooks:" in apply_hooks
         ),
@@ -156,9 +160,7 @@ def main() -> None:
         "ordinary_move_resolution_precedes_pre_damage_interrupt": int(
             ordinary_resolution_index >= 0 and ordinary_resolution_index < pre_index
         ),
-        "pre_damage_interrupt_precedes_post_result": int(
-            pre_index >= 0 and post_index > pre_index
-        ),
+        "pre_damage_interrupt_precedes_post_result": int(pre_index >= 0 and post_index > pre_index),
         "interrupt_result_replaces_result_before_post_result": int(
             interrupt_result_index > pre_index and interrupt_result_index < post_index
         ),
