@@ -27,8 +27,10 @@ public record MoveCombatProfile(
             throw new IllegalArgumentException("damageCategory is required");
         }
         damageCategory = damageCategory.strip().toLowerCase(Locale.ROOT);
-        if (!damageCategory.equals("physical") && !damageCategory.equals("special")) {
-            throw new IllegalArgumentException("damageCategory must be physical or special");
+        if (!damageCategory.equals("physical")
+                && !damageCategory.equals("special")
+                && !damageCategory.equals("status")) {
+            throw new IllegalArgumentException("damageCategory must be physical, special, or status");
         }
         if (moveType != null) {
             moveType = moveType.strip();
