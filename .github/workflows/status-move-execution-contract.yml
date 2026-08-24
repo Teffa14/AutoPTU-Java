@@ -42,8 +42,9 @@ jobs:
           --source-root AutoPTU-python
           --output build/oracle/status-move-execution.tsv
 
-      - name: Run status move execution parity test
+      - name: Run status move execution parity tests
         run: >-
           gradle test
           --tests io.autoptu.core.runtime.StatusMoveExecutionContractOracleParityTest
+          --tests io.autoptu.core.runtime.StatusMoveRuntimeResolutionTest
           -Dautoptu.status.move.execution.oracle=build/oracle/status-move-execution.tsv
