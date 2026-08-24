@@ -15,7 +15,8 @@ public record PreDamageReactionContext(
         String effectiveMoveName,
         String effectiveTargetKind,
         List<GridCoord> threatenedTiles,
-        OutOfTurnDecisionGate outOfTurnDecision
+        OutOfTurnDecisionGate outOfTurnDecision,
+        PreDamageFollowUpMoveExecutor followUpMoveExecutor
 ) {
     public PreDamageReactionContext {
         if (state == null) throw new IllegalArgumentException("state is required");
@@ -28,6 +29,26 @@ public record PreDamageReactionContext(
         outOfTurnDecision = outOfTurnDecision == null
                 ? OutOfTurnDecisionGate.allowWhenUnconfigured()
                 : outOfTurnDecision;
+        followUpMoveExecutor = followUpMoveExecutor == null
+                ? PreDamageFollowUpMoveExecutor.unavailable()
+                : followUpMoveExecutor;
+    }
+
+    /** Backwards-compatible constructor for callers that do not yet need follow-up resolution. */
+    public PreDamageReactionContext(
+            BattleRuntimeState state,
+            String attackerId,
+            String defenderId,
+            String moveName,
+            String effectiveMoveName,
+            String effectiveTargetKind,
+            List<GridCoord> threatenedTiles,
+            OutOfTurnDecisionGate outOfTurnDecision
+    ) {
+        this(
+                state, attackerId, defenderId, moveName, effectiveMoveName, effectiveTargetKind,
+                threatenedTiles, outOfTurnDecision, PreDamageFollowUpMoveExecutor.unavailable()
+        );
     }
 
     /** Backwards-compatible constructor for callers that do not yet need target-kind semantics. */
@@ -88,6 +109,11 @@ public record PreDamageReactionContext(
         return OutOfTurnDecisionRequest.preDamageInterrupt(
                 actorId, label, moveName, effectiveMoveName, attackerId, defenderId, optional
         );
+    }
+
+    public PreDamageFollowUpMoveResult resolveFollowUpMove(PreDamageFollowUpMoveRequest request) {
+        if (request == null) throw new IllegalArgumentException("request is required");
+        return followUpMoveExecutor.execute(request);
     }
 
     private static String require(String value, String name) {
