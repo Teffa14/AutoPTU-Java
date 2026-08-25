@@ -33,5 +33,7 @@ jobs:
           --source-root python-oracle
           --output build/oracle/move-special-post-damage.tsv
 
-      - name: Test POST-damage move-special bridge
-        run: gradle test --tests io.autoptu.core.hook.MoveSpecialPostDamageResolutionTest
+      - name: Test POST-damage move-special bridge and runtime timing
+        run: |
+          gradle test --tests io.autoptu.core.hook.MoveSpecialPostDamageResolutionTest
+          gradle test --tests io.autoptu.core.runtime.RuntimeMoveSpecialPostDamageApplicationTest
