@@ -97,6 +97,14 @@ def main() -> None:
             effects=({"kind": "stat_stratagem", "stat": "spatk"},),
             stages={"spatk": 5},
         ), move_obj=move(category="Special", target_kind="Ranged")),
+        run("stat_stratagem_stacked", attacker=FakeMon(
+            effects=(
+                {"kind": "stat_stratagem", "stat": "spatk"},
+                {"kind": "stat_stratagem", "stat": "atk"},
+                {"kind": "stat_stratagem", "stat": "spatk"},
+            ),
+            stages={"spatk": 5},
+        ), move_obj=move(category="Special", target_kind="Ranged")),
         run("hardened", attacker=FakeMon(hardened=4)),
     ]
 
