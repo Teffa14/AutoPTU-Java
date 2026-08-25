@@ -56,15 +56,16 @@ def contains_name(node: ast.AST, names: set[str]) -> bool:
 def damage_updates(function: ast.FunctionDef | ast.AsyncFunctionDef, end_line: int) -> list[tuple[int, ast.AST]]:
     found: list[tuple[int, ast.AST]] = []
     for node in ast.walk(function):
-        if node.lineno >= end_line:
+        node_line = getattr(node, "lineno", None)
+        if node_line is None or node_line >= end_line:
             continue
         if isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name):
             if node.target.id == "total_damage_dealt" and isinstance(node.op, ast.Add):
-                found.append((node.lineno, node.value))
+                found.append((node_line, node.value))
         elif isinstance(node, ast.Assign):
             if any(isinstance(target, ast.Name) and target.id == "total_damage_dealt" for target in node.targets):
                 if isinstance(node.value, ast.BinOp) and isinstance(node.value.op, ast.Add):
-                    found.append((node.lineno, node.value))
+                    found.append((node_line, node.value))
     return sorted(found, key=lambda item: item[0])
 
 
