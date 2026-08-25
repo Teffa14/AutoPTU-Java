@@ -40,6 +40,8 @@ class MoveSpecialEffectRollOracleParityTest {
         assertEquals(expected.get("stat_stratagem"), resolve(input().statStratagemApplies(true).statStratagemSpAtkStage(5)));
         assertEquals(expected.get("stat_stratagem_stacked"), resolve(input().statStratagemApplications(2).statStratagemSpAtkStage(5)));
         assertEquals(expected.get("hardened"), resolve(input().hardenedCritBonus(4)));
+        assertEquals(1, expected.get("move_result_carries_accuracy_roll"));
+        assertEquals(1, expected.get("effect_roll_reads_shared_roll"));
     }
 
     private static int resolve() {
