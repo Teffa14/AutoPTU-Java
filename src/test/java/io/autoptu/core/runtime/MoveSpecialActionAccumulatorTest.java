@@ -29,13 +29,14 @@ class MoveSpecialActionAccumulatorTest {
                     assertFalse(ctx.hit());
                     assertEquals(0, ctx.damageDealt());
                     assertEquals(false, ctx.result().get("hit"));
+                    assertEquals(true, ctx.result().get("immutable_mind"));
                     return List.of(new StatusSkipEvent("actor", "end", TurnPhase.ACTION, "end_action"));
                 })
                 .build();
 
         var result = accumulator.finish(registry, state, "actor", "test move", "status");
 
-        assertEquals(Map.of("hit", false), accumulator.lastResultSnapshot());
+        assertEquals(Map.of("hit", false, "immutable_mind", true), accumulator.lastResultSnapshot());
         assertEquals(0, accumulator.totalDamageDealt());
         assertEquals(1, result.events().size());
         assertFalse(result.hitSnapshot());
@@ -72,6 +73,7 @@ class MoveSpecialActionAccumulatorTest {
 
         assertEquals(7, accumulator.totalDamageDealt());
         assertEquals("last", accumulator.lastResultSnapshot().get("marker"));
+        assertFalse(accumulator.lastResultSnapshot().containsKey("immutable_mind"));
         assertTrue(result.hitSnapshot());
         assertEquals(7, result.totalDamageDealt());
     }
