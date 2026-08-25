@@ -39,4 +39,5 @@ jobs:
           gradle test
           --tests io.autoptu.core.hook.MoveSpecialEffectRollOracleParityTest
           --tests io.autoptu.core.hook.MoveSpecialEffectRollRuntimeInputsOracleParityTest
+          --tests io.autoptu.core.hook.MoveSpecialPreDamageResolutionTest
           -Dautoptu.move.special.effect.roll.oracle=build/oracle/move-special-effect-roll.tsv
