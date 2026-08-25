@@ -64,7 +64,7 @@ class MoveSpecialActionAccumulatorTest {
                     assertEquals(7, ctx.damageDealt());
                     assertEquals("last", ctx.result().get("marker"));
                     assertEquals(99, ((Number) ctx.result().get("damage")).intValue());
-                    assertTrue(ctx.result().containsKey("nullable"));
+                    assertTrue(ctx.result().contains("nullable"));
                     return List.of();
                 })
                 .build();
