@@ -30,7 +30,8 @@ jobs:
           AUTOPTU_PYTHON_ROOT: ${{ github.workspace }}/python-oracle
         run: python3 tools/python/export_move_special_execution_order_contract.py
 
-      - name: Test PRE-damage move-special bridge
+      - name: Test move-special runtime bridges
         run: |
           gradle test --tests io.autoptu.core.hook.MoveSpecialPreDamageResolutionTest
           gradle test --tests io.autoptu.core.runtime.BattleRuntimeMoveSpecialPreDamagePipelineTest
+          gradle test --tests io.autoptu.core.hook.MoveSpecialEndActionResolutionTest
