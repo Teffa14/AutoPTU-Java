@@ -1,0 +1,41 @@
+name: Hardened Crit Effect Parity
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  hardened-crit-effect-parity:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Export Hardened crit/effect oracle fixtures
+        run: |
+          python3 -m py_compile tools/python/export_hardened_crit_effect_bonus_fixtures.py
+          python3 tools/python/export_hardened_crit_effect_bonus_fixtures.py \
+            --source-root python-oracle \
+            --output build/oracle/hardened-crit-effect.tsv
+
+      - name: Run Hardened crit/effect parity and Java regression suite
+        env:
+          JAVA_TOOL_OPTIONS: -Dautoptu.hardened.crit.effect.oracle=${{ github.workspace }}/build/oracle/hardened-crit-effect.tsv
+        run: gradle test --stacktrace
