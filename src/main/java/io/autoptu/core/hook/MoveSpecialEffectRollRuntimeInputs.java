@@ -70,7 +70,8 @@ public final class MoveSpecialEffectRollRuntimeInputs {
         TrainerRuntimeState trainer = state.hasCanonicalTrainer(attackerId)
                 ? state.requireTrainerForCombatant(attackerId)
                 : null;
-        boolean firebrand = trainer != null
+        boolean firebrand = !abilitiesSuppressed
+                && trainer != null
                 && trainer.hasTrainerFeature("Firebrand")
                 && moveType.equals("fire")
                 && effectsText.contains("burn");
