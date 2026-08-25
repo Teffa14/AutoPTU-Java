@@ -11,11 +11,12 @@ import java.util.Objects;
 /**
  * Runtime-owned aggregation for Python move-special END_ACTION state.
  *
- * <p>The pinned Python oracle initializes {@code last_result} to {@code {"hit": false}}
- * and {@code total_damage_dealt} to zero, replaces {@code last_result} with each target's
- * final shared move-special result, sums the applied damage across targets, and dispatches
- * END_ACTION once after target processing. This state deliberately remains package-private
- * so Minecraft/Cobblemon adapters cannot synthesize action-wide PTU results.</p>
+ * <p>The pinned Python oracle initializes {@code last_result} to
+ * {@code {"hit": false, "immutable_mind": true}} and {@code total_damage_dealt} to zero,
+ * replaces {@code last_result} with each target's final shared move-special result, sums the
+ * applied damage across targets, and dispatches END_ACTION once after target processing. This
+ * state deliberately remains package-private so Minecraft/Cobblemon adapters cannot synthesize
+ * action-wide PTU results.</p>
  */
 final class MoveSpecialActionAccumulator {
     private final LinkedHashMap<String, Object> lastResult = new LinkedHashMap<>();
@@ -23,6 +24,7 @@ final class MoveSpecialActionAccumulator {
 
     MoveSpecialActionAccumulator() {
         lastResult.put("hit", false);
+        lastResult.put("immutable_mind", true);
     }
 
     void recordTarget(Map<String, ?> resultSnapshot, int damageDealt) {
