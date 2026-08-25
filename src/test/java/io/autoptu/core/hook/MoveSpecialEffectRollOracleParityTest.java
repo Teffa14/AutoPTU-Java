@@ -38,6 +38,7 @@ class MoveSpecialEffectRollOracleParityTest {
         assertEquals(expected.get("brutal"), resolve(input().brutalTraining(true)));
         assertEquals(expected.get("range_bonus"), resolve(input().effectRangeBonuses(List.of(2, -1))));
         assertEquals(expected.get("stat_stratagem"), resolve(input().statStratagemApplies(true).statStratagemSpAtkStage(5)));
+        assertEquals(expected.get("stat_stratagem_stacked"), resolve(input().statStratagemApplications(2).statStratagemSpAtkStage(5)));
         assertEquals(expected.get("hardened"), resolve(input().hardenedCritBonus(4)));
     }
 
@@ -65,7 +66,7 @@ class MoveSpecialEffectRollOracleParityTest {
         boolean polishedShineSteel;
         boolean brutalTraining;
         List<Integer> effectRangeBonuses = List.of();
-        boolean statStratagemApplies;
+        int statStratagemApplications;
         int statStratagemSpAtkStage;
         int hardenedCritBonus;
 
@@ -79,7 +80,8 @@ class MoveSpecialEffectRollOracleParityTest {
         Builder polishedShineSteel(boolean value) { polishedShineSteel = value; return this; }
         Builder brutalTraining(boolean value) { brutalTraining = value; return this; }
         Builder effectRangeBonuses(List<Integer> value) { effectRangeBonuses = value; return this; }
-        Builder statStratagemApplies(boolean value) { statStratagemApplies = value; return this; }
+        Builder statStratagemApplies(boolean value) { statStratagemApplications = value ? 1 : 0; return this; }
+        Builder statStratagemApplications(int value) { statStratagemApplications = value; return this; }
         Builder statStratagemSpAtkStage(int value) { statStratagemSpAtkStage = value; return this; }
         Builder hardenedCritBonus(int value) { hardenedCritBonus = value; return this; }
 
@@ -96,7 +98,7 @@ class MoveSpecialEffectRollOracleParityTest {
                     polishedShineSteel,
                     brutalTraining,
                     effectRangeBonuses,
-                    statStratagemApplies,
+                    statStratagemApplications,
                     statStratagemSpAtkStage,
                     hardenedCritBonus
             );
