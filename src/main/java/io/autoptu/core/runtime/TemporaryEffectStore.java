@@ -69,6 +69,24 @@ public final class TemporaryEffectStore {
         return false;
     }
 
+    /**
+     * Remove the first entry equal to the supplied snapshot entry.
+     *
+     * Python frequently iterates list(temporary_effects) and then calls list.remove(entry),
+     * which removes the first equal dictionary rather than every entry in the family. This
+     * boundary preserves that exact behavior for metadata-sensitive expiry rules.
+     */
+    public boolean removeEntry(TemporaryEffectEntry expected) {
+        if (expected == null) return false;
+        for (int index = 0; index < entries.size(); index++) {
+            if (entries.get(index).equals(expected)) {
+                entries.remove(index);
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Remove every occurrence and return the number removed. */
     public int removeAll(String effectName) {
         return removeIf(effectName, ignored -> true);
