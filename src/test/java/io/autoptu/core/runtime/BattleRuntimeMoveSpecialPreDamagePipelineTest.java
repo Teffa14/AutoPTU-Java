@@ -49,6 +49,7 @@ class BattleRuntimeMoveSpecialPreDamagePipelineTest {
         MoveSpecialHookRegistry moveSpecials = MoveSpecialHookRegistry.builder()
                 .registerGlobal("set-damage", MoveSpecialPhase.PRE_DAMAGE, context -> {
                     assertTrue(context.hit());
+                    assertEquals(13, ((Number) context.result().get("roll")).intValue());
                     assertTrue(((Number) context.result().get("damage")).intValue() > 0);
                     context.result().put("damage", 3);
                     context.result().put("type_multiplier", 0.5d);
