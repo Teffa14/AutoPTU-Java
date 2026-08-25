@@ -54,6 +54,51 @@ class MoveSpecialActionFinalizationTest {
     }
 
     @Test
+    void genericTargetTransportPreservesPrivateResultStateForEndAction() {
+        BattleRuntimeState state = state();
+        LinkedHashMap<String, Object> firstSnapshot = new LinkedHashMap<>();
+        firstSnapshot.put("hit", true);
+        firstSnapshot.put("marker", "first");
+        LinkedHashMap<String, Object> lastSnapshot = new LinkedHashMap<>();
+        lastSnapshot.put("hit", false);
+        lastSnapshot.put("marker", "last");
+        lastSnapshot.put("nullable", null);
+
+        MoveSpecialTargetResult first = new MoveSpecialTargetResult(
+                new AppliedActionResult(List.of(event("target:first"))), firstSnapshot, 6);
+        MoveSpecialTargetResult last = new MoveSpecialTargetResult(
+                new AppliedActionResult(List.of(event("target:last"))), lastSnapshot, 2);
+        firstSnapshot.put("marker", "mutated-outside");
+        lastSnapshot.put("marker", "mutated-outside");
+
+        MoveSpecialHookRegistry registry = MoveSpecialHookRegistry.builder()
+                .registerGlobal("end", MoveSpecialPhase.END_ACTION, ctx -> {
+                    assertFalse(ctx.hit());
+                    assertEquals(8, ctx.damageDealt());
+                    assertEquals("last", ctx.result().get("marker"));
+                    assertTrue(ctx.result().contains("nullable"));
+                    return List.of(event("end_action"));
+                })
+                .build();
+
+        MultiTargetAppliedActionResult result = MoveSpecialActionFinalization.finishTargetResults(
+                registry,
+                state,
+                "actor",
+                "test move",
+                "physical",
+                List.of("enemy", "enemy-2"),
+                List.of(first, last)
+        );
+
+        assertEquals(List.of("enemy", "enemy-2"), result.targetIds());
+        assertEquals("target:first", ((StatusSkipEvent) result.events().get(0)).reason());
+        assertEquals("target:last", ((StatusSkipEvent) result.events().get(1)).reason());
+        assertEquals("end_action", ((StatusSkipEvent) result.events().get(2)).reason());
+        assertThrows(UnsupportedOperationException.class, () -> last.resultSnapshot().put("damage", 99));
+    }
+
+    @Test
     void dispatchesEndActionWithPythonDefaultsWhenDeclarationHasNoTargets() {
         BattleRuntimeState state = state();
         MoveSpecialHookRegistry registry = MoveSpecialHookRegistry.builder()
