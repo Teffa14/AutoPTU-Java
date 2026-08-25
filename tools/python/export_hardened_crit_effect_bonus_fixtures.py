@@ -121,7 +121,9 @@ def main() -> int:
 
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    fixture_text = "\n".join(rows) + "\n"
+    output.write_text(fixture_text, encoding="utf-8")
+    print(fixture_text, end="")
     print(f"wrote {len(cases)} Hardened crit/effect fixtures to {output}")
     return 0
 
