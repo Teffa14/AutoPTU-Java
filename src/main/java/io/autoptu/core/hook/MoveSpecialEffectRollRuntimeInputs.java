@@ -30,17 +30,34 @@ public final class MoveSpecialEffectRollRuntimeInputs {
             MoveOption move,
             int baseRoll
     ) {
+        if (move == null) throw new IllegalArgumentException("move is required");
+        return fromState(state, attackerId, defenderId, move, move.requireCombatProfile(), baseRoll);
+    }
+
+    /**
+     * Preferred runtime boundary when effective-move hooks have already transformed type or
+     * category. The effects text and move identity remain canonical, while effect-roll rules that
+     * inspect type/category observe the same effective move metadata used by the attack pipeline.
+     */
+    public static MoveSpecialEffectRollResolution.Input fromState(
+            BattleRuntimeState state,
+            String attackerId,
+            String defenderId,
+            MoveOption move,
+            MoveCombatProfile effectiveProfile,
+            int baseRoll
+    ) {
         if (state == null) throw new IllegalArgumentException("state is required");
         if (attackerId == null || attackerId.isBlank()) {
             throw new IllegalArgumentException("attackerId is required");
         }
         if (move == null) throw new IllegalArgumentException("move is required");
+        if (effectiveProfile == null) throw new IllegalArgumentException("effectiveProfile is required");
 
         RuntimeCombatantState attacker = state.requireCombatant(attackerId);
         RuntimeCombatantState defender = defenderId == null || defenderId.isBlank()
                 ? null
                 : state.requireCombatant(defenderId);
-        MoveCombatProfile profile = move.requireCombatProfile();
         int currentRound = state.currentRound();
 
         MoveSpecialEffectRollTemporaryStateResolution.Result temporary =
@@ -59,8 +76,8 @@ public final class MoveSpecialEffectRollRuntimeInputs {
 
         boolean abilitiesSuppressed = attacker.abilitiesSuppressed();
         String effectsText = move.spec().effectsText().toLowerCase(Locale.ROOT);
-        String moveType = normalize(profile.moveType());
-        String category = normalize(profile.damageCategory());
+        String moveType = normalize(effectiveProfile.moveType());
+        String category = normalize(effectiveProfile.damageCategory());
         String targetKind = normalize(move.spec().targetKind());
 
         boolean sereneGrace = !abilitiesSuppressed && attacker.hasAbilityExact("Serene Grace");
