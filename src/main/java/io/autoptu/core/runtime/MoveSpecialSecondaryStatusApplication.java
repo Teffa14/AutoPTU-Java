@@ -70,10 +70,10 @@ public final class MoveSpecialSecondaryStatusApplication {
         if (request.remaining() != null) {
             payload.put("remaining", request.remaining());
         }
-        if (request.statusName().equalsIgnoreCase("Flinched")) {
+        if (request.status().equalsIgnoreCase("Flinched")) {
             payload.put("applied_round", state.currentRound());
         }
-        return new StatusEntry(request.statusName(), payload);
+        return new StatusEntry(request.status(), payload);
     }
 
     public record Result(List<StatusApplicationResult> applications, List<BattleEvent> events) {
