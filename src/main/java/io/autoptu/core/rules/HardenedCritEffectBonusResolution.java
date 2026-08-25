@@ -7,9 +7,9 @@ import java.util.List;
 /**
  * Resolves the PTU Hardened critical/effect-range bonus from server-owned semantic state.
  *
- * <p>The pinned Python oracle only grants this bonus while Hardened is active and the
- * combatant has at least three injuries. Each injury contributes +1. Press On! doubles
- * Hardened bonuses only while {@code press_on_active} is present and the controlling
+ * <p>The pinned Python oracle grants this bonus while Hardened is active and the
+ * combatant has at least one injury. The base bonus is +1. Press On! doubles the
+ * Hardened bonus only while {@code press_on_active} is present and the controlling
  * Trainer has Intimidate rank 6+.</p>
  */
 public final class HardenedCritEffectBonusResolution {
@@ -33,12 +33,11 @@ public final class HardenedCritEffectBonusResolution {
         List<TemporaryEffectEntry> effects = temporaryEffects == null
                 ? List.of()
                 : List.copyOf(temporaryEffects);
-        if (injuries < 3 || !HardenedInitiativeResolution.hasActiveHardened(currentRound, effects)) {
+        if (injuries < 1 || !HardenedInitiativeResolution.hasActiveHardened(currentRound, effects)) {
             return 0;
         }
 
         boolean pressingOn = effects.stream().anyMatch(entry -> entry.name().equals("press_on_active"));
-        int multiplier = hasPressOnFeature && pressingOn && intimidateRank >= 6 ? 2 : 1;
-        return injuries * multiplier;
+        return hasPressOnFeature && pressingOn && intimidateRank >= 6 ? 2 : 1;
     }
 }
