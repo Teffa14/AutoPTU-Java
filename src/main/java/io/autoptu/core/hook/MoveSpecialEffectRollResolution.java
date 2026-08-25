@@ -28,9 +28,8 @@ public final class MoveSpecialEffectRollResolution {
         for (Integer bonus : input.effectRangeBonuses()) {
             if (bonus != null) roll += bonus;
         }
-        if (input.statStratagemApplies()) {
-            roll += Math.min(3, Math.max(0, input.statStratagemSpAtkStage()));
-        }
+        int statStratagemBonus = Math.min(3, Math.max(0, input.statStratagemSpAtkStage()));
+        roll += input.statStratagemApplications() * statStratagemBonus;
         roll += input.hardenedCritBonus();
         return roll;
     }
@@ -47,12 +46,50 @@ public final class MoveSpecialEffectRollResolution {
             boolean polishedShineSteel,
             boolean brutalTraining,
             List<Integer> effectRangeBonuses,
-            boolean statStratagemApplies,
+            int statStratagemApplications,
             int statStratagemSpAtkStage,
             int hardenedCritBonus
     ) {
         public Input {
             effectRangeBonuses = List.copyOf(effectRangeBonuses == null ? List.of() : effectRangeBonuses);
+            if (statStratagemApplications < 0) {
+                throw new IllegalArgumentException("statStratagemApplications cannot be negative");
+            }
+        }
+
+        /** Backwards-compatible constructor for callers that only modeled one Stat Stratagem entry. */
+        public Input(
+                int baseRoll,
+                boolean immutableMindBlocked,
+                boolean effectRangeBlocked,
+                boolean sereneGrace,
+                boolean stenchFlinch,
+                boolean firebrandBurn,
+                int rollPenalty,
+                boolean mindbreakPsychicDamaging,
+                boolean polishedShineSteel,
+                boolean brutalTraining,
+                List<Integer> effectRangeBonuses,
+                boolean statStratagemApplies,
+                int statStratagemSpAtkStage,
+                int hardenedCritBonus
+        ) {
+            this(
+                    baseRoll,
+                    immutableMindBlocked,
+                    effectRangeBlocked,
+                    sereneGrace,
+                    stenchFlinch,
+                    firebrandBurn,
+                    rollPenalty,
+                    mindbreakPsychicDamaging,
+                    polishedShineSteel,
+                    brutalTraining,
+                    effectRangeBonuses,
+                    statStratagemApplies ? 1 : 0,
+                    statStratagemSpAtkStage,
+                    hardenedCritBonus
+            );
         }
     }
 }
