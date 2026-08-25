@@ -38,3 +38,4 @@ jobs:
           gradle test --tests io.autoptu.core.runtime.BattleRuntimeMoveSpecialPreDamagePipelineTest
           gradle test --tests io.autoptu.core.hook.MoveSpecialEndActionResolutionTest
           gradle test --tests io.autoptu.core.runtime.MoveSpecialActionAccumulatorTest
+          gradle test --tests io.autoptu.core.runtime.MoveSpecialActionFinalizationTest
