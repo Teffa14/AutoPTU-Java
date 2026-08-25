@@ -13,7 +13,7 @@ import java.util.Objects;
  *
  * <p>Python resolves every target first, keeps only the last target result, sums applied damage,
  * then dispatches END_ACTION exactly once. This seam composes already-authoritative per-target
- * POST_DAMAGE results without exposing the mutable action accumulator to Minecraft/Cobblemon.</p>
+ * results without exposing the mutable action accumulator to Minecraft/Cobblemon.</p>
  */
 final class MoveSpecialActionFinalization {
     private MoveSpecialActionFinalization() {}
@@ -27,10 +27,26 @@ final class MoveSpecialActionFinalization {
             List<String> targetIds,
             List<RuntimeMoveSpecialPostDamageApplication.Result> targetResults
     ) {
+        List<MoveSpecialTargetResult> transported = targetResults == null
+                ? List.of()
+                : targetResults.stream().map(MoveSpecialTargetResult::from).toList();
+        return finishTargetResults(
+                registry, state, attackerId, moveName, moveCategory, targetIds, transported);
+    }
+
+    static MultiTargetAppliedActionResult finishTargetResults(
+            MoveSpecialHookRegistry registry,
+            BattleRuntimeState state,
+            String attackerId,
+            String moveName,
+            String moveCategory,
+            List<String> targetIds,
+            List<MoveSpecialTargetResult> targetResults
+    ) {
         Objects.requireNonNull(registry, "registry");
         Objects.requireNonNull(state, "state");
         List<String> orderedTargetIds = targetIds == null ? List.of() : List.copyOf(targetIds);
-        List<RuntimeMoveSpecialPostDamageApplication.Result> orderedResults =
+        List<MoveSpecialTargetResult> orderedResults =
                 targetResults == null ? List.of() : List.copyOf(targetResults);
         if (orderedTargetIds.size() != orderedResults.size()) {
             throw new IllegalArgumentException("targetIds and targetResults must have matching sizes");
@@ -38,11 +54,10 @@ final class MoveSpecialActionFinalization {
 
         MoveSpecialActionAccumulator accumulator = new MoveSpecialActionAccumulator();
         ArrayList<BattleEvent> orderedEvents = new ArrayList<>();
-        for (RuntimeMoveSpecialPostDamageApplication.Result targetResult : orderedResults) {
-            RuntimeMoveSpecialPostDamageApplication.Result required =
-                    Objects.requireNonNull(targetResult, "targetResult");
+        for (MoveSpecialTargetResult targetResult : orderedResults) {
+            MoveSpecialTargetResult required = Objects.requireNonNull(targetResult, "targetResult");
             orderedEvents.addAll(required.events());
-            accumulator.recordTarget(required);
+            accumulator.recordTarget(required.resultSnapshot(), required.damageDealt());
         }
 
         MoveSpecialEndActionResolution.Result endAction = accumulator.finish(
