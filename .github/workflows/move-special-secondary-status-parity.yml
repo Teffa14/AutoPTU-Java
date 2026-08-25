@@ -39,4 +39,5 @@ jobs:
         run: >-
           gradle test --stacktrace
           --tests io.autoptu.core.hook.MoveSpecialSecondaryStatusOracleParityTest
+          --tests io.autoptu.core.runtime.MoveSpecialSecondaryStatusApplicationTest
           -Dautoptu.move.special.secondary.status.oracle=build/oracle/move-special-secondary-status.tsv
