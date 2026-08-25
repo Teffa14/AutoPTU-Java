@@ -16,10 +16,26 @@ public record MoveSpec(
         String areaKind,
         Integer areaValue,
         String rangeText,
-        List<String> keywords
+        List<String> keywords,
+        String effectsText
 ) {
     public MoveSpec {
         keywords = normalizeKeywords(keywords);
+        effectsText = effectsText == null ? "" : effectsText;
+    }
+
+    /** Backwards-compatible constructor for callers that already provide canonical keywords. */
+    public MoveSpec(
+            String targetKind,
+            String rangeKind,
+            Integer targetRange,
+            Integer rangeValue,
+            String areaKind,
+            Integer areaValue,
+            String rangeText,
+            List<String> keywords
+    ) {
+        this(targetKind, rangeKind, targetRange, rangeValue, areaKind, areaValue, rangeText, keywords, "");
     }
 
     /** Backwards-compatible constructor for older targeting/movement callers. */
@@ -32,7 +48,7 @@ public record MoveSpec(
             Integer areaValue,
             String rangeText
     ) {
-        this(targetKind, rangeKind, targetRange, rangeValue, areaKind, areaValue, rangeText, List.of());
+        this(targetKind, rangeKind, targetRange, rangeValue, areaKind, areaValue, rangeText, List.of(), "");
     }
 
     /**
