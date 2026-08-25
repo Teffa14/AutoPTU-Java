@@ -14,6 +14,7 @@ import io.autoptu.core.hook.DamageModifierHookResult;
 import io.autoptu.core.hook.EffectiveMoveHookContext;
 import io.autoptu.core.hook.EffectiveMoveHookRegistry;
 import io.autoptu.core.hook.EffectiveMoveHookResult;
+import io.autoptu.core.hook.MoveSpecialHookRegistry;
 import io.autoptu.core.hook.PostDamageHookRegistry;
 import io.autoptu.core.hook.PreDamageReactionHookRegistry;
 import io.autoptu.core.model.AttackModifier;
@@ -155,10 +156,11 @@ public final class RuntimeMoveResolution {
         DamageModifierHookResult damageHooks = authoritativeDamageHooks(
                 state, choice, move, actor, target, effectiveMetadata);
         stateBoundInput = withModifiers(stateBoundInput, damageHooks.modifiers());
+        MoveSpecialHookRegistry moveSpecialHooks = RuntimeMoveSpecialHooks.standardRegistry(move, effectiveMetadata);
         return BattleRuntime.applyAuthoritativeMove(state, choice, move, actorSize, targetSize,
                 lineOfSightBlockers, source, rng, stateBoundInput,
                 combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
-                POST_DAMAGE_HOOKS, effectiveMetadata);
+                moveSpecialHooks, PRE_DAMAGE_HOOKS, POST_DAMAGE_HOOKS, effectiveMetadata);
     }
 
     /**
