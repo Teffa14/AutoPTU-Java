@@ -19,6 +19,7 @@ import java.util.Objects;
 public final class MoveSpecialPreDamageResolution {
     private MoveSpecialPreDamageResolution() {}
 
+    /** Compatibility path for callers that do not yet transport the authoritative accuracy roll. */
     public static Result resolve(
             MoveSpecialHookRegistry registry,
             BattleRuntimeState state,
@@ -31,6 +32,47 @@ public final class MoveSpecialPreDamageResolution {
             int damage,
             double typeMultiplier
     ) {
+        return resolveInternal(
+                registry, state, attackerId, defenderId, moveName, moveCategory,
+                hit, crit, damage, typeMultiplier, null);
+    }
+
+    /**
+     * Python-parity path. The accuracy d20 is carried in the shared result mapping as {@code roll}
+     * so later PRE/POST move-special handlers and {@code _effect_roll()} observe the same roll that
+     * resolved the attack. The value remains owned by the battle core.
+     */
+    public static Result resolve(
+            MoveSpecialHookRegistry registry,
+            BattleRuntimeState state,
+            String attackerId,
+            String defenderId,
+            String moveName,
+            String moveCategory,
+            boolean hit,
+            boolean crit,
+            int damage,
+            double typeMultiplier,
+            int roll
+    ) {
+        return resolveInternal(
+                registry, state, attackerId, defenderId, moveName, moveCategory,
+                hit, crit, damage, typeMultiplier, roll);
+    }
+
+    private static Result resolveInternal(
+            MoveSpecialHookRegistry registry,
+            BattleRuntimeState state,
+            String attackerId,
+            String defenderId,
+            String moveName,
+            String moveCategory,
+            boolean hit,
+            boolean crit,
+            int damage,
+            double typeMultiplier,
+            Integer roll
+    ) {
         Objects.requireNonNull(registry, "registry");
         Objects.requireNonNull(state, "state");
 
@@ -39,6 +81,7 @@ public final class MoveSpecialPreDamageResolution {
         initial.put("crit", crit);
         initial.put("damage", damage);
         initial.put("type_multiplier", typeMultiplier);
+        if (roll != null) initial.put("roll", roll);
         MoveSpecialResultState mutable = new MoveSpecialResultState(initial);
 
         List<BattleEvent> events = registry.dispatch(new MoveSpecialHookContext(

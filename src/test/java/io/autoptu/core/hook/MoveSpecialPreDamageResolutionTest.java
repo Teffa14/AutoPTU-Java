@@ -56,6 +56,25 @@ class MoveSpecialPreDamageResolutionTest {
     }
 
     @Test
+    void carriesAuthoritativeAccuracyRollThroughSharedResult() {
+        ArrayList<Object> observedRolls = new ArrayList<>();
+        MoveSpecialHookRegistry registry = MoveSpecialHookRegistry.builder()
+                .registerGlobal("observe-roll", MoveSpecialPhase.PRE_DAMAGE, ctx -> {
+                    observedRolls.add(ctx.result().get("roll"));
+                    return List.of();
+                })
+                .build();
+
+        MoveSpecialPreDamageResolution.Result result = MoveSpecialPreDamageResolution.resolve(
+                registry, state(), "actor", "enemy", "test move", "physical",
+                true, false, 9, 1.0d, 17);
+
+        assertEquals(List.of(17), observedRolls);
+        assertEquals(17, result.resultSnapshot().get("roll"));
+        assertEquals(9, result.damage());
+    }
+
+    @Test
     void leavesOrdinaryResultUnchangedWhenRegistryIsEmpty() {
         MoveSpecialPreDamageResolution.Result result = MoveSpecialPreDamageResolution.resolve(
                 MoveSpecialHookRegistry.builder().build(), state(), "actor", "enemy",
@@ -66,6 +85,7 @@ class MoveSpecialPreDamageResolutionTest {
         assertEquals(9, result.damage());
         assertEquals(1.5d, result.typeMultiplier());
         assertTrue(result.events().isEmpty());
+        assertFalse(result.resultSnapshot().containsKey("roll"));
     }
 
     private static BattleRuntimeState state() {

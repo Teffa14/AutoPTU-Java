@@ -2,9 +2,51 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+
+
+def _function(tree: ast.AST, name: str) -> ast.FunctionDef:
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            return node
+    raise RuntimeError(f"missing Python oracle function: {name}")
+
+
+def _move_result_carries_accuracy_roll(root: Path) -> bool:
+    source = (root / "auto_ptu" / "rules" / "calculations.py").read_text(encoding="utf-8")
+    function = _function(ast.parse(source), "resolve_move_action")
+    return any(
+        isinstance(node, ast.Dict)
+        and any(
+            key is None and isinstance(value, ast.Name) and value.id == "accuracy"
+            for key, value in zip(node.keys, node.values)
+        )
+        for node in ast.walk(function)
+    )
+
+
+def _effect_roll_reads_shared_roll(root: Path) -> bool:
+    source = (root / "auto_ptu" / "rules" / "hooks" / "move_specials.py").read_text(encoding="utf-8")
+    function = _function(ast.parse(source), "_effect_roll")
+    for node in ast.walk(function):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        if node.func.attr != "get" or not node.args:
+            continue
+        owner = node.func.value
+        if not (
+            isinstance(owner, ast.Attribute)
+            and owner.attr == "result"
+            and isinstance(owner.value, ast.Name)
+            and owner.value.id == "ctx"
+        ):
+            continue
+        if isinstance(node.args[0], ast.Constant) and node.args[0].value == "roll":
+            return True
+    return False
 
 
 def main() -> None:
@@ -106,6 +148,8 @@ def main() -> None:
             stages={"spatk": 5},
         ), move_obj=move(category="Special", target_kind="Ranged")),
         run("hardened", attacker=FakeMon(hardened=4)),
+        ("move_result_carries_accuracy_roll", int(_move_result_carries_accuracy_roll(root))),
+        ("effect_roll_reads_shared_roll", int(_effect_roll_reads_shared_roll(root))),
     ]
 
     output = Path(args.output)
