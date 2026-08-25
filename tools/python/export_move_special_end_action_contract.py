@@ -91,7 +91,10 @@ def main() -> None:
         raise AssertionError(f"END_ACTION damage_dealt changed: {damage!r}")
     if not move:
         raise AssertionError("END_ACTION must forward the move")
-    if initial_last_result not in {"{'hit': False}", '{"hit": False}'}:
+    if initial_last_result not in {
+        "{'hit': False, 'immutable_mind': True}",
+        '{"hit": False, "immutable_mind": True}',
+    }:
         raise AssertionError(f"END_ACTION last_result initial state changed: {initial_last_result!r}")
     if initial_total_damage != "0":
         raise AssertionError(f"END_ACTION total_damage_dealt initial state changed: {initial_total_damage!r}")
