@@ -6,6 +6,7 @@ import io.autoptu.core.hook.MoveSpecialEffectRollResolution;
 import io.autoptu.core.hook.MoveSpecialEffectRollRuntimeInputs;
 import io.autoptu.core.hook.MoveSpecialSecondaryStatusResolution;
 import io.autoptu.core.hook.StatusApplicationHookRegistry;
+import io.autoptu.core.model.MoveCombatProfile;
 
 import java.util.List;
 import java.util.Map;
@@ -30,9 +31,32 @@ final class MoveSpecialSecondaryStatusPostDamage {
             MoveOption move,
             Map<String, Object> sharedResult
     ) {
+        if (move == null) throw new IllegalArgumentException("move is required");
+        return resolveAndApply(
+                state,
+                statusApplicationHooks,
+                attackerId,
+                defenderId,
+                move,
+                move.requireCombatProfile(),
+                sharedResult
+        );
+    }
+
+    /** Uses effective type/category while keeping canonical move identity and effects text. */
+    static Result resolveAndApply(
+            BattleRuntimeState state,
+            StatusApplicationHookRegistry statusApplicationHooks,
+            String attackerId,
+            String defenderId,
+            MoveOption move,
+            MoveCombatProfile effectiveProfile,
+            Map<String, Object> sharedResult
+    ) {
         Objects.requireNonNull(state, "state");
         Objects.requireNonNull(statusApplicationHooks, "statusApplicationHooks");
         Objects.requireNonNull(move, "move");
+        Objects.requireNonNull(effectiveProfile, "effectiveProfile");
         Objects.requireNonNull(sharedResult, "sharedResult");
 
         Object rawRoll = sharedResult.get("roll");
@@ -46,6 +70,7 @@ final class MoveSpecialSecondaryStatusPostDamage {
                         attackerId,
                         defenderId,
                         move,
+                        effectiveProfile,
                         number.intValue()
                 )
         );
