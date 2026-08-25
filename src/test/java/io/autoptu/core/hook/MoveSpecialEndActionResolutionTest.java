@@ -32,7 +32,7 @@ class MoveSpecialEndActionResolutionTest {
                     assertEquals(12, ctx.damageDealt());
                     assertTrue(ctx.hit());
                     assertEquals("last-target", ctx.result().get("marker"));
-                    assertEquals("specific-set", ctx.result().get("end_marker"));
+                    assertNull(ctx.result().get("end_marker"));
                     return List.of(new StatusSkipEvent("actor", "global", TurnPhase.ACTION, "end_action"));
                 })
                 .registerMove("specific", MoveSpecialPhase.END_ACTION, List.of("Test Move"), ctx -> {
