@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -38,9 +37,8 @@ def main() -> None:
         move = SimpleNamespace(name=move_name, type="Normal", category="Physical", effects_text="", target_kind="Melee", range_kind="Melee", range_text="Melee")
         ctx = SimpleNamespace(attacker_id="actor", attacker=attacker, defender=defender, battle=Battle(), move=move, result={"roll": 10})
         roll = move_specials._effect_roll(ctx)
-        def encode(entries):
-            return json.dumps(entries, separators=(",", ":"), sort_keys=True)
-        return name, roll, encode(attacker.temporary_effects), encode(defender.temporary_effects)
+        count = lambda mon, kind: sum(1 for x in mon.temporary_effects if x.get("kind") == kind)
+        return name, roll, count(attacker, "effect_range_block"), count(attacker, "effect_range_bonus"), count(defender, "immutable_mind_block")
 
     rows = [
         run("expired_immutable_then_clear", defender_effects=({"kind":"immutable_mind_block","move":"Test","expires_round":2},)),
