@@ -313,7 +313,8 @@ public final class BattleRuntime {
                     true,
                     accuracy.crit(),
                     damage.damage(),
-                    typeMultiplier
+                    typeMultiplier,
+                    accuracy.roll()
             );
             moveSpecialPreDamageEvents = special.events();
             moveSpecialResultSnapshot = special.resultSnapshot();
