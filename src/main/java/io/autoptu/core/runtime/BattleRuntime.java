@@ -37,6 +37,7 @@ import io.autoptu.core.rules.StatusSkipResolution;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -297,21 +298,25 @@ public final class BattleRuntime {
         DamageResult damage = accuracy.hit() ? DamageResolution.resolve(rng, input.damageCheck(accuracy.crit())) : null;
         double typeMultiplier = input.typeMultiplier();
         List<? extends BattleEvent> moveSpecialPreDamageEvents = List.of();
+        Map<String, Object> moveSpecialResultSnapshot = null;
+        String moveSpecialCategory = "";
         if (!moveSpecialHookRegistry.isEmpty() && accuracy.hit() && damage != null) {
             MoveCombatProfile specialMetadata = effectiveMetadata == null ? move.requireCombatProfile() : effectiveMetadata;
+            moveSpecialCategory = specialMetadata.damageCategory();
             MoveSpecialPreDamageResolution.Result special = MoveSpecialPreDamageResolution.resolve(
                     moveSpecialHookRegistry,
                     state,
                     choice.actorId(),
                     choice.targetId(),
                     move.moveId(),
-                    specialMetadata.damageCategory(),
+                    moveSpecialCategory,
                     true,
                     accuracy.crit(),
                     damage.damage(),
                     typeMultiplier
             );
             moveSpecialPreDamageEvents = special.events();
+            moveSpecialResultSnapshot = special.resultSnapshot();
             typeMultiplier = special.typeMultiplier();
             accuracy = new AccuracyResult(special.hit(), special.crit(), accuracy.roll(), accuracy.needed());
             if (!special.hit()) {
@@ -338,6 +343,9 @@ public final class BattleRuntime {
                     PreDamageReactionResult.of(true, damage.damage(), typeMultiplier)
             );
             preDamageEvents = reaction.events();
+            if (moveSpecialResultSnapshot != null) {
+                moveSpecialResultSnapshot = MoveSpecialReactionHandoff.apply(moveSpecialResultSnapshot, reaction);
+            }
             typeMultiplier = reaction.typeMultiplier();
             if (!reaction.hit()) {
                 accuracy = new AccuracyResult(false, false, accuracy.roll(), accuracy.needed());
@@ -364,9 +372,28 @@ public final class BattleRuntime {
         }
         if (accuracy.hit()) {
             damage = applyPostDamageAdjustment(damage, resolvedPostDamageHooks.flatDamageBonus());
+            if (moveSpecialResultSnapshot != null) {
+                moveSpecialResultSnapshot = MoveSpecialReactionHandoff.apply(
+                        moveSpecialResultSnapshot, true, damage.damage(), typeMultiplier);
+            }
         }
+
+        int targetHpBeforeOutcome = target.hp();
         AppliedActionResult result = applyResolvedMoveOutcomeInternal(
                 state, choice, source, accuracy, damage, spendOrdinaryMoveResources);
+        if (accuracy.hit() && moveSpecialResultSnapshot != null) {
+            result = RuntimeMoveSpecialPostDamageApplication.resolveAfterAppliedOutcome(
+                    moveSpecialHookRegistry,
+                    state,
+                    choice,
+                    move.moveId(),
+                    moveSpecialCategory,
+                    moveSpecialResultSnapshot,
+                    true,
+                    targetHpBeforeOutcome,
+                    result
+            ).actionResult();
+        }
         if (accuracy.hit()) {
             result = prependEvents(resolvedPostDamageHooks.events(), result);
         }
