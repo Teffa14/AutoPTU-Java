@@ -2,7 +2,7 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.hook.MoveSpecialSecondaryCombatStageResolution;
-import io.autoptu.core.model.CombatStat;
+import io.autoptu.core.model.CombatStageStat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,10 +12,9 @@ import java.util.Objects;
 /**
  * Runtime composition boundary for generic text-driven secondary Combat Stage effects.
  *
- * <p>Every request is validated before any mutation. Supported PTU stat changes then
+ * <p>Every request is validated before any mutation. All seven PTU Combat Stages
  * flow through {@link CombatStageMutationService}, preserving prevention, reflection,
- * clamping and post-apply reactions. Accuracy/Evasion remain fail-closed until those
- * stages participate in the same canonical mutation model.</p>
+ * clamping and post-apply reactions without a side path for Accuracy or Evasion.</p>
  */
 final class MoveSpecialSecondaryCombatStageApplication {
     private MoveSpecialSecondaryCombatStageApplication() {}
@@ -45,7 +44,7 @@ final class MoveSpecialSecondaryCombatStageApplication {
                     request,
                     request.target() == MoveSpecialSecondaryCombatStageResolution.TargetRole.USER
                             ? canonicalAttackerId : canonicalDefenderId,
-                    combatStat(request.stat())
+                    combatStageStat(request.stat())
             ));
         }
 
@@ -67,17 +66,16 @@ final class MoveSpecialSecondaryCombatStageApplication {
         return new Result(applications, events);
     }
 
-    private static CombatStat combatStat(String raw) {
+    private static CombatStageStat combatStageStat(String raw) {
         String normalized = raw == null ? "" : raw.strip().toLowerCase(Locale.ROOT);
         return switch (normalized) {
-            case "atk" -> CombatStat.ATK;
-            case "def" -> CombatStat.DEF;
-            case "spatk" -> CombatStat.SPATK;
-            case "spdef" -> CombatStat.SPDEF;
-            case "spd" -> CombatStat.SPD;
-            case "accuracy", "evasion" -> throw new UnsupportedOperationException(
-                    normalized + " Combat Stage is not yet represented by CombatStageMutationService"
-            );
+            case "atk" -> CombatStageStat.ATK;
+            case "def" -> CombatStageStat.DEF;
+            case "spatk" -> CombatStageStat.SPATK;
+            case "spdef" -> CombatStageStat.SPDEF;
+            case "spd" -> CombatStageStat.SPD;
+            case "accuracy" -> CombatStageStat.ACCURACY;
+            case "evasion" -> CombatStageStat.EVASION;
             default -> throw new IllegalArgumentException("unsupported Combat Stage stat: " + raw);
         };
     }
@@ -92,13 +90,13 @@ final class MoveSpecialSecondaryCombatStageApplication {
     private record ResolvedRequest(
             MoveSpecialSecondaryCombatStageResolution.StageRequest request,
             String targetId,
-            CombatStat stat
+            CombatStageStat stat
     ) {}
 
     record AppliedRequest(
             MoveSpecialSecondaryCombatStageResolution.StageRequest request,
             String targetId,
-            CombatStat stat,
+            CombatStageStat stat,
             CombatStageMutationResult mutation
     ) {
         AppliedRequest {
