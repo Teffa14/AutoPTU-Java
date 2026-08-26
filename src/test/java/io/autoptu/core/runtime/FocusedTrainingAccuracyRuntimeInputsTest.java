@@ -14,6 +14,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class FocusedTrainingAccuracyRuntimeInputsTest {
     @Test
+    void inactiveFocusedTrainingContributesZero() {
+        Fixture fixture = fixture(List.of("Duelist"), List.of());
+        fixture.support().temporaryEffects().add("duelist_tag", Map.of(
+                "tagged", true,
+                "target_id", "defender",
+                "momentum", 9
+        ));
+
+        assertEquals(0, FocusedTrainingAccuracyRuntimeInputs.resolve(
+                fixture.state(), "attacker", "defender"));
+    }
+
+    @Test
     void defaultsToOneWithoutDuelistFeature() {
         Fixture fixture = fixture(List.of(), List.of());
         fixture.attacker().temporaryEffects().add("focused_training");
