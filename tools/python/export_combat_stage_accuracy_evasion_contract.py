@@ -92,8 +92,9 @@ def main() -> None:
         args.source_root / "auto_ptu" / "rules" / "hooks" / "move_specials.py"
     ).read_text(encoding="utf-8")
 
+    method_parameters = [*method.args.posonlyargs, *method.args.args, *method.args.kwonlyargs]
     rows = {
-        "stat_parameter": int(any(arg.arg == "stat" for arg in method.args.args)),
+        "stat_parameter": int(any(arg.arg == "stat" for arg in method_parameters)),
         "dynamic_stage_read": int(dynamic_read),
         "dynamic_stage_write": int(bool(writes)),
         "clamps_lower_minus_six": int(has_minus_six and "max(-6" in compact_source),
