@@ -31,18 +31,23 @@ jobs:
         run: |
           python3 -m py_compile \
             tools/python/export_combat_stage_accuracy_evasion_contract.py \
-            tools/python/export_temporary_accuracy_bonus_fixtures.py
+            tools/python/export_temporary_accuracy_bonus_fixtures.py \
+            tools/python/export_accuracy_helper_contract.py
           python3 tools/python/export_combat_stage_accuracy_evasion_contract.py \
             --source-root python-oracle \
             --output build/oracle/combat-stage-accuracy-evasion.tsv
           python3 tools/python/export_temporary_accuracy_bonus_fixtures.py \
             --source-root python-oracle \
             --output build/oracle/temporary-accuracy-bonus.tsv
+          python3 tools/python/export_accuracy_helper_contract.py \
+            --source-root python-oracle \
+            --output build/oracle/accuracy-helper-contract.tsv
 
       - name: Run Accuracy/Evasion Combat Stage parity tests
         env:
           AUTOPTU_COMBAT_STAGE_ACCURACY_EVASION_ORACLE: ${{ github.workspace }}/build/oracle/combat-stage-accuracy-evasion.tsv
           AUTOPTU_TEMPORARY_ACCURACY_BONUS_ORACLE: ${{ github.workspace }}/build/oracle/temporary-accuracy-bonus.tsv
+          AUTOPTU_ACCURACY_HELPER_CONTRACT_ORACLE: ${{ github.workspace }}/build/oracle/accuracy-helper-contract.tsv
         run: |
           gradle test --stacktrace \
             --tests io.autoptu.core.runtime.CombatStageAccuracyEvasionOracleParityTest \
@@ -51,5 +56,6 @@ jobs:
             --tests io.autoptu.core.runtime.CombatantIntrinsicAccuracyProfileTest \
             --tests io.autoptu.core.runtime.TemporaryAccuracyBonusOracleParityTest \
             --tests io.autoptu.core.runtime.RuntimeTemporaryAccuracyBonusInputsTest \
+            --tests io.autoptu.core.runtime.AccuracyHelperContractOracleParityTest \
             --tests io.autoptu.core.runtime.MoveSpecialSecondaryCombatStageApplicationTest \
             --tests io.autoptu.core.runtime.MirrorArmorCombatStageOracleParityTest
