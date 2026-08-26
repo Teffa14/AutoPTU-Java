@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 class FocusedTrainingAccuracyBonusOracleParityTest {
@@ -33,6 +34,7 @@ class FocusedTrainingAccuracyBonusOracleParityTest {
         assertEquals(1, expected.get("focused_uses_ceil_half_momentum"));
         assertEquals(1, expected.get("focused_default_bonus_is_one"));
 
+        assertThrows(IllegalArgumentException.class, () -> FocusedTrainingAccuracyBonusResolution.resolve(null));
         assertEquals(0, resolve(false, false, false, false, 0));
         assertEquals(1, resolve(true, false, false, false, 0));
         assertEquals(1, resolve(true, true, false, false, 8));
