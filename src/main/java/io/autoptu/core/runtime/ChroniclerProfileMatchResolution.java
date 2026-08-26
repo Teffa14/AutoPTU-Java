@@ -14,8 +14,8 @@ final class ChroniclerProfileMatchResolution {
     private ChroniclerProfileMatchResolution() {
     }
 
-    static boolean matches(ChroniclerProfileMetadata metadata, String targetId, TargetProfile target) {
-        if (targetId == null) return false;
+    static boolean matches(ChroniclerProfileMetadata metadata, TargetProfile target) {
+        if (target == null) return false;
         ChroniclerProfileMetadata resolvedMetadata = metadata == null
                 ? ChroniclerProfileMetadata.empty()
                 : metadata;
@@ -23,18 +23,17 @@ final class ChroniclerProfileMatchResolution {
 
         Set<String> recordKeys = new LinkedHashSet<>();
         for (String value : resolvedMetadata.records("profile")) {
-            String key = normalize(value);
-            if (!key.isEmpty()) recordKeys.add(key);
+            recordKeys.add(normalize(value));
         }
         if (recordKeys.isEmpty()) return false;
-        if (target == null) return false;
 
-        String name = normalize(target.name());
-        String species = normalize(target.species());
-        String controllerTrainerName = normalize(target.controllerTrainerName());
-        return (!name.isEmpty() && recordKeys.contains(name))
-                || (!species.isEmpty() && recordKeys.contains(species))
-                || (!controllerTrainerName.isEmpty() && recordKeys.contains(controllerTrainerName));
+        Set<String> candidates = new LinkedHashSet<>();
+        candidates.add(normalize(target.name()));
+        candidates.add(normalize(target.species()));
+        if (target.controllerTrainerName() != null) {
+            candidates.add(normalize(target.controllerTrainerName()));
+        }
+        return candidates.stream().anyMatch(candidate -> !candidate.isEmpty() && recordKeys.contains(candidate));
     }
 
     private static String normalize(String value) {
