@@ -34,7 +34,10 @@ jobs:
             --source-root python-oracle \
             --output build/oracle/combat-stage-accuracy-evasion.tsv
 
-      - name: Run Accuracy/Evasion Combat Stage parity test
+      - name: Run Accuracy/Evasion Combat Stage parity tests
         env:
           AUTOPTU_COMBAT_STAGE_ACCURACY_EVASION_ORACLE: ${{ github.workspace }}/build/oracle/combat-stage-accuracy-evasion.tsv
-        run: gradle test --stacktrace --tests io.autoptu.core.runtime.CombatStageAccuracyEvasionOracleParityTest
+        run: |
+          gradle test --stacktrace \
+            --tests io.autoptu.core.runtime.CombatStageAccuracyEvasionOracleParityTest \
+            --tests io.autoptu.core.runtime.CombatStageStateSevenStatTest
