@@ -40,7 +40,9 @@ def main() -> None:
         "matches_target_species": "str(target.spec.species).strip().lower()" in text,
         "matches_controller_trainer_name": "str(trainer.spec.name).strip().lower()" in text,
         "controller_name_is_optional": "if target.controller_id" in text and "if trainer is not None" in text,
-        "uses_any_nonempty_candidate": "any((candidate and candidate in record_keys for candidate in candidates))" in text,
+        "uses_any_nonempty_candidate": "any((candidate and candidate in record_keys for candidate in candidates))" in text
+            or "any((candidate and candidate in record_keys for candidate in candidates),)" in text
+            or "any(candidate and candidate in record_keys for candidate in candidates)" in text,
     }
 
     failed = [name for name, value in properties.items() if not value]
