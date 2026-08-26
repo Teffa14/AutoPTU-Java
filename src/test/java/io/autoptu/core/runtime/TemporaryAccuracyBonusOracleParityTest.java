@@ -32,7 +32,7 @@ class TemporaryAccuracyBonusOracleParityTest {
     }
 
     private static TemporaryAccuracyBonusResolution.Input inputFor(String name) {
-        return switch (name) {
+        InputBuilder builder = switch (name) {
             case "baseline" -> input();
             case "focused_default" -> input().withFocusedTrainingBonus(1);
             case "focused_helper" -> input().withFocusedTrainingBonus(3);
@@ -81,6 +81,7 @@ class TemporaryAccuracyBonusOracleParityTest {
                     .withChroniclerBonus(4);
             default -> throw new IllegalArgumentException("unknown fixture: " + name);
         };
+        return builder.build();
     }
 
     private static TemporaryAccuracyBonusResolution.ScopedBonus scoped(String type, int amount) {
