@@ -39,4 +39,5 @@ jobs:
         run: >-
           gradle test --stacktrace
           --tests io.autoptu.core.hook.MoveSpecialSecondaryCombatStageOracleParityTest
+          --tests io.autoptu.core.runtime.MoveSpecialSecondaryCombatStageApplicationTest
           -Dautoptu.move.special.secondary.combat.stage.oracle=build/oracle/move-special-secondary-combat-stage.tsv

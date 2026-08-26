@@ -10,6 +10,7 @@ import io.autoptu.core.hook.CombatStageHookResult;
 import io.autoptu.core.hook.CombatStagePreventionContext;
 import io.autoptu.core.hook.CombatStagePreventionHookRegistry;
 import io.autoptu.core.hook.CombatStagePreventionResult;
+import io.autoptu.core.model.CombatStageStat;
 import io.autoptu.core.model.CombatStat;
 
 import java.util.ArrayList;
@@ -57,11 +58,37 @@ public final class CombatStageMutationService {
         );
     }
 
+    /** Source-compatible five-stat overload for existing callers. */
     public CombatStageMutationResult apply(
             String attackerId,
             String targetId,
             String moveId,
             CombatStat stat,
+            int requestedDelta,
+            String effect
+    ) {
+        return apply(attackerId, targetId, moveId, CombatStageStat.fromCombatStat(stat), requestedDelta, effect,
+                CombatStageMutationOptions.NONE);
+    }
+
+    /** Source-compatible five-stat overload for recursive callers. */
+    public CombatStageMutationResult apply(
+            String attackerId,
+            String targetId,
+            String moveId,
+            CombatStat stat,
+            int requestedDelta,
+            String effect,
+            CombatStageMutationOptions options
+    ) {
+        return apply(attackerId, targetId, moveId, CombatStageStat.fromCombatStat(stat), requestedDelta, effect, options);
+    }
+
+    public CombatStageMutationResult apply(
+            String attackerId,
+            String targetId,
+            String moveId,
+            CombatStageStat stat,
             int requestedDelta,
             String effect
     ) {
@@ -76,7 +103,7 @@ public final class CombatStageMutationService {
             String attackerId,
             String targetId,
             String moveId,
-            CombatStat stat,
+            CombatStageStat stat,
             int requestedDelta,
             String effect,
             CombatStageMutationOptions options

@@ -1,5 +1,6 @@
 package io.autoptu.core.hook;
 
+import io.autoptu.core.model.CombatStageStat;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.runtime.BattleRuntimeState;
 import io.autoptu.core.runtime.CombatStageMutationOptions;
@@ -18,7 +19,7 @@ public record CombatStageHookContext(
         String attackerId,
         String targetId,
         String moveId,
-        CombatStat stat,
+        CombatStageStat stat,
         int requestedDelta,
         int appliedDelta,
         String effect,
@@ -39,13 +40,44 @@ public record CombatStageHookContext(
             String attackerId,
             String targetId,
             String moveId,
-            CombatStat stat,
+            CombatStageStat stat,
             int requestedDelta,
             int appliedDelta,
             String effect
     ) {
         this(state, attackerId, targetId, moveId, stat, requestedDelta, appliedDelta, effect,
                 CombatStageMutationOptions.NONE);
+    }
+
+    /** Source-compatible five-stat constructor for existing callers during migration. */
+    public CombatStageHookContext(
+            BattleRuntimeState state,
+            String attackerId,
+            String targetId,
+            String moveId,
+            CombatStat stat,
+            int requestedDelta,
+            int appliedDelta,
+            String effect,
+            CombatStageMutationOptions options
+    ) {
+        this(state, attackerId, targetId, moveId, CombatStageStat.fromCombatStat(stat),
+                requestedDelta, appliedDelta, effect, options);
+    }
+
+    /** Source-compatible five-stat constructor for existing callers during migration. */
+    public CombatStageHookContext(
+            BattleRuntimeState state,
+            String attackerId,
+            String targetId,
+            String moveId,
+            CombatStat stat,
+            int requestedDelta,
+            int appliedDelta,
+            String effect
+    ) {
+        this(state, attackerId, targetId, moveId, CombatStageStat.fromCombatStat(stat),
+                requestedDelta, appliedDelta, effect, CombatStageMutationOptions.NONE);
     }
 
     public RuntimeCombatantState attacker() {

@@ -1,12 +1,12 @@
 package io.autoptu.core.runtime;
 
 import io.autoptu.core.model.AttackModifier;
+import io.autoptu.core.model.CombatStageStat;
 import io.autoptu.core.model.CombatantStatProfile;
 import io.autoptu.core.model.EvasionProfile;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementProfile;
 import io.autoptu.core.rules.ActionBudget;
-import io.autoptu.core.rules.Calculations;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +26,6 @@ public final class RuntimeCombatantState {
     private final CombatantStatProfile statProfile;
     private final CombatStageState combatStages;
     private final EvasionProfile evasionProfile;
-    private int accuracyStage;
     private final boolean sniper;
     private final boolean noGuard;
     private final boolean blur;
@@ -168,8 +167,8 @@ public final class RuntimeCombatantState {
         this.actionBudget = actionBudget;
         this.statProfile = statProfile;
         this.combatStages = new CombatStageState(statProfile == null ? Map.of() : statProfile.stages());
+        this.combatStages.set(CombatStageStat.ACCURACY, accuracyStage);
         this.evasionProfile = evasionProfile;
-        this.accuracyStage = Calculations.accuracyStageValue(accuracyStage);
         this.sniper = sniper;
         this.noGuard = noGuard;
         this.blur = blur;
@@ -309,7 +308,7 @@ public final class RuntimeCombatantState {
         return combatStages;
     }
 
-    /** Pure stat profile rebound to the current canonical combat stages. */
+    /** Pure stat profile rebound to the current canonical five arithmetic combat stages. */
     public CombatantStatProfile effectiveStatProfile() {
         return requireStatProfile().withStages(combatStages.snapshot());
     }
@@ -325,19 +324,19 @@ public final class RuntimeCombatantState {
         return evasionProfile;
     }
 
+    /** Compatibility projection of canonical Accuracy Combat Stage state. */
     public int accuracyStage() {
-        return accuracyStage;
+        return combatStages.get(CombatStageStat.ACCURACY);
     }
 
     /** Mutable canonical Accuracy CS used by Trainer Features and move/status effects. */
     public int setAccuracyStage(int value) {
-        accuracyStage = Calculations.accuracyStageValue(value);
-        return accuracyStage;
+        return combatStages.set(CombatStageStat.ACCURACY, value);
     }
 
     /** Adjust Accuracy CS and return the final clamped PTU stage. */
     public int adjustAccuracyStage(int delta) {
-        return setAccuracyStage(accuracyStage + delta);
+        return combatStages.adjust(CombatStageStat.ACCURACY, delta);
     }
 
     public boolean sniper() {

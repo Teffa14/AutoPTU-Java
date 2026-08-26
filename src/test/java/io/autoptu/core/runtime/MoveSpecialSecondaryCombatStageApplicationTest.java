@@ -2,6 +2,7 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.hook.MoveSpecialSecondaryCombatStageResolution;
+import io.autoptu.core.model.CombatStageStat;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
@@ -72,7 +73,48 @@ final class MoveSpecialSecondaryCombatStageApplicationTest {
     }
 
     @Test
-    void unsupportedAccuracyFailsBeforeEarlierSupportedMutation() {
+    void accuracyUsesCanonicalSevenStageStateAndPostApplyReactions() {
+        RuntimeCombatantState actor = combatant("actor", List.of("Simple"));
+        RuntimeCombatantState target = combatant("target", List.of());
+        BattleRuntimeState state = state(actor, target);
+        List<MoveSpecialSecondaryCombatStageResolution.StageRequest> requests = List.of(
+                new MoveSpecialSecondaryCombatStageResolution.StageRequest(
+                        MoveSpecialSecondaryCombatStageResolution.TargetRole.USER, "accuracy", 1)
+        );
+
+        MoveSpecialSecondaryCombatStageApplication.Result result =
+                MoveSpecialSecondaryCombatStageApplication.apply(
+                        state, "actor", "target", "Accuracy Fixture", requests);
+
+        assertEquals(2, actor.accuracyStage());
+        assertEquals(2, actor.combatStages().get(CombatStageStat.ACCURACY));
+        assertEquals(CombatStageStat.ACCURACY, result.applications().getFirst().stat());
+        assertEquals(1, result.events().size());
+        assertEquals("Simple", ((RuleEffectEvent) result.events().getFirst()).sourceName());
+    }
+
+    @Test
+    void evasionDropUsesTheSameAbilityPreventionPipeline() {
+        RuntimeCombatantState actor = combatant("actor", List.of());
+        RuntimeCombatantState target = combatant("target", List.of("Clear Body"));
+        BattleRuntimeState state = state(actor, target);
+        List<MoveSpecialSecondaryCombatStageResolution.StageRequest> requests = List.of(
+                new MoveSpecialSecondaryCombatStageResolution.StageRequest(
+                        MoveSpecialSecondaryCombatStageResolution.TargetRole.TARGET, "evasion", -1)
+        );
+
+        MoveSpecialSecondaryCombatStageApplication.Result result =
+                MoveSpecialSecondaryCombatStageApplication.apply(
+                        state, "actor", "target", "Evasion Fixture", requests);
+
+        assertEquals(0, target.combatStages().get(CombatStageStat.EVASION));
+        assertEquals(CombatStageStat.EVASION, result.applications().getFirst().stat());
+        assertEquals(1, result.events().size());
+        assertEquals("Clear Body", ((RuleEffectEvent) result.events().getFirst()).sourceName());
+    }
+
+    @Test
+    void invalidStatFailsBeforeEarlierSupportedMutation() {
         RuntimeCombatantState actor = combatant("actor", List.of());
         RuntimeCombatantState target = combatant("target", List.of());
         BattleRuntimeState state = state(actor, target);
@@ -80,10 +122,10 @@ final class MoveSpecialSecondaryCombatStageApplicationTest {
                 new MoveSpecialSecondaryCombatStageResolution.StageRequest(
                         MoveSpecialSecondaryCombatStageResolution.TargetRole.USER, "atk", 1),
                 new MoveSpecialSecondaryCombatStageResolution.StageRequest(
-                        MoveSpecialSecondaryCombatStageResolution.TargetRole.USER, "accuracy", 1)
+                        MoveSpecialSecondaryCombatStageResolution.TargetRole.USER, "unknown", 1)
         );
 
-        assertThrows(UnsupportedOperationException.class, () ->
+        assertThrows(IllegalArgumentException.class, () ->
                 MoveSpecialSecondaryCombatStageApplication.apply(
                         state, "actor", "target", "Mixed Fixture", requests));
         assertEquals(0, actor.combatStages().get(CombatStat.ATK));

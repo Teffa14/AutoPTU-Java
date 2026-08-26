@@ -1,6 +1,7 @@
 package io.autoptu.core.runtime;
 
 import io.autoptu.core.event.RuleEffectEvent;
+import io.autoptu.core.model.CombatStageStat;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
@@ -56,6 +57,22 @@ class MirrorArmorCombatStageOracleParityTest {
         assertEquals("attacker", event.targetId());
         assertEquals("reflect", event.effect());
         assertEquals(-1, event.amount());
+    }
+
+    @Test
+    void accuracyDropUsesTheSameRecursiveReflectionPipeline() {
+        BattleRuntimeState state = battle(List.of(), List.of("Mirror Armor"));
+        CombatStageMutationResult result = CombatStageMutationService.authoritative(state)
+                .apply("attacker", "target", "Accuracy Drop", CombatStageStat.ACCURACY, -1, "fixture");
+
+        assertEquals(0, state.requireCombatant("target").accuracyStage());
+        assertEquals(-1, state.requireCombatant("attacker").accuracyStage());
+        assertEquals(0, result.baseAppliedDelta());
+        assertEquals(1, result.events().stream()
+                .filter(RuleEffectEvent.class::isInstance)
+                .map(RuleEffectEvent.class::cast)
+                .filter(event -> "Mirror Armor".equals(event.sourceName()) && "reflect".equals(event.effect()))
+                .count());
     }
 
     @Test
