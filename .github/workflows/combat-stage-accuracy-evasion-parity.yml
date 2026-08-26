@@ -42,5 +42,6 @@ jobs:
             --tests io.autoptu.core.runtime.CombatStageAccuracyEvasionOracleParityTest \
             --tests io.autoptu.core.runtime.CombatStageStateSevenStatTest \
             --tests io.autoptu.core.runtime.EffectiveAccuracyStageProjectionTest \
+            --tests io.autoptu.core.runtime.CombatantIntrinsicAccuracyProfileTest \
             --tests io.autoptu.core.runtime.MoveSpecialSecondaryCombatStageApplicationTest \
             --tests io.autoptu.core.runtime.MirrorArmorCombatStageOracleParityTest
