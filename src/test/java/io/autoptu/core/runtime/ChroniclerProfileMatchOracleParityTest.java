@@ -39,23 +39,21 @@ class ChroniclerProfileMatchOracleParityTest {
         );
         ChroniclerProfileMetadata noRecords = new ChroniclerProfileMetadata(List.of("profile"), Map.of());
 
-        assertFalse(ChroniclerProfileMatchResolution.matches(profile, null,
+        assertFalse(ChroniclerProfileMatchResolution.matches(noProfileArchive,
                 new ChroniclerProfileMatchResolution.TargetProfile("Pikachu", "Pikachu", "Brock")));
-        assertFalse(ChroniclerProfileMatchResolution.matches(noProfileArchive, "target",
+        assertFalse(ChroniclerProfileMatchResolution.matches(noRecords,
                 new ChroniclerProfileMatchResolution.TargetProfile("Pikachu", "Pikachu", "Brock")));
-        assertFalse(ChroniclerProfileMatchResolution.matches(noRecords, "target",
-                new ChroniclerProfileMatchResolution.TargetProfile("Pikachu", "Pikachu", "Brock")));
-        assertFalse(ChroniclerProfileMatchResolution.matches(profile, "missing", null));
+        assertFalse(ChroniclerProfileMatchResolution.matches(profile, null));
 
-        assertTrue(ChroniclerProfileMatchResolution.matches(profile, "target",
+        assertTrue(ChroniclerProfileMatchResolution.matches(profile,
                 new ChroniclerProfileMatchResolution.TargetProfile("  PIKACHU  ", "Other", "Misty")));
-        assertTrue(ChroniclerProfileMatchResolution.matches(profile, "target",
+        assertTrue(ChroniclerProfileMatchResolution.matches(profile,
                 new ChroniclerProfileMatchResolution.TargetProfile("Sparky", "RAICHU", "Misty")));
-        assertTrue(ChroniclerProfileMatchResolution.matches(profile, "target",
+        assertTrue(ChroniclerProfileMatchResolution.matches(profile,
                 new ChroniclerProfileMatchResolution.TargetProfile("Onix", "Onix", "BROCK")));
-        assertFalse(ChroniclerProfileMatchResolution.matches(profile, "target",
+        assertFalse(ChroniclerProfileMatchResolution.matches(profile,
                 new ChroniclerProfileMatchResolution.TargetProfile("Onix", "Onix", null)));
-        assertFalse(ChroniclerProfileMatchResolution.matches(ChroniclerProfileMetadata.empty(), "target",
+        assertFalse(ChroniclerProfileMatchResolution.matches(ChroniclerProfileMetadata.empty(),
                 new ChroniclerProfileMatchResolution.TargetProfile("Pikachu", "Pikachu", "Brock")));
     }
 }
