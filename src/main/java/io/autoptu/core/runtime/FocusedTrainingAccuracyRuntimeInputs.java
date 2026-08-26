@@ -1,7 +1,5 @@
 package io.autoptu.core.runtime;
 
-import io.autoptu.core.rules.FocusedTrainingAccuracyBonusResolution;
-
 /**
  * Materializes Python BattleState._focused_training_accuracy_bonus inputs from canonical battle state.
  *
