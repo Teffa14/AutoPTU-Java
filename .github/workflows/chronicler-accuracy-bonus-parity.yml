@@ -1,0 +1,42 @@
+name: Chronicler Accuracy Bonus Parity
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  parity:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Export Python Chronicler Accuracy fixtures
+        run: |
+          python3 -m py_compile tools/python/export_chronicler_accuracy_bonus_fixtures.py
+          python3 tools/python/export_chronicler_accuracy_bonus_fixtures.py \
+            --source-root python-oracle \
+            --output build/oracle/chronicler-accuracy-bonus.tsv
+
+      - name: Run Chronicler Accuracy parity tests
+        env:
+          AUTOPTU_CHRONICLER_ACCURACY_BONUS_ORACLE: ${{ github.workspace }}/build/oracle/chronicler-accuracy-bonus.tsv
+        run: |
+          gradle test --stacktrace \
+            --tests io.autoptu.core.runtime.ChroniclerAccuracyBonusOracleParityTest
