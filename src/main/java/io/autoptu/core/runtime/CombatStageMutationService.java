@@ -10,6 +10,7 @@ import io.autoptu.core.hook.CombatStageHookResult;
 import io.autoptu.core.hook.CombatStagePreventionContext;
 import io.autoptu.core.hook.CombatStagePreventionHookRegistry;
 import io.autoptu.core.hook.CombatStagePreventionResult;
+import io.autoptu.core.model.CombatStageStat;
 import io.autoptu.core.model.CombatStat;
 
 import java.util.ArrayList;
@@ -57,6 +58,7 @@ public final class CombatStageMutationService {
         );
     }
 
+    /** Compatibility boundary for existing five-stat callers. */
     public CombatStageMutationResult apply(
             String attackerId,
             String targetId,
@@ -65,7 +67,48 @@ public final class CombatStageMutationService {
             int requestedDelta,
             String effect
     ) {
+        return apply(
+                attackerId,
+                targetId,
+                moveId,
+                CombatStageStat.fromCombatStat(stat),
+                requestedDelta,
+                effect,
+                CombatStageMutationOptions.NONE
+        );
+    }
+
+    /** Canonical seven-Combat-Stage mutation boundary. */
+    public CombatStageMutationResult apply(
+            String attackerId,
+            String targetId,
+            String moveId,
+            CombatStageStat stat,
+            int requestedDelta,
+            String effect
+    ) {
         return apply(attackerId, targetId, moveId, stat, requestedDelta, effect, CombatStageMutationOptions.NONE);
+    }
+
+    /** Compatibility recursive boundary for existing five-stat callers. */
+    public CombatStageMutationResult apply(
+            String attackerId,
+            String targetId,
+            String moveId,
+            CombatStat stat,
+            int requestedDelta,
+            String effect,
+            CombatStageMutationOptions options
+    ) {
+        return apply(
+                attackerId,
+                targetId,
+                moveId,
+                CombatStageStat.fromCombatStat(stat),
+                requestedDelta,
+                effect,
+                options
+        );
     }
 
     /**
@@ -76,7 +119,7 @@ public final class CombatStageMutationService {
             String attackerId,
             String targetId,
             String moveId,
-            CombatStat stat,
+            CombatStageStat stat,
             int requestedDelta,
             String effect,
             CombatStageMutationOptions options
