@@ -40,4 +40,5 @@ jobs:
         run: |
           gradle test --stacktrace \
             --tests io.autoptu.core.runtime.CombatStageAccuracyEvasionOracleParityTest \
-            --tests io.autoptu.core.runtime.CombatStageStateSevenStatTest
+            --tests io.autoptu.core.runtime.CombatStageStateSevenStatTest \
+            --tests io.autoptu.core.runtime.CombatStageSevenStatMutationBoundaryTest
