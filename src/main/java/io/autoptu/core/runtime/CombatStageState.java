@@ -1,5 +1,6 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.model.CombatStageStat;
 import io.autoptu.core.model.CombatStat;
 
 import java.util.EnumMap;
@@ -13,37 +14,74 @@ import java.util.Map;
  * is resolving.
  */
 public final class CombatStageState {
-    private final EnumMap<CombatStat, Integer> stages = new EnumMap<>(CombatStat.class);
+    private final EnumMap<CombatStageStat, Integer> stages = new EnumMap<>(CombatStageStat.class);
 
     public CombatStageState() {
         this(Map.of());
     }
 
+    /** Compatibility constructor for the five core CombatStat stages. */
     public CombatStageState(Map<CombatStat, Integer> initialStages) {
-        for (CombatStat stat : CombatStat.values()) {
-            stages.put(stat, clamp(initialStages == null ? 0 : initialStages.getOrDefault(stat, 0)));
+        for (CombatStageStat stat : CombatStageStat.values()) {
+            stages.put(stat, 0);
+        }
+        if (initialStages != null) {
+            for (CombatStat stat : CombatStat.values()) {
+                stages.put(
+                        CombatStageStat.fromCombatStat(stat),
+                        clamp(initialStages.getOrDefault(stat, 0))
+                );
+            }
         }
     }
 
-    public int get(CombatStat stat) {
-        if (stat == null) throw new IllegalArgumentException("combat stat is required");
+    public int get(CombatStageStat stat) {
+        if (stat == null) throw new IllegalArgumentException("combat stage stat is required");
         return stages.get(stat);
     }
 
-    public int set(CombatStat stat, int value) {
-        if (stat == null) throw new IllegalArgumentException("combat stat is required");
+    public int set(CombatStageStat stat, int value) {
+        if (stat == null) throw new IllegalArgumentException("combat stage stat is required");
         int clamped = clamp(value);
         stages.put(stat, clamped);
         return clamped;
     }
 
-    /** Adjust one stage and return the final clamped value. */
-    public int adjust(CombatStat stat, int delta) {
-        if (stat == null) throw new IllegalArgumentException("combat stat is required");
+    /** Adjust one canonical stage and return the final clamped value. */
+    public int adjust(CombatStageStat stat, int delta) {
+        if (stat == null) throw new IllegalArgumentException("combat stage stat is required");
         return set(stat, get(stat) + delta);
     }
 
+    /** Compatibility access for deterministic arithmetic that still uses CombatStat. */
+    public int get(CombatStat stat) {
+        return get(CombatStageStat.fromCombatStat(stat));
+    }
+
+    /** Compatibility mutation for callers that still use the five core CombatStat values. */
+    public int set(CombatStat stat, int value) {
+        return set(CombatStageStat.fromCombatStat(stat), value);
+    }
+
+    /** Compatibility adjustment for callers that still use the five core CombatStat values. */
+    public int adjust(CombatStat stat, int delta) {
+        return adjust(CombatStageStat.fromCombatStat(stat), delta);
+    }
+
+    /**
+     * Legacy five-stat snapshot used by CombatantStatProfile arithmetic.
+     * Accuracy and Evasion are deliberately excluded because they are not base stats.
+     */
     public Map<CombatStat, Integer> snapshot() {
+        EnumMap<CombatStat, Integer> result = new EnumMap<>(CombatStat.class);
+        for (CombatStat stat : CombatStat.values()) {
+            result.put(stat, get(stat));
+        }
+        return Map.copyOf(result);
+    }
+
+    /** Complete seven-stage snapshot for battle state, persistence, replay, and hooks. */
+    public Map<CombatStageStat, Integer> fullSnapshot() {
         return Map.copyOf(stages);
     }
 
