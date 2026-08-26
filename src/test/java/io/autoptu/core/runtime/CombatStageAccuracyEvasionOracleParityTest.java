@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 class CombatStageAccuracyEvasionOracleParityTest {
     @Test
-    void oracleKeepsAccuracyAndEvasionOnGenericCombatStagePath() throws IOException {
+    void oracleKeepsAccuracyAndEvasionOnGenericCombatStagePathAndFreezesEffectiveProjection() throws IOException {
         String oracle = System.getenv("AUTOPTU_COMBAT_STAGE_ACCURACY_EVASION_ORACLE");
         assumeTrue(oracle != null && !oracle.isBlank(), "Accuracy/Evasion Combat Stage fixture not configured");
 
@@ -35,7 +35,12 @@ class CombatStageAccuracyEvasionOracleParityTest {
                 "forwards_stat_to_hook_context",
                 "no_literal_stat_allowlist",
                 "parser_mentions_accuracy",
-                "parser_mentions_evasion")) {
+                "parser_mentions_evasion",
+                "accuracy_reads_dynamic_stage",
+                "accuracy_adds_spec_accuracy_cs",
+                "accuracy_adds_runtime_bonus",
+                "evasion_stage_not_projected",
+                "status_evasion_reads_speed_stage")) {
             assertEquals("1", values.get(key), key);
         }
     }
