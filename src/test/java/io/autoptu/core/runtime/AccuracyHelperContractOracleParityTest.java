@@ -25,7 +25,7 @@ class AccuracyHelperContractOracleParityTest {
         }
 
         assertEquals(1, expected.get("focused_helper_defined"));
-        assertEquals(0, expected.get("chronicler_helper_defined"));
+        assertEquals(1, expected.get("chronicler_helper_defined"));
         assertEquals(1, expected.get("focused_fallback_is_one"));
         assertEquals(1, expected.get("chronicler_is_optional"));
     }
