@@ -50,6 +50,11 @@ final class RuntimeTemporaryAccuracyBonusInputs {
         String moveName = normalize(move.moveId());
 
         int focusedTrainingBonus = FocusedTrainingAccuracyRuntimeInputs.resolve(state, attackerId, defenderId);
+        if (!state.hasCanonicalTrainer(attackerId)
+                && attacker.temporaryEffects().has("focused_training")
+                && contextBonuses.focusedTrainingBonus() != null) {
+            focusedTrainingBonus = contextBonuses.focusedTrainingBonus();
+        }
 
         boolean compoundEyes = registration(attacker, "Compound Eyes");
         boolean keenEye = registration(attacker, "Keen Eye");
@@ -158,8 +163,8 @@ final class RuntimeTemporaryAccuracyBonusInputs {
     }
 
     /**
-     * Transitional core-only helper contributions. Focused Training is now ignored and retained
-     * solely for source compatibility; Chronicler remains until profile matching is ported.
+     * Transitional core-only helper contributions. Focused Training is consulted only for legacy
+     * snapshots without a canonical Trainer; Chronicler remains until profile matching is ported.
      */
     record ContextBonuses(Integer focusedTrainingBonus, int chroniclerBonus) {
         static final ContextBonuses NONE = new ContextBonuses(null, 0);
