@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze pinned-oracle Chronicler profile metadata materialization semantics."""
+"""Freeze pinned-oracle Chronicler metadata materialization semantics."""
 from __future__ import annotations
 
 import argparse
@@ -33,15 +33,15 @@ def main() -> None:
     text = ast.unparse(function)
     properties = {
         "archives_start_empty_set": "archives: Set[str] = set()" in text or "archives = set()" in text,
-        "records_have_four_canonical_kinds": all(f"'{kind}': []" in text for kind in ("pokemon", "move", "ability", "trainer")),
-        "missing_trainer_returns_empty_metadata": "if trainer is None" in text,
-        "metadata_comes_from_chronicler_feature": "_trainer_feature_definition(trainer, 'Chronicler')" in text,
-        "requires_trainer_class_mapping": "trainer_class = chronicler_feature.get('trainer_class')" in text,
-        "archives_are_trimmed_lowercase": "str(entry).strip().lower()" in text and "archives.add(token)" in text,
+        "records_have_three_canonical_kinds": all(f"'{kind}': []" in text for kind in ("profile", "technique", "travel")),
+        "missing_trainer_uses_empty_trainer_class": "if trainer is not None else {}" in text,
+        "non_mapping_trainer_class_returns_empty_metadata": "if not isinstance(trainer_class, dict)" in text and "'travel_ability': ''" in text,
+        "metadata_comes_from_trainer_class": "trainer_class.get('chronicler_archives'" in text and "trainer_class.get('chronicler_records'" in text,
+        "archives_use_canonical_alias_normalizer": "_normalize_chronicler_archive_kind(entry)" in text,
         "records_require_mapping": "raw_records = trainer_class.get('chronicler_records', {})" in text and "isinstance(raw_records, dict)" in text,
-        "record_values_require_lists": "if not isinstance(values, list)" in text,
-        "pokemon_and_ability_dedupe_case_insensitive": "if kind in {'pokemon', 'ability'}" in text and "key = label.lower()" in text,
-        "move_and_trainer_preserve_entries": "records[kind].append(label)" in text,
+        "records_normalize_names": "_normalize_chronicler_record_name(entry)" in text,
+        "all_record_kinds_dedupe_case_insensitive": "for kind in ('profile', 'technique', 'travel')" in text and "key = label.lower()" in text and "key in seen" in text and "seen.add(key)" in text,
+        "travel_ability_uses_canonical_alias_map": "_CHRONICLER_TRAVEL_ABILITY_ALIASES.get" in text and "trainer_class.get('chronicler_travel_ability')" in text,
     }
 
     failed = [name for name, value in properties.items() if not value]
