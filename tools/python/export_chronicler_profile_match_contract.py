@@ -28,20 +28,23 @@ def main() -> None:
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
 
-    text = ast.unparse(find_helper(args.source_root, "_chronicler_profile_matches"))
+    helper = find_helper(args.source_root, "_chronicler_profile_matches")
+    text = ast.unparse(helper)
+    parameters = [argument.arg for argument in helper.args.args]
     properties = {
-        "null_target_id_fails_closed": "if target_id is None" in text and "return False" in text,
-        "requires_profile_archive": "'profile' not in archives" in text,
-        "uses_profile_records": "metadata['records']['profile']" in text,
-        "records_match_case_insensitive": "str(value).strip().lower()" in text,
+        "helper_receives_trainer_and_target": parameters[-2:] == ["trainer_id", "target"],
+        "missing_target_fails_closed": "if target is None" in text and "return False" in text,
+        "uses_trainer_chronicler_metadata": "self._chronicler_metadata(trainer_id)" in text,
+        "requires_profile_archive": "'profile' not in metadata.get('archives', set())" in text,
+        "uses_profile_records": "metadata.get('records', {}).get('profile', [])" in text,
+        "records_normalize_strip_lower": "str(entry or '').strip().lower()" in text,
         "empty_records_fail_closed": "if not record_keys" in text,
-        "missing_target_fails_closed": "target = self.combatants.get(target_id)" in text and "if target is None" in text,
-        "matches_target_name": "str(target.spec.name).strip().lower()" in text,
-        "matches_target_species": "str(target.spec.species).strip().lower()" in text,
-        "matches_controller_trainer_name": "str(trainer.spec.name).strip().lower()" in text,
-        "controller_name_is_optional": "if target.controller_id" in text and "if trainer is not None" in text,
+        "matches_target_name": "str(target.spec.name or '').strip().lower()" in text,
+        "matches_target_species": "str(target.spec.species or '').strip().lower()" in text,
+        "looks_up_controller_trainer": "self.trainers.get(target.controller_id)" in text,
+        "matches_controller_trainer_name": "str(trainer.name or '').strip().lower()" in text,
+        "controller_name_is_optional": "if trainer is not None" in text,
         "uses_any_nonempty_candidate": "any((candidate and candidate in record_keys for candidate in candidates))" in text
-            or "any((candidate and candidate in record_keys for candidate in candidates),)" in text
             or "any(candidate and candidate in record_keys for candidate in candidates)" in text,
     }
 
