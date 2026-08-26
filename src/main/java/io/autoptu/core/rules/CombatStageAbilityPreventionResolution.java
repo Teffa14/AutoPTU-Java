@@ -1,5 +1,6 @@
 package io.autoptu.core.rules;
 
+import io.autoptu.core.model.CombatStageStat;
 import io.autoptu.core.model.CombatStat;
 
 import java.util.List;
@@ -12,8 +13,8 @@ import java.util.Optional;
  */
 public final class CombatStageAbilityPreventionResolution {
     private static final List<Rule> RULES = List.of(
-            new Rule("Big Pecks", CombatStat.DEF, false),
-            new Rule("Hyper Cutter", CombatStat.ATK, false),
+            new Rule("Big Pecks", CombatStageStat.DEF, false),
+            new Rule("Hyper Cutter", CombatStageStat.ATK, false),
             new Rule("Clear Body", null, true),
             new Rule("Full Metal Body", null, true),
             new Rule("White Smoke", null, true)
@@ -21,9 +22,21 @@ public final class CombatStageAbilityPreventionResolution {
 
     private CombatStageAbilityPreventionResolution() {}
 
+    /** Source-compatible five-stat overload for existing callers. */
     public static Optional<String> blockingAbility(
             List<String> abilities,
             CombatStat stat,
+            int requestedDelta,
+            boolean externalSource,
+            boolean abilitiesSuppressed
+    ) {
+        return blockingAbility(abilities, CombatStageStat.fromCombatStat(stat), requestedDelta, externalSource,
+                abilitiesSuppressed);
+    }
+
+    public static Optional<String> blockingAbility(
+            List<String> abilities,
+            CombatStageStat stat,
             int requestedDelta,
             boolean externalSource,
             boolean abilitiesSuppressed
@@ -42,5 +55,5 @@ public final class CombatStageAbilityPreventionResolution {
         return Optional.empty();
     }
 
-    private record Rule(String ability, CombatStat stat, boolean externalOnly) {}
+    private record Rule(String ability, CombatStageStat stat, boolean externalOnly) {}
 }
