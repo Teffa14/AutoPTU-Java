@@ -1,5 +1,6 @@
 package io.autoptu.core.hook;
 
+import io.autoptu.core.model.CombatStageStat;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.runtime.BattleRuntimeState;
 import io.autoptu.core.runtime.CombatStageMutationOptions;
@@ -13,7 +14,7 @@ public record CombatStagePreventionContext(
         String attackerId,
         String targetId,
         String moveId,
-        CombatStat stat,
+        CombatStageStat stat,
         int requestedDelta,
         String effect,
         CombatStageMutationOptions options
@@ -26,6 +27,46 @@ public record CombatStagePreventionContext(
         stat = Objects.requireNonNull(stat, "stat");
         effect = effect == null ? "" : effect.strip();
         options = options == null ? CombatStageMutationOptions.NONE : options;
+    }
+
+    public CombatStagePreventionContext(
+            BattleRuntimeState state,
+            String attackerId,
+            String targetId,
+            String moveId,
+            CombatStageStat stat,
+            int requestedDelta,
+            String effect
+    ) {
+        this(state, attackerId, targetId, moveId, stat, requestedDelta, effect, CombatStageMutationOptions.NONE);
+    }
+
+    /** Compatibility constructor for five-stat callers. */
+    public CombatStagePreventionContext(
+            BattleRuntimeState state,
+            String attackerId,
+            String targetId,
+            String moveId,
+            CombatStat stat,
+            int requestedDelta,
+            String effect,
+            CombatStageMutationOptions options
+    ) {
+        this(state, attackerId, targetId, moveId, CombatStageStat.fromCombatStat(stat), requestedDelta, effect, options);
+    }
+
+    /** Compatibility constructor for five-stat callers. */
+    public CombatStagePreventionContext(
+            BattleRuntimeState state,
+            String attackerId,
+            String targetId,
+            String moveId,
+            CombatStat stat,
+            int requestedDelta,
+            String effect
+    ) {
+        this(state, attackerId, targetId, moveId, CombatStageStat.fromCombatStat(stat), requestedDelta, effect,
+                CombatStageMutationOptions.NONE);
     }
 
     public RuntimeCombatantState attacker() { return state.requireCombatant(attackerId); }
