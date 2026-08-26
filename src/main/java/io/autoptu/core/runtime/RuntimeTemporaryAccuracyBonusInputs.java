@@ -13,10 +13,10 @@ import java.util.Locale;
 /**
  * Runtime materialization for Python calculations._temporary_accuracy_bonus().
  *
- * <p>All ordinary ability/item/position/temporary-effect inputs are derived from
- * BattleRuntimeState. Focused Training and Chronicler remain explicit core-only helper
- * contributions until their battle helper contracts are ported; this class is package-private
- * so Minecraft/Cobblemon cannot supply those values through the public action boundary.</p>
+ * <p>Ordinary ability/item/position/temporary-effect inputs and Focused Training are derived
+ * from BattleRuntimeState. Chronicler remains the only explicit core-only helper contribution
+ * until its profile-matching contract is ported. This class is package-private so
+ * Minecraft/Cobblemon cannot supply those values through the public action boundary.</p>
  */
 final class RuntimeTemporaryAccuracyBonusInputs {
     private RuntimeTemporaryAccuracyBonusInputs() {
@@ -49,10 +49,12 @@ final class RuntimeTemporaryAccuracyBonusInputs {
         String moveType = normalize(metadata.moveType());
         String moveName = normalize(move.moveId());
 
-        boolean focused = attacker.temporaryEffects().has("focused_training");
-        int focusedTrainingBonus = focused
-                ? contextBonuses.focusedTrainingBonus() == null ? 1 : contextBonuses.focusedTrainingBonus()
-                : 0;
+        int focusedTrainingBonus = FocusedTrainingAccuracyRuntimeInputs.resolve(state, attackerId, defenderId);
+        if (!state.hasCanonicalTrainer(attackerId)
+                && attacker.temporaryEffects().has("focused_training")
+                && contextBonuses.focusedTrainingBonus() != null) {
+            focusedTrainingBonus = contextBonuses.focusedTrainingBonus();
+        }
 
         boolean compoundEyes = registration(attacker, "Compound Eyes");
         boolean keenEye = registration(attacker, "Keen Eye");
@@ -160,6 +162,10 @@ final class RuntimeTemporaryAccuracyBonusInputs {
         return value == null ? "" : value.strip().toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * Transitional core-only helper contributions. Focused Training is consulted only for legacy
+     * snapshots without a canonical Trainer; Chronicler remains until profile matching is ported.
+     */
     record ContextBonuses(Integer focusedTrainingBonus, int chroniclerBonus) {
         static final ContextBonuses NONE = new ContextBonuses(null, 0);
     }
