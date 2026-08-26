@@ -73,7 +73,6 @@ class TemporaryAccuracyBonusOracleParityTest {
                     .withMoveCategory("Physical")
                     .withFriskErrataWithinOne(true)
                     .withBoneWielderApplicable(true)
-                    .withShellCannonApplicable(true)
                     .withMoveType("Water")
                     .withAccuracyBonuses(List.of(scoped("Water", 2), scoped("", 1)))
                     .withLowerAvBonuses(List.of(scoped("Water", 2)))
