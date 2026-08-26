@@ -14,7 +14,8 @@ HELPERS = (
 
 def defined_helpers(source_root: Path) -> set[str]:
     found: set[str] = set()
-    for path in source_root.rglob("*.py"):
+    authoritative_package = source_root / "auto_ptu"
+    for path in authoritative_package.rglob("*.py"):
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         except (UnicodeDecodeError, SyntaxError):
