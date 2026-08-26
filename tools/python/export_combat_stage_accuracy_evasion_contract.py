@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze the pinned Python contract that makes Accuracy/Evasion generic Combat Stages."""
+"""Freeze pinned Python contracts for Accuracy/Evasion Combat Stage state and projection."""
 from __future__ import annotations
 
 import argparse
@@ -40,28 +40,69 @@ def _negative_six(node: ast.AST) -> bool:
     )
 
 
+def _function(tree: ast.AST, name: str) -> ast.FunctionDef | ast.AsyncFunctionDef:
+    method = next(
+        (
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name
+        ),
+        None,
+    )
+    if method is None:
+        raise RuntimeError(f"{name} not found in pinned oracle")
+    return method
+
+
+def _constant_stage_reference(node: ast.AST, owner: str, stage: str) -> bool:
+    """Match owner.combat_stages[stage] or owner.combat_stages.get(stage, ...)."""
+    if isinstance(node, ast.Subscript):
+        value = node.value
+        slice_node = node.slice
+        return (
+            isinstance(value, ast.Attribute)
+            and value.attr == "combat_stages"
+            and isinstance(value.value, ast.Name)
+            and value.value.id == owner
+            and isinstance(slice_node, ast.Constant)
+            and slice_node.value == stage
+        )
+    if isinstance(node, ast.Call) and node.args:
+        func = node.func
+        return (
+            isinstance(func, ast.Attribute)
+            and func.attr == "get"
+            and isinstance(func.value, ast.Attribute)
+            and func.value.attr == "combat_stages"
+            and isinstance(func.value.value, ast.Name)
+            and func.value.value.id == owner
+            and isinstance(node.args[0], ast.Constant)
+            and node.args[0].value == stage
+        )
+    return False
+
+
+def _attribute_chain(node: ast.AST, *parts: str) -> bool:
+    current = node
+    for part in reversed(parts):
+        if not isinstance(current, ast.Attribute) or current.attr != part:
+            return False
+        current = current.value
+    return isinstance(current, ast.Name)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
 
-    source_path = args.source_root / "auto_ptu" / "rules" / "battle_state.py"
-    source = source_path.read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    method = next(
-        (
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-            and node.name == "_apply_combat_stage"
-        ),
-        None,
-    )
-    if method is None:
-        raise RuntimeError("_apply_combat_stage not found in pinned oracle")
+    battle_state_path = args.source_root / "auto_ptu" / "rules" / "battle_state.py"
+    battle_state_source = battle_state_path.read_text(encoding="utf-8")
+    battle_state_tree = ast.parse(battle_state_source)
+    method = _function(battle_state_tree, "_apply_combat_stage")
 
-    method_source = ast.get_source_segment(source, method) or ""
+    method_source = ast.get_source_segment(battle_state_source, method) or ""
     dynamic_read = any(
         (_is_stat_subscript(node) and isinstance(node.ctx, ast.Load)) or _is_stat_get(node)
         for node in ast.walk(method)
@@ -87,10 +128,47 @@ def main() -> None:
     has_plus_six = any(isinstance(node, ast.Constant) and node.value == 6 for node in ast.walk(method))
     compact_source = "".join(method_source.split())
 
-    # The generic move-special parser already emits these two names into _apply_combat_stage.
     move_specials_source = (
         args.source_root / "auto_ptu" / "rules" / "hooks" / "move_specials.py"
     ).read_text(encoding="utf-8")
+
+    calculations_path = args.source_root / "auto_ptu" / "rules" / "calculations.py"
+    calculations_source = calculations_path.read_text(encoding="utf-8")
+    calculations_tree = ast.parse(calculations_source)
+    attack_hits = _function(calculations_tree, "attack_hits")
+    hit_probability = _function(calculations_tree, "hit_probability")
+    evasion_value = _function(calculations_tree, "evasion_value")
+
+    accuracy_dynamic_stage = all(
+        any(_constant_stage_reference(node, "attacker", "accuracy") for node in ast.walk(function))
+        for function in (attack_hits, hit_probability)
+    )
+    accuracy_spec_cs = all(
+        any(
+            isinstance(node, ast.Attribute)
+            and node.attr == "accuracy_cs"
+            and isinstance(node.value, ast.Attribute)
+            and node.value.attr == "spec"
+            and isinstance(node.value.value, ast.Name)
+            and node.value.value.id == "attacker"
+            for node in ast.walk(function)
+        )
+        for function in (attack_hits, hit_probability)
+    )
+    accuracy_bonus = all(
+        any(isinstance(node, ast.Name) and node.id == "accuracy_bonus" for node in ast.walk(function))
+        for function in (attack_hits, hit_probability)
+    )
+    evasion_reads_evasion_stage = any(
+        _constant_stage_reference(node, "pokemon", "evasion") for node in ast.walk(evasion_value)
+    )
+    evasion_reads_speed_stage = any(
+        _constant_stage_reference(node, "pokemon", "spd") for node in ast.walk(evasion_value)
+    )
+    evasion_source = ast.get_source_segment(calculations_source, evasion_value) or ""
+    status_only_speed_stage = (
+        'pokemon.combat_stages["spd"] if category.lower() == "status" else 0' in evasion_source
+    )
 
     method_parameters = [*method.args.posonlyargs, *method.args.args, *method.args.kwonlyargs]
     rows = {
@@ -103,12 +181,18 @@ def main() -> None:
         "no_literal_stat_allowlist": int(not stat_allowlist),
         "parser_mentions_accuracy": int("Accuracy" in move_specials_source),
         "parser_mentions_evasion": int("Evasion" in move_specials_source),
+        "accuracy_reads_dynamic_stage": int(accuracy_dynamic_stage),
+        "accuracy_adds_spec_accuracy_cs": int(accuracy_spec_cs),
+        "accuracy_adds_runtime_bonus": int(accuracy_bonus),
+        "evasion_stage_not_projected": int(not evasion_reads_evasion_stage),
+        "status_evasion_reads_speed_stage": int(evasion_reads_speed_stage and status_only_speed_stage),
     }
     expected = {key: 1 for key in rows}
     if rows != expected:
         raise RuntimeError(
             f"pinned Accuracy/Evasion Combat Stage contract changed: {rows}\n"
-            f"_apply_combat_stage source:\n{method_source}"
+            f"_apply_combat_stage source:\n{method_source}\n"
+            f"evasion_value source:\n{evasion_source}"
         )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
