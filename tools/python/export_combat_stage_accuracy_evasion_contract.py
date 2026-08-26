@@ -17,6 +17,20 @@ def _is_stat_subscript(node: ast.AST) -> bool:
     return isinstance(slice_node, ast.Name) and slice_node.id == "stat"
 
 
+def _is_stat_get(node: ast.AST) -> bool:
+    if not isinstance(node, ast.Call) or not node.args:
+        return False
+    func = node.func
+    return (
+        isinstance(func, ast.Attribute)
+        and func.attr == "get"
+        and isinstance(func.value, ast.Attribute)
+        and func.value.attr == "combat_stages"
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id == "stat"
+    )
+
+
 def _negative_six(node: ast.AST) -> bool:
     return (
         isinstance(node, ast.UnaryOp)
@@ -48,7 +62,10 @@ def main() -> None:
         raise RuntimeError("_apply_combat_stage not found in pinned oracle")
 
     method_source = ast.get_source_segment(source, method) or ""
-    reads = [node for node in ast.walk(method) if _is_stat_subscript(node) and isinstance(node.ctx, ast.Load)]
+    dynamic_read = any(
+        (_is_stat_subscript(node) and isinstance(node.ctx, ast.Load)) or _is_stat_get(node)
+        for node in ast.walk(method)
+    )
     writes = [node for node in ast.walk(method) if _is_stat_subscript(node) and isinstance(node.ctx, ast.Store)]
 
     stat_forwarded = any(
@@ -68,6 +85,7 @@ def main() -> None:
     )
     has_minus_six = any(_negative_six(node) for node in ast.walk(method))
     has_plus_six = any(isinstance(node, ast.Constant) and node.value == 6 for node in ast.walk(method))
+    compact_source = "".join(method_source.split())
 
     # The generic move-special parser already emits these two names into _apply_combat_stage.
     move_specials_source = (
@@ -76,10 +94,10 @@ def main() -> None:
 
     rows = {
         "stat_parameter": int(any(arg.arg == "stat" for arg in method.args.args)),
-        "dynamic_stage_read": int(bool(reads)),
+        "dynamic_stage_read": int(dynamic_read),
         "dynamic_stage_write": int(bool(writes)),
-        "clamps_lower_minus_six": int(has_minus_six and "max(-6" in method_source.replace(" ", "")),
-        "clamps_upper_plus_six": int(has_plus_six and "min(6" in method_source.replace(" ", "")),
+        "clamps_lower_minus_six": int(has_minus_six and "max(-6" in compact_source),
+        "clamps_upper_plus_six": int(has_plus_six and "min(6" in compact_source),
         "forwards_stat_to_hook_context": int(stat_forwarded),
         "no_literal_stat_allowlist": int(not stat_allowlist),
         "parser_mentions_accuracy": int("Accuracy" in move_specials_source),
