@@ -211,7 +211,7 @@ public final class BattleRuntime {
         requireAreaResolvedCombatantChoice(state, choice, move);
         return applyAuthoritativeMoveInternal(
                 state, choice, move, "", "", Set.of(), source,
-                rng, input, preResolutionEvents, NO_MOVE_SPECIALS, preDamageHookRegistry,
+                rng, input, preResolutionEvents, RuntimeMoveSpecialHooks.standardRegistry(move, effectiveMetadata), preDamageHookRegistry,
                 null, postDamageHookRegistry, effectiveMetadata, areaAnchor, false, true
         );
     }
