@@ -29,19 +29,26 @@ jobs:
 
       - name: Freeze Python Accuracy/Evasion Combat Stage contract
         run: |
-          python3 -m py_compile tools/python/export_combat_stage_accuracy_evasion_contract.py
+          python3 -m py_compile \
+            tools/python/export_combat_stage_accuracy_evasion_contract.py \
+            tools/python/export_temporary_accuracy_bonus_fixtures.py
           python3 tools/python/export_combat_stage_accuracy_evasion_contract.py \
             --source-root python-oracle \
             --output build/oracle/combat-stage-accuracy-evasion.tsv
+          python3 tools/python/export_temporary_accuracy_bonus_fixtures.py \
+            --source-root python-oracle \
+            --output build/oracle/temporary-accuracy-bonus.tsv
 
       - name: Run Accuracy/Evasion Combat Stage parity tests
         env:
           AUTOPTU_COMBAT_STAGE_ACCURACY_EVASION_ORACLE: ${{ github.workspace }}/build/oracle/combat-stage-accuracy-evasion.tsv
+          AUTOPTU_TEMPORARY_ACCURACY_BONUS_ORACLE: ${{ github.workspace }}/build/oracle/temporary-accuracy-bonus.tsv
         run: |
           gradle test --stacktrace \
             --tests io.autoptu.core.runtime.CombatStageAccuracyEvasionOracleParityTest \
             --tests io.autoptu.core.runtime.CombatStageStateSevenStatTest \
             --tests io.autoptu.core.runtime.EffectiveAccuracyStageProjectionTest \
             --tests io.autoptu.core.runtime.CombatantIntrinsicAccuracyProfileTest \
+            --tests io.autoptu.core.runtime.TemporaryAccuracyBonusOracleParityTest \
             --tests io.autoptu.core.runtime.MoveSpecialSecondaryCombatStageApplicationTest \
             --tests io.autoptu.core.runtime.MirrorArmorCombatStageOracleParityTest
