@@ -30,22 +30,25 @@ class ChroniclerProfileMetadataOracleParityTest {
         expected.forEach((name, value) -> assertEquals(1, value, name));
 
         ChroniclerProfileMetadata metadata = new ChroniclerProfileMetadata(
-                List.of(" Profile ", "PROFILE", "travel"),
+                List.of(" Profile Album ", "PROFILE", "travel album", "unknown"),
                 Map.of(
-                        "pokemon", List.of("Pikachu", " pikachu ", "Raichu"),
-                        "ability", List.of("Static", "STATIC", "Lightning Rod"),
-                        "move", List.of("Thunderbolt", "Thunderbolt"),
-                        "trainer", List.of("Ace", "Ace")
-                )
+                        "profile", List.of("Pikachu", " pikachu ", "Mr.   Mime"),
+                        "technique", List.of("Thunderbolt", "THUNDERBOLT", "Volt   Tackle"),
+                        "travel", List.of("Viridian Forest", "viridian forest", "Route   1")
+                ),
+                " KeenEye "
         );
 
         assertTrue(metadata.hasArchive("profile"));
-        assertTrue(metadata.hasArchive(" PROFILE "));
+        assertTrue(metadata.hasArchive(" PROFILE ALBUM "));
+        assertTrue(metadata.hasArchive("travel"));
         assertFalse(metadata.hasArchive("other"));
-        assertEquals(List.of("Pikachu", "Raichu"), metadata.records("pokemon"));
-        assertEquals(List.of("Static", "Lightning Rod"), metadata.records("ability"));
-        assertEquals(List.of("Thunderbolt", "Thunderbolt"), metadata.records("move"));
-        assertEquals(List.of("Ace", "Ace"), metadata.records("trainer"));
+        assertEquals(List.of("Pikachu", "Mr. Mime"), metadata.records("profile"));
+        assertEquals(List.of("Thunderbolt", "Volt Tackle"), metadata.records("technique"));
+        assertEquals(List.of("Viridian Forest", "Route 1"), metadata.records("travel"));
         assertEquals(List.of(), metadata.records("unknown"));
+        assertEquals("Keen Eye", metadata.travelAbility());
+        assertEquals("Perception", new ChroniclerProfileMetadata(List.of(), Map.of(), "perception").travelAbility());
+        assertEquals("", new ChroniclerProfileMetadata(List.of(), Map.of(), "unknown").travelAbility());
     }
 }
