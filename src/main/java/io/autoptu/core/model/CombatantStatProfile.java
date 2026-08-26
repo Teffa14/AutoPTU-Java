@@ -17,12 +17,28 @@ public final class CombatantStatProfile {
     private final EnumMap<CombatStat, Integer> stages;
     private final EnumMap<CombatStat, StatModifier> modifiers;
     private final Set<StatFlag> flags;
+    private final int intrinsicAccuracyCs;
 
     public CombatantStatProfile(
             Map<CombatStat, Integer> baseStats,
             Map<CombatStat, Integer> stages,
             Map<CombatStat, StatModifier> modifiers,
             Set<StatFlag> flags
+    ) {
+        this(baseStats, stages, modifiers, flags, 0);
+    }
+
+    /**
+     * Full content-owned stat profile including Python PokemonSpec.accuracy_cs.
+     * The intrinsic value remains separate from mutable battle Combat Stages and
+     * runtime bonuses until effective Accuracy is projected for a move.
+     */
+    public CombatantStatProfile(
+            Map<CombatStat, Integer> baseStats,
+            Map<CombatStat, Integer> stages,
+            Map<CombatStat, StatModifier> modifiers,
+            Set<StatFlag> flags,
+            int intrinsicAccuracyCs
     ) {
         this.baseStats = new EnumMap<>(CombatStat.class);
         this.stages = new EnumMap<>(CombatStat.class);
@@ -33,6 +49,7 @@ public final class CombatantStatProfile {
             this.modifiers.put(stat, modifiers == null ? StatModifier.identity() : modifiers.getOrDefault(stat, StatModifier.identity()));
         }
         this.flags = flags == null ? Set.of() : Set.copyOf(flags);
+        this.intrinsicAccuracyCs = intrinsicAccuracyCs;
     }
 
     public int base(CombatStat stat) {
@@ -48,6 +65,11 @@ public final class CombatantStatProfile {
         return Map.copyOf(stages);
     }
 
+    /** Python PokemonSpec.accuracy_cs stored as immutable trusted content. */
+    public int intrinsicAccuracyCs() {
+        return intrinsicAccuracyCs;
+    }
+
     public StatModifier modifier(CombatStat stat) {
         return modifiers.get(stat);
     }
@@ -58,7 +80,7 @@ public final class CombatantStatProfile {
 
     /** Rebind this pure profile to the current server-owned combat stages. */
     public CombatantStatProfile withStages(Map<CombatStat, Integer> nextStages) {
-        return new CombatantStatProfile(baseStats, nextStages, modifiers, flags);
+        return new CombatantStatProfile(baseStats, nextStages, modifiers, flags, intrinsicAccuracyCs);
     }
 
     public CombatantStatProfile withFlag(StatFlag flag, boolean enabled) {
@@ -71,6 +93,6 @@ public final class CombatantStatProfile {
         } else {
             nextFlags.remove(flag);
         }
-        return new CombatantStatProfile(baseStats, stages, modifiers, nextFlags);
+        return new CombatantStatProfile(baseStats, stages, modifiers, nextFlags, intrinsicAccuracyCs);
     }
 }
