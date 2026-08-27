@@ -4,7 +4,6 @@ import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.rules.Targeting;
 
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -19,14 +18,46 @@ import java.util.Set;
 public final class ForcedDisplacementResolution {
     private ForcedDisplacementResolution() {}
 
+    public enum StopReason {
+        NONE,
+        OUT_OF_BOUNDS,
+        BLOCKER,
+        OCCUPIED
+    }
+
+    public record Stop(
+            StopReason reason,
+            GridCoord attemptedAnchor,
+            GridCoord blockingTile,
+            String blockingCombatantId
+    ) {
+        public Stop {
+            if (reason == null) throw new IllegalArgumentException("stop reason is required");
+            if (reason == StopReason.NONE) {
+                attemptedAnchor = null;
+                blockingTile = null;
+                blockingCombatantId = null;
+            }
+        }
+
+        static Stop none() {
+            return new Stop(StopReason.NONE, null, null, null);
+        }
+    }
+
     public record Result(
             GridCoord origin,
             GridCoord destination,
             int requestedDistance,
             int movedDistance,
             boolean stoppedEarly,
-            List<GridCoord> traversedAnchors
-    ) {}
+            List<GridCoord> traversedAnchors,
+            Stop stop
+    ) {
+        public Result {
+            if (stop == null) stop = Stop.none();
+        }
+    }
 
     public static Result resolve(
             BattleRuntimeState state,
@@ -49,10 +80,13 @@ public final class ForcedDisplacementResolution {
         GridCoord origin = combatant.position();
         GridCoord current = origin;
         java.util.ArrayList<GridCoord> traversed = new java.util.ArrayList<>();
+        Stop stop = Stop.none();
 
         for (int step = 0; step < distance; step++) {
             GridCoord candidate = new GridCoord(current.x() + dx, current.y() + dy);
-            if (!canOccupy(state, combatantId, candidate)) {
+            Stop candidateStop = stopFor(state, combatantId, candidate);
+            if (candidateStop.reason() != StopReason.NONE) {
+                stop = candidateStop;
                 break;
             }
             current = candidate;
@@ -65,30 +99,38 @@ public final class ForcedDisplacementResolution {
                 distance,
                 traversed.size(),
                 traversed.size() < distance,
-                List.copyOf(traversed)
+                List.copyOf(traversed),
+                stop
         );
     }
 
-    private static boolean canOccupy(BattleRuntimeState state, String movingId, GridCoord anchor) {
+    private static Stop stopFor(BattleRuntimeState state, String movingId, GridCoord anchor) {
         MovementGrid grid = state.grid();
         String movingSize = state.geometry(movingId).sizeLabel();
         Set<GridCoord> candidateFootprint = Targeting.footprintTiles(anchor, movingSize);
 
         for (GridCoord tile : candidateFootprint) {
-            if (!grid.inBounds(tile) || grid.isBlocker(tile)) return false;
+            if (!grid.inBounds(tile)) {
+                return new Stop(StopReason.OUT_OF_BOUNDS, anchor, tile, null);
+            }
+            if (grid.isBlocker(tile)) {
+                return new Stop(StopReason.BLOCKER, anchor, tile, null);
+            }
         }
 
-        Set<GridCoord> occupied = new LinkedHashSet<>();
         for (String otherId : state.combatantIds()) {
             if (otherId.equals(movingId)) continue;
             RuntimeCombatantState other = state.requireCombatant(otherId);
             if (other.hp() <= 0) continue;
-            occupied.addAll(Targeting.footprintTiles(other.position(), state.geometry(otherId).sizeLabel()));
+            Set<GridCoord> otherFootprint = Targeting.footprintTiles(
+                    other.position(), state.geometry(otherId).sizeLabel()
+            );
+            for (GridCoord tile : candidateFootprint) {
+                if (otherFootprint.contains(tile)) {
+                    return new Stop(StopReason.OCCUPIED, anchor, tile, otherId);
+                }
+            }
         }
-
-        for (GridCoord tile : candidateFootprint) {
-            if (occupied.contains(tile)) return false;
-        }
-        return true;
+        return Stop.none();
     }
 }
