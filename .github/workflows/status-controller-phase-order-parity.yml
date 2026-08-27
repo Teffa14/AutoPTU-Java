@@ -1,0 +1,41 @@
+name: StatusController Phase Order Parity
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  parity:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Export StatusController phase-order contract
+        run: |
+          python3 -m py_compile tools/python/export_status_controller_phase_order_fixtures.py
+          python3 tools/python/export_status_controller_phase_order_fixtures.py \
+            --source-root python-oracle \
+            --output build/oracle/status-controller-phase-order.tsv
+
+      - name: Run StatusController phase-order parity test
+        run: >-
+          gradle test --stacktrace
+          -Dautoptu.status.controller.phase.order.oracle="$GITHUB_WORKSPACE/build/oracle/status-controller-phase-order.tsv"
+          --tests io.autoptu.core.runtime.StatusControllerPhaseOrderingOracleParityTest
