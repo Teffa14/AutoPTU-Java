@@ -1,0 +1,47 @@
+name: Intercept Attempt Parity
+
+on:
+  pull_request:
+    paths:
+      - "src/main/java/io/autoptu/core/runtime/InterceptAttemptPolicy.java"
+      - "src/test/java/io/autoptu/core/runtime/InterceptAttemptPolicyTest.java"
+      - "tools/python/export_intercept_attempt_contract.py"
+      - ".github/workflows/intercept-attempt-parity.yml"
+  push:
+    branches:
+      - main
+
+jobs:
+  parity:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Export Python intercept attempt contract
+        run: |
+          python3 -m py_compile tools/python/export_intercept_attempt_contract.py
+          python3 tools/python/export_intercept_attempt_contract.py \
+            --source-root python-oracle \
+            --output build/oracle/intercept-attempt.tsv
+          cat build/oracle/intercept-attempt.tsv
+
+      - name: Run intercept attempt parity tests
+        run: >-
+          gradle test --stacktrace
+          -Dautoptu.intercept.attempt.oracle="$GITHUB_WORKSPACE/build/oracle/intercept-attempt.tsv"
+          --tests io.autoptu.core.runtime.InterceptAttemptPolicyTest
