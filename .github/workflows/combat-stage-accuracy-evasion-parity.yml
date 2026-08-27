@@ -52,3 +52,15 @@ jobs:
             --tests io.autoptu.core.runtime.TemporaryAccuracyBonusOracleParityTest \
             --tests io.autoptu.core.runtime.MoveSpecialSecondaryCombatStageApplicationTest \
             --tests io.autoptu.core.runtime.MirrorArmorCombatStageOracleParityTest
+
+      - name: Upload parity diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: combat-stage-accuracy-evasion-diagnostics
+          if-no-files-found: ignore
+          path: |
+            build/oracle/combat-stage-accuracy-evasion.tsv
+            build/oracle/temporary-accuracy-bonus.tsv
+            build/test-results/test/*.xml
+            build/reports/tests/test/**
