@@ -1,5 +1,6 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
@@ -12,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ForcedMovementApplicationTest {
     @Test
@@ -72,7 +74,7 @@ class ForcedMovementApplicationTest {
                 new ForcedMovementInstruction(ForcedMovementInstruction.Kind.PUSH, 1)
         );
 
-        assertEquals(0, target.actionBudget().usedCount(io.autoptu.core.rules.ActionType.SHIFT));
+        assertTrue(target.actionBudget().hasActionAvailable(ActionType.SHIFT));
     }
 
     private static RuntimeCombatantState combatant(String id, int x, int y) {
@@ -81,7 +83,7 @@ class ForcedMovementApplicationTest {
                 MovementProfile.walking(new GridCoord(x, y), 6),
                 20,
                 20,
-                ActionBudget.fresh()
+                new ActionBudget()
         );
     }
 }
