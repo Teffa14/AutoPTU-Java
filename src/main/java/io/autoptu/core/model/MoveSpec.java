@@ -17,11 +17,28 @@ public record MoveSpec(
         Integer areaValue,
         String rangeText,
         List<String> keywords,
-        String effectsText
+        String effectsText,
+        int priority
 ) {
     public MoveSpec {
         keywords = normalizeKeywords(keywords);
         effectsText = effectsText == null ? "" : effectsText;
+        priority = Math.max(0, priority);
+    }
+
+    /** Backwards-compatible constructor for callers that already provide effects text. */
+    public MoveSpec(
+            String targetKind,
+            String rangeKind,
+            Integer targetRange,
+            Integer rangeValue,
+            String areaKind,
+            Integer areaValue,
+            String rangeText,
+            List<String> keywords,
+            String effectsText
+    ) {
+        this(targetKind, rangeKind, targetRange, rangeValue, areaKind, areaValue, rangeText, keywords, effectsText, 0);
     }
 
     /** Backwards-compatible constructor for callers that already provide canonical keywords. */
@@ -35,7 +52,7 @@ public record MoveSpec(
             String rangeText,
             List<String> keywords
     ) {
-        this(targetKind, rangeKind, targetRange, rangeValue, areaKind, areaValue, rangeText, keywords, "");
+        this(targetKind, rangeKind, targetRange, rangeValue, areaKind, areaValue, rangeText, keywords, "", 0);
     }
 
     /** Backwards-compatible constructor for older targeting/movement callers. */
@@ -48,7 +65,7 @@ public record MoveSpec(
             Integer areaValue,
             String rangeText
     ) {
-        this(targetKind, rangeKind, targetRange, rangeValue, areaKind, areaValue, rangeText, List.of(), "");
+        this(targetKind, rangeKind, targetRange, rangeValue, areaKind, areaValue, rangeText, List.of(), "", 0);
     }
 
     /**
@@ -63,6 +80,13 @@ public record MoveSpec(
             if (entry.toLowerCase(Locale.ROOT).equals(normalized)) return true;
         }
         return false;
+    }
+
+    /** Python move_traits.has_range_keyword parity: substring search over range text, then range kind. */
+    public boolean hasRangeKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) return false;
+        String source = rangeText == null || rangeText.isBlank() ? rangeKind : rangeText;
+        return source != null && source.toLowerCase(Locale.ROOT).contains(keyword.toLowerCase(Locale.ROOT));
     }
 
     private static List<String> normalizeKeywords(List<String> values) {
