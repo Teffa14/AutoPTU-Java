@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class HeldItemStartTemporaryEffectResolutionTest {
     @Test
@@ -29,7 +30,7 @@ class HeldItemStartTemporaryEffectResolutionTest {
         assertEquals(Map.of("stat", "atk", "amount", 5, "source", "Test Charm"), store.entriesInInsertionOrder().get(0).payload());
         assertEquals(Map.of("stat", "spd", "multiplier", 1.5, "source", "Test Charm"), store.entriesInInsertionOrder().get(2).payload());
         assertEquals(2, store.entriesInInsertionOrder().get(3).payload().get("amount"));
-        assertEquals(null, store.entriesInInsertionOrder().get(3).payload().get("type"));
+        assertNull(store.entriesInInsertionOrder().get(3).payload().get("type"));
         assertEquals("status", store.entriesInInsertionOrder().get(4).payload().get("scope"));
         assertEquals("all", store.entriesInInsertionOrder().get(5).payload().get("scope"));
     }
