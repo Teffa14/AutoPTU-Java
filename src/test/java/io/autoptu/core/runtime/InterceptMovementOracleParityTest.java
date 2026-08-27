@@ -22,6 +22,14 @@ class InterceptMovementOracleParityTest {
         assertEquals(1, fixture.get("failed_check_has_early_return"));
         assertEquals(1, fixture.get("intercept_path_does_not_consume_shift_bucket"));
         assertEquals(1, fixture.get("melee_branch_uses_forced_movement"));
+        assertEquals(1, fixture.get("melee_push_uses_interceptor_as_source"));
+        assertEquals(1, fixture.get("melee_push_displaces_original_target"));
+        assertEquals(1, fixture.get("melee_push_kind_is_push"));
+        assertEquals(1, fixture.get("melee_push_distance_is_one"));
+        assertEquals(1, fixture.get("melee_push_guard_requires_success_and_melee"));
+        assertEquals(1, fixture.get("melee_push_return_is_ignored"));
+        assertEquals(1, fixture.get("line_commit_precedes_melee_push"));
+        assertEquals(1, fixture.get("melee_push_precedes_final_target_anchor_commit"));
     }
 
     private static Map<String, Integer> readFixture(Path path) throws IOException {
