@@ -4,8 +4,11 @@ on:
   pull_request:
     paths:
       - "src/main/java/io/autoptu/core/runtime/InterceptCandidateDiscoveryResolution.java"
+      - "src/main/java/io/autoptu/core/runtime/CombatantRuleContent.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptCandidateDiscoveryFactory.java"
       - "src/test/java/io/autoptu/core/runtime/InterceptCandidateDiscoveryResolutionTest.java"
       - "src/test/java/io/autoptu/core/runtime/InterceptCandidateDiscoveryOracleParityTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptCandidateDiscoveryFactoryTest.java"
       - "tools/python/export_intercept_candidate_discovery_contract.py"
       - ".github/workflows/intercept-candidate-discovery-parity.yml"
   push:
@@ -47,3 +50,4 @@ jobs:
           -Dautoptu.intercept.candidate.discovery.oracle="$GITHUB_WORKSPACE/build/oracle/intercept-candidate-discovery.tsv"
           --tests io.autoptu.core.runtime.InterceptCandidateDiscoveryOracleParityTest
           --tests io.autoptu.core.runtime.InterceptCandidateDiscoveryResolutionTest
+          --tests io.autoptu.core.runtime.RuntimeInterceptCandidateDiscoveryFactoryTest
