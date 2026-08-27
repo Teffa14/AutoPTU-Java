@@ -1,0 +1,43 @@
+name: Held Item START Rule Profile Parity
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  parity:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Export held-item START rule profile fixtures
+        run: |
+          python3 -m py_compile tools/python/export_held_item_start_rule_profile_fixtures.py
+          python3 tools/python/export_held_item_start_rule_profile_fixtures.py \
+            --source-root python-oracle \
+            --output build/oracle/held-item-start-rule-profile.tsv
+
+      - name: Run held-item START profile parity tests
+        run: >-
+          gradle test --stacktrace
+          -Dautoptu.held.item.start.profile.oracle="$GITHUB_WORKSPACE/build/oracle/held-item-start-rule-profile.tsv"
+          --tests io.autoptu.core.runtime.HeldItemStartRuleProfileOracleParityTest
+          --tests io.autoptu.core.runtime.HeldItemStartRuleProfileParserTest
+          --tests io.autoptu.core.runtime.HeldItemStartTemporaryEffectResolutionTest
