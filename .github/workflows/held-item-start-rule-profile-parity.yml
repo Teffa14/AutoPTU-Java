@@ -33,13 +33,19 @@ jobs:
           python3 tools/python/export_held_item_start_rule_profile_fixtures.py \
             --source-root python-oracle \
             --output build/oracle/held-item-start-rule-profile.tsv
+          python3 -m py_compile tools/python/export_held_item_start_slot_order_contract.py
+          python3 tools/python/export_held_item_start_slot_order_contract.py \
+            --source-root python-oracle \
+            --output build/oracle/held-item-start-slot-order.tsv
 
       - name: Run held-item START profile parity tests
         run: >-
           gradle test --stacktrace
           -Dautoptu.held.item.start.profile.oracle="$GITHUB_WORKSPACE/build/oracle/held-item-start-rule-profile.tsv"
+          -Dautoptu.held.item.start.slot.order.oracle="$GITHUB_WORKSPACE/build/oracle/held-item-start-slot-order.tsv"
           --tests io.autoptu.core.runtime.HeldItemStartRuleProfileOracleParityTest
           --tests io.autoptu.core.runtime.HeldItemStartRuleProfileParserTest
           --tests io.autoptu.core.runtime.HeldItemStartTemporaryEffectResolutionTest
+          --tests io.autoptu.core.runtime.HeldItemSlotOrderPolicyOracleParityTest
           --tests io.autoptu.core.hook.HeldItemStartLifecycleHookTest
           --tests io.autoptu.core.runtime.HeldItemStartMagicRoomTest
