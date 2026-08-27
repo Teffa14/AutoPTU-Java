@@ -1,15 +1,15 @@
 package io.autoptu.core.runtime;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
  * Commits Python-compatible temporary-effect expiry discovered during interception candidate scanning.
  *
- * <p>The pure discovery resolver reports how many expired entries Python removed while scanning.
- * This application performs those removals against the authoritative temporary-effect stores while
- * preserving insertion order, multiplicity, and active entries. Minecraft/Cobblemon never performs
+ * <p>The pure discovery resolver reports how many expiry-triggered removals Python performed while
+ * scanning a snapshot. PokemonState.remove_temporary_effect(name) removes the first live occurrence
+ * of that family, so this application must preserve that first-family removal behavior even when the
+ * expired snapshot that triggered the call is a later duplicate. Minecraft/Cobblemon never performs
  * this cleanup.</p>
  */
 public final class RuntimeInterceptCandidateCleanupApplication {
@@ -30,22 +30,20 @@ public final class RuntimeInterceptCandidateCleanupApplication {
         if (discovery == null) throw new IllegalArgumentException("discovery result is required");
 
         RuntimeCombatantState attacker = state.requireCombatant(attackerId);
-        int noInterceptRemoved = removeExpiredSnapshots(
+        int noInterceptRemoved = removeFirstFamilyOccurrences(
                 attacker.temporaryEffects(),
                 "no_intercept",
-                discovery.attackerNoInterceptRemovalCount(),
-                state.currentRound()
+                discovery.attackerNoInterceptRemovalCount()
         );
 
         LinkedHashMap<String, Integer> sentinelRemoved = new LinkedHashMap<>();
         for (String combatantId : state.combatantIds()) {
             int requested = discovery.sentinelRemovalCountByCombatant().getOrDefault(combatantId, 0);
             if (requested <= 0) continue;
-            int removed = removeExpiredSnapshots(
+            int removed = removeFirstFamilyOccurrences(
                     state.requireCombatant(combatantId).temporaryEffects(),
                     "sentinel_stance",
-                    requested,
-                    state.currentRound()
+                    requested
             );
             if (removed > 0) sentinelRemoved.put(combatantId, removed);
         }
@@ -53,33 +51,16 @@ public final class RuntimeInterceptCandidateCleanupApplication {
         return new Result(noInterceptRemoved, Map.copyOf(sentinelRemoved));
     }
 
-    private static int removeExpiredSnapshots(
+    private static int removeFirstFamilyOccurrences(
             TemporaryEffectStore store,
             String effectName,
-            int requested,
-            int currentRound
+            int requested
     ) {
         if (requested <= 0) return 0;
-        List<TemporaryEffectEntry> snapshot = store.getAll(effectName);
         int removed = 0;
-        for (TemporaryEffectEntry entry : snapshot) {
-            if (removed >= requested) break;
-            Integer expiresRound = integer(entry.payload().get("expires_round"));
-            if (expiresRound == null || currentRound <= expiresRound) continue;
-            if (store.removeEntry(entry)) removed += 1;
+        while (removed < requested && store.removeFirst(effectName)) {
+            removed += 1;
         }
         return removed;
-    }
-
-    private static Integer integer(Object value) {
-        if (value instanceof Number number) return number.intValue();
-        if (value instanceof String text && !text.isBlank()) {
-            try {
-                return Integer.parseInt(text.strip());
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        return null;
     }
 }
