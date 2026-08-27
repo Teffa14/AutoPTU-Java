@@ -13,9 +13,12 @@ public record CombatantProfileIdentity(String name, String species) {
         species = normalize(species);
     }
 
-    /** Backwards-compatible identity for legacy snapshots that only carry a combatant id. */
+    /**
+     * Backwards-compatible fail-closed identity for legacy snapshots that lack canonical
+     * Pokemon profile content. Internal combatant ids are not Pokemon names.
+     */
     public static CombatantProfileIdentity fromCombatantId(String combatantId) {
-        return new CombatantProfileIdentity(combatantId, "");
+        return new CombatantProfileIdentity("", "");
     }
 
     private static String normalize(String value) {
