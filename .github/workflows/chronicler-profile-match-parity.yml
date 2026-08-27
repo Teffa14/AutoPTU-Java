@@ -39,4 +39,5 @@ jobs:
           AUTOPTU_CHRONICLER_PROFILE_MATCH_ORACLE: ${{ github.workspace }}/build/oracle/chronicler-profile-match.tsv
         run: |
           gradle test --stacktrace \
-            --tests io.autoptu.core.runtime.ChroniclerProfileMatchOracleParityTest
+            --tests io.autoptu.core.runtime.ChroniclerProfileMatchOracleParityTest \
+            --tests io.autoptu.core.runtime.ChroniclerRuntimeOwnershipTest
