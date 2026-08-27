@@ -41,3 +41,4 @@ jobs:
           --tests io.autoptu.core.runtime.HeldItemStartRuleProfileOracleParityTest
           --tests io.autoptu.core.runtime.HeldItemStartRuleProfileParserTest
           --tests io.autoptu.core.runtime.HeldItemStartTemporaryEffectResolutionTest
+          --tests io.autoptu.core.hook.HeldItemStartLifecycleHookTest
