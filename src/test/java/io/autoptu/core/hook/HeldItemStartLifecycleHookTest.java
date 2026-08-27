@@ -70,7 +70,7 @@ class HeldItemStartLifecycleHookTest {
                 new LifecycleHookContext(state, LifecycleHookPoint.TURN_START, 0, 1, "actor")
         );
 
-        assertEquals(List.of(), actor.temporaryEffects().snapshot());
+        assertEquals(Map.of(), actor.temporaryEffects().snapshot());
     }
 
     private static BattleRuntimeState state(RuntimeCombatantState actor, List<HeldItemState> items) {
