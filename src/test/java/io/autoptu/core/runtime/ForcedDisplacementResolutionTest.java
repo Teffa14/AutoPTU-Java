@@ -12,6 +12,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ForcedDisplacementResolutionTest {
@@ -30,6 +31,7 @@ class ForcedDisplacementResolutionTest {
         assertEquals(new GridCoord(4, 1), result.destination());
         assertEquals(3, result.movedDistance());
         assertFalse(result.stoppedEarly());
+        assertEquals(ForcedDisplacementResolution.StopReason.NONE, result.stop().reason());
         assertEquals(List.of(new GridCoord(2, 1), new GridCoord(3, 1), new GridCoord(4, 1)), result.traversedAnchors());
     }
 
@@ -48,6 +50,10 @@ class ForcedDisplacementResolutionTest {
         assertEquals(new GridCoord(3, 1), result.destination());
         assertEquals(2, result.movedDistance());
         assertTrue(result.stoppedEarly());
+        assertEquals(ForcedDisplacementResolution.StopReason.BLOCKER, result.stop().reason());
+        assertEquals(new GridCoord(4, 1), result.stop().attemptedAnchor());
+        assertEquals(new GridCoord(4, 1), result.stop().blockingTile());
+        assertNull(result.stop().blockingCombatantId());
     }
 
     @Test
@@ -65,6 +71,9 @@ class ForcedDisplacementResolutionTest {
 
         assertEquals(new GridCoord(3, 1), result.destination());
         assertEquals(2, result.movedDistance());
+        assertEquals(ForcedDisplacementResolution.StopReason.OCCUPIED, result.stop().reason());
+        assertEquals("blocker", result.stop().blockingCombatantId());
+        assertEquals(new GridCoord(4, 1), result.stop().blockingTile());
     }
 
     @Test
@@ -83,6 +92,7 @@ class ForcedDisplacementResolutionTest {
 
         assertEquals(new GridCoord(4, 1), result.destination());
         assertEquals(3, result.movedDistance());
+        assertEquals(ForcedDisplacementResolution.StopReason.NONE, result.stop().reason());
     }
 
     @Test
@@ -101,6 +111,9 @@ class ForcedDisplacementResolutionTest {
         assertEquals(new GridCoord(2, 1), result.destination());
         assertEquals(1, result.movedDistance());
         assertTrue(result.stoppedEarly());
+        assertEquals(ForcedDisplacementResolution.StopReason.BLOCKER, result.stop().reason());
+        assertEquals(new GridCoord(3, 1), result.stop().attemptedAnchor());
+        assertEquals(new GridCoord(4, 2), result.stop().blockingTile());
     }
 
     @Test
@@ -119,6 +132,9 @@ class ForcedDisplacementResolutionTest {
         assertEquals(new GridCoord(0, 1), result.destination());
         assertEquals(1, result.movedDistance());
         assertTrue(result.stoppedEarly());
+        assertEquals(ForcedDisplacementResolution.StopReason.OUT_OF_BOUNDS, result.stop().reason());
+        assertEquals(new GridCoord(-1, 1), result.stop().attemptedAnchor());
+        assertEquals(new GridCoord(-1, 1), result.stop().blockingTile());
     }
 
     private static RuntimeCombatantState combatant(String id, int x, int y) {
