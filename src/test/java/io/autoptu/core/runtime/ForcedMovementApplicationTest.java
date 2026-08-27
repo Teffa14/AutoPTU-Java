@@ -31,6 +31,7 @@ class ForcedMovementApplicationTest {
         );
 
         assertEquals(new GridCoord(4, 1), result.destination());
+        assertEquals(new GridCoord(4, 1), target.position());
         assertEquals(2, result.movedDistance());
     }
 
@@ -51,6 +52,7 @@ class ForcedMovementApplicationTest {
         );
 
         assertEquals(new GridCoord(2, 1), result.destination());
+        assertEquals(new GridCoord(2, 1), target.position());
         assertEquals(2, result.movedDistance());
     }
 
