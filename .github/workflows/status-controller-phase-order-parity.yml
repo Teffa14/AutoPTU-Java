@@ -34,8 +34,9 @@ jobs:
             --source-root python-oracle \
             --output build/oracle/status-controller-phase-order.tsv
 
-      - name: Run StatusController phase-order parity test
+      - name: Run StatusController phase-order parity tests
         run: >-
           gradle test --stacktrace
           -Dautoptu.status.controller.phase.order.oracle="$GITHUB_WORKSPACE/build/oracle/status-controller-phase-order.tsv"
           --tests io.autoptu.core.runtime.StatusControllerPhaseOrderingOracleParityTest
+          --tests io.autoptu.core.runtime.StatusControllerPhaseEnvelopeDispatcherTest
