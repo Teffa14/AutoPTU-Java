@@ -27,8 +27,9 @@ import java.util.List;
  * Reusable authoritative preparation for a concrete attacker/target pairing.
  *
  * <p>This is the state-derivation portion of direct move resolution: effective move metadata,
- * status-adjusted stats/evasion, STAB, type effectiveness and server-owned damage modifiers.
- * It deliberately does not spend actions, consume frequency, roll RNG or mutate HP.</p>
+ * status-adjusted stats/evasion, effective Accuracy, STAB, type effectiveness and server-owned
+ * damage modifiers. It deliberately does not spend actions, consume frequency, roll RNG or mutate
+ * HP.</p>
  */
 final class RuntimeAuthoritativeMovePreparation {
     private RuntimeAuthoritativeMovePreparation() {
@@ -76,6 +77,19 @@ final class RuntimeAuthoritativeMovePreparation {
                 actorStats, effectiveMetadata.damageCategory(), ignorePositiveAttackStage);
         int defenseValue = StatResolution.defensive(
                 targetStats, effectiveMetadata.damageCategory(), ignorePositiveDefenseStage);
+        int temporaryAccuracyBonus = TemporaryAccuracyBonusResolution.resolve(
+                RuntimeTemporaryAccuracyBonusInputs.fromState(
+                        state,
+                        choice.actorId(),
+                        choice.targetId(),
+                        move
+                )
+        );
+        int effectiveAccuracyStage = EffectiveAccuracyStageProjection.resolve(
+                actor.accuracyStage(),
+                actor.requireStatProfile().intrinsicAccuracyCs(),
+                temporaryAccuracyBonus
+        );
         boolean meleeNoGuard = isMelee(move) && (actor.noGuard() || target.noGuard());
         int effectiveDb = authoritativeStabDamageBase(move, effectiveMetadata, actor);
         double typeMultiplier = authoritativeTypeMultiplier(
@@ -83,7 +97,7 @@ final class RuntimeAuthoritativeMovePreparation {
         MoveResolutionInput stateBoundInput = new MoveResolutionInput(
                 effectiveMetadata.ac(),
                 evasion,
-                actor.accuracyStage(),
+                effectiveAccuracyStage,
                 effectiveMetadata.critRange(),
                 meleeNoGuard,
                 target.blur(),
