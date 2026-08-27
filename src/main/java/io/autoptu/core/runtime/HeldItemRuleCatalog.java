@@ -19,7 +19,7 @@ public final class HeldItemRuleCatalog {
         for (Map.Entry<String, HeldItemStartRuleProfile> entry : profilesByName.entrySet()) {
             String normalized = normalize(entry.getKey());
             if (normalized.isBlank() || entry.getValue() == null) continue;
-            profilesByName.put(normalized, entry.getValue());
+            this.profilesByName.put(normalized, entry.getValue());
         }
     }
 
