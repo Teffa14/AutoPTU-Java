@@ -18,21 +18,32 @@ class HeldItemStartTemporaryEffectResolutionTest {
                         new HeldItemStartTemporaryEffectResolution.StatAmount("atk", 5),
                         new HeldItemStartTemporaryEffectResolution.StatAmount("spdef", 3)
                 ),
-                List.of(new HeldItemStartTemporaryEffectResolution.StatScalar("spd", 1.5)),
+                List.of(new HeldItemStartTemporaryEffectResolution.StatScalar("def", 1.5)),
                 2,
                 1,
-                2
+                new HeldItemStartTemporaryEffectResolution.TypeAmount("Fire", 3),
+                1,
+                2,
+                4,
+                1.25
         ));
 
         assertEquals(List.of(
-                "stat_modifier", "stat_modifier", "stat_scalar", "accuracy_bonus", "evasion_bonus", "evasion_bonus"
+                "stat_modifier", "stat_modifier", "stat_scalar",
+                "accuracy_bonus", "accuracy_bonus_vs_lower_av", "accuracy_bonus",
+                "evasion_bonus", "evasion_bonus", "initiative_bonus", "stat_scalar"
         ), store.entriesInInsertionOrder().stream().map(TemporaryEffectEntry::name).toList());
         assertEquals(Map.of("stat", "atk", "amount", 5, "source", "Test Charm"), store.entriesInInsertionOrder().get(0).payload());
-        assertEquals(Map.of("stat", "spd", "multiplier", 1.5, "source", "Test Charm"), store.entriesInInsertionOrder().get(2).payload());
+        assertEquals(Map.of("stat", "def", "multiplier", 1.5, "source", "Test Charm"), store.entriesInInsertionOrder().get(2).payload());
         assertEquals(2, store.entriesInInsertionOrder().get(3).payload().get("amount"));
         assertNull(store.entriesInInsertionOrder().get(3).payload().get("type"));
-        assertEquals("status", store.entriesInInsertionOrder().get(4).payload().get("scope"));
-        assertEquals("all", store.entriesInInsertionOrder().get(5).payload().get("scope"));
+        assertNull(store.entriesInInsertionOrder().get(4).payload().get("type"));
+        assertEquals("Fire", store.entriesInInsertionOrder().get(5).payload().get("type"));
+        assertEquals("status", store.entriesInInsertionOrder().get(6).payload().get("scope"));
+        assertEquals("all", store.entriesInInsertionOrder().get(7).payload().get("scope"));
+        assertEquals(4, store.entriesInInsertionOrder().get(8).payload().get("amount"));
+        assertEquals("spd", store.entriesInInsertionOrder().get(9).payload().get("stat"));
+        assertEquals(1.25, store.entriesInInsertionOrder().get(9).payload().get("multiplier"));
     }
 
     @Test
@@ -40,22 +51,29 @@ class HeldItemStartTemporaryEffectResolutionTest {
         TemporaryEffectStore store = new TemporaryEffectStore();
         store.add("stat_modifier", Map.of("stat", "atk", "amount", 99, "source", "Test Charm"));
         store.add("stat_scalar", Map.of("stat", "spd", "multiplier", 9.0, "source", "Test Charm"));
+        store.add("initiative_bonus", Map.of("amount", 4, "source", "Test Charm"));
 
         HeldItemStartTemporaryEffectResolution.Input input = new HeldItemStartTemporaryEffectResolution.Input(
                 "Test Charm",
                 List.of(new HeldItemStartTemporaryEffectResolution.StatAmount("atk", 5)),
-                List.of(new HeldItemStartTemporaryEffectResolution.StatScalar("spd", 1.5)),
+                List.of(),
                 2,
                 1,
-                2
+                new HeldItemStartTemporaryEffectResolution.TypeAmount("Fire", 3),
+                1,
+                2,
+                4,
+                1.25
         );
         HeldItemStartTemporaryEffectResolution.apply(store, input);
         HeldItemStartTemporaryEffectResolution.apply(store, input);
 
         assertEquals(1, store.count("stat_modifier"));
         assertEquals(1, store.count("stat_scalar"));
-        assertEquals(1, store.count("accuracy_bonus"));
+        assertEquals(2, store.count("accuracy_bonus"));
+        assertEquals(1, store.count("accuracy_bonus_vs_lower_av"));
         assertEquals(2, store.count("evasion_bonus"));
+        assertEquals(1, store.count("initiative_bonus"));
         assertEquals(99, store.getAll("stat_modifier").get(0).payload().get("amount"));
         assertEquals(9.0, store.getAll("stat_scalar").get(0).payload().get("multiplier"));
     }

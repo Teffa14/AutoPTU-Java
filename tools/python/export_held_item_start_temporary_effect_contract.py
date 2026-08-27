@@ -27,13 +27,23 @@ def main() -> int:
     properties = {
         "base_stat_changes_before_scalars": method.find('effects.get("base_stat_changes")') < method.find('effects.get("base_stat_scalars")'),
         "scalars_before_accuracy": method.find('effects.get("base_stat_scalars")') < method.find('effects.get("accuracy_bonus")'),
-        "accuracy_before_evasion": method.find('effects.get("accuracy_bonus")') < method.find('effects.get("evasion_bonus_spd")'),
+        "accuracy_before_lower_av": method.find('effects.get("accuracy_bonus")') < method.find('effects.get("accuracy_bonus_vs_lower_av")'),
+        "lower_av_before_typed_accuracy": method.find('effects.get("accuracy_bonus_vs_lower_av")') < method.find('effects.get("type_accuracy_bonus")'),
+        "typed_accuracy_before_evasion": method.find('effects.get("type_accuracy_bonus")') < method.find('effects.get("evasion_bonus_spd")'),
+        "evasion_before_initiative": method.find('effects.get("evasion_bonus_all")') < method.find('effects.get("initiative_bonus")'),
+        "initiative_before_speed_scalar": method.find('effects.get("initiative_bonus")') < method.find('effects.get("speed_scalar")'),
         "stat_modifier_duplicate_key_stat_source": '_has_temp_effect("stat_modifier", stat=stat, source=name)' in method,
         "stat_scalar_duplicate_key_stat_source": '_has_temp_effect("stat_scalar", stat=stat, source=name)' in method,
         "accuracy_carries_null_type": '_has_temp_effect("accuracy_bonus", amount=int(accuracy_bonus), type=None, source=name)' in method
             and 'actor.add_temporary_effect("accuracy_bonus", amount=int(accuracy_bonus), type=None, source=name)' in method,
+        "lower_av_carries_null_type": '"accuracy_bonus_vs_lower_av", amount=int(accuracy_lower), type=None, source=name' in method,
+        "typed_accuracy_carries_type": '_has_temp_effect("accuracy_bonus", amount=int(amount), type=acc_type, source=name)' in method
+            and 'actor.add_temporary_effect("accuracy_bonus", amount=int(amount), type=acc_type, source=name)' in method,
         "status_evasion_scope": '"evasion_bonus", scope="status", amount=int(evasion_spd), source=name' in method,
         "all_evasion_scope": '"evasion_bonus", scope="all", amount=int(evasion_all), source=name' in method,
+        "initiative_duplicate_key_amount_source": '_has_temp_effect("initiative_bonus", amount=int(initiative_bonus), source=name)' in method,
+        "speed_scalar_uses_spd_stat_source": '_has_temp_effect("stat_scalar", stat="spd", multiplier=float(speed_scalar), source=name)' in method
+            and 'actor.add_temporary_effect("stat_scalar", stat="spd", multiplier=float(speed_scalar), source=name)' in method,
         "source_is_display_name": 'name = _item_name_text(item)' in method,
     }
     output = Path(args.output)

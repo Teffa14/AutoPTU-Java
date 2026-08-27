@@ -20,12 +20,20 @@ class HeldItemStartTemporaryEffectOracleParityTest {
 
         assertEquals(1, fixture.get("base_stat_changes_before_scalars"));
         assertEquals(1, fixture.get("scalars_before_accuracy"));
-        assertEquals(1, fixture.get("accuracy_before_evasion"));
+        assertEquals(1, fixture.get("accuracy_before_lower_av"));
+        assertEquals(1, fixture.get("lower_av_before_typed_accuracy"));
+        assertEquals(1, fixture.get("typed_accuracy_before_evasion"));
+        assertEquals(1, fixture.get("evasion_before_initiative"));
+        assertEquals(1, fixture.get("initiative_before_speed_scalar"));
         assertEquals(1, fixture.get("stat_modifier_duplicate_key_stat_source"));
         assertEquals(1, fixture.get("stat_scalar_duplicate_key_stat_source"));
         assertEquals(1, fixture.get("accuracy_carries_null_type"));
+        assertEquals(1, fixture.get("lower_av_carries_null_type"));
+        assertEquals(1, fixture.get("typed_accuracy_carries_type"));
         assertEquals(1, fixture.get("status_evasion_scope"));
         assertEquals(1, fixture.get("all_evasion_scope"));
+        assertEquals(1, fixture.get("initiative_duplicate_key_amount_source"));
+        assertEquals(1, fixture.get("speed_scalar_uses_spd_stat_source"));
         assertEquals(1, fixture.get("source_is_display_name"));
     }
 
