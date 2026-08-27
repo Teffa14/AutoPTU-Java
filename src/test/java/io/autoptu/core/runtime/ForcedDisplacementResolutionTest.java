@@ -127,7 +127,7 @@ class ForcedDisplacementResolutionTest {
                 MovementProfile.walking(new GridCoord(x, y), 6),
                 20,
                 20,
-                ActionBudget.fresh()
+                new ActionBudget()
         );
     }
 
