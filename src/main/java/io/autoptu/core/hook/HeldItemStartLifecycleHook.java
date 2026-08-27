@@ -1,5 +1,6 @@
 package io.autoptu.core.hook;
 
+import io.autoptu.core.runtime.FieldEffectEntry;
 import io.autoptu.core.runtime.HeldItemRuleCatalog;
 import io.autoptu.core.runtime.HeldItemStartRuleProfile;
 import io.autoptu.core.runtime.HeldItemStartTemporaryEffectResolution;
@@ -25,7 +26,7 @@ public final class HeldItemStartLifecycleHook implements LifecycleHook {
     @Override
     public LifecycleHookResult apply(LifecycleHookContext context) {
         Objects.requireNonNull(context, "context");
-        if (context.actorId().isBlank()) {
+        if (context.actorId().isBlank() || magicRoomActive(context)) {
             return LifecycleHookResult.empty();
         }
 
@@ -41,5 +42,14 @@ public final class HeldItemStartLifecycleHook implements LifecycleHook {
             );
         }
         return LifecycleHookResult.empty();
+    }
+
+    private static boolean magicRoomActive(LifecycleHookContext context) {
+        for (FieldEffectEntry room : context.state().environment().roomEffects()) {
+            if ("magic room".equalsIgnoreCase(room.name().strip())) {
+                return true;
+            }
+        }
+        return false;
     }
 }
