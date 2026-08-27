@@ -38,6 +38,10 @@ public final class BuiltinLifecycleHooks {
                 )
                 .build();
 
+        StatusControllerPhaseEnvelopeDispatcher phaseEnvelope = StatusControllerPhaseEnvelopeDispatcher.builder()
+                .step(StatusControllerPhaseOrderingPolicy.Step.COMBATANT_PHASE_EFFECTS, phaseDispatcher)
+                .build();
+
         return LifecycleHookRegistry.builder()
                 .register(
                         "round-field-progression",
@@ -131,14 +135,14 @@ public final class BuiltinLifecycleHooks {
                         HookSource.SYSTEM,
                         LifecycleHookPoint.TURN_START,
                         500,
-                        phaseDispatcher
+                        phaseEnvelope
                 )
                 .register(
                         "combatant-phase-effects",
                         HookSource.SYSTEM,
                         LifecycleHookPoint.PHASE_CHANGE,
                         500,
-                        phaseDispatcher
+                        phaseEnvelope
                 )
                 .register(
                         "turn-temporary-effect-cleanup",
