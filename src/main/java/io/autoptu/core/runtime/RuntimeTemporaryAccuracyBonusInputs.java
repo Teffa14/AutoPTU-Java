@@ -13,10 +13,11 @@ import java.util.Locale;
 /**
  * Runtime materialization for Python calculations._temporary_accuracy_bonus().
  *
- * <p>Ordinary ability/item/position/temporary-effect inputs and Focused Training are derived
- * from BattleRuntimeState. Chronicler remains the only explicit core-only helper contribution
- * until its profile-matching contract is ported. This class is package-private so
- * Minecraft/Cobblemon cannot supply those values through the public action boundary.</p>
+ * <p>Ordinary ability/item/position/temporary-effect inputs, Focused Training and Chronicler are
+ * derived from BattleRuntimeState whenever canonical Trainer ownership exists. Transitional helper
+ * contributions remain only for legacy snapshots that predate server-owned Trainer state. This class
+ * is package-private so Minecraft/Cobblemon cannot supply those values through the public action
+ * boundary.</p>
  */
 final class RuntimeTemporaryAccuracyBonusInputs {
     private RuntimeTemporaryAccuracyBonusInputs() {
@@ -55,6 +56,9 @@ final class RuntimeTemporaryAccuracyBonusInputs {
                 && contextBonuses.focusedTrainingBonus() != null) {
             focusedTrainingBonus = contextBonuses.focusedTrainingBonus();
         }
+        int chroniclerBonus = state.hasCanonicalTrainer(attackerId)
+                ? RuntimeChroniclerAccuracyBonusInputs.resolve(state, attackerId, defenderId)
+                : contextBonuses.chroniclerBonus();
 
         boolean compoundEyes = registration(attacker, "Compound Eyes");
         boolean keenEye = registration(attacker, "Keen Eye");
@@ -101,7 +105,7 @@ final class RuntimeTemporaryAccuracyBonusInputs {
                 accuracyBonuses,
                 lowerAvBonuses,
                 defenderLowerAv,
-                contextBonuses.chroniclerBonus()
+                chroniclerBonus
         );
     }
 
@@ -163,8 +167,8 @@ final class RuntimeTemporaryAccuracyBonusInputs {
     }
 
     /**
-     * Transitional core-only helper contributions. Focused Training is consulted only for legacy
-     * snapshots without a canonical Trainer; Chronicler remains until profile matching is ported.
+     * Transitional core-only helper contributions used only by legacy snapshots without canonical
+     * Trainer ownership. New server-owned battle snapshots derive both contributions internally.
      */
     record ContextBonuses(Integer focusedTrainingBonus, int chroniclerBonus) {
         static final ContextBonuses NONE = new ContextBonuses(null, 0);
