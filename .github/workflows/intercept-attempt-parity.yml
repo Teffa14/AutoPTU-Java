@@ -3,8 +3,12 @@ name: Intercept Attempt Parity
 on:
   pull_request:
     paths:
+      - "src/main/java/io/autoptu/core/model/MoveSpec.java"
+      - "src/main/java/io/autoptu/core/rules/MoveCannotMissResolution.java"
       - "src/main/java/io/autoptu/core/runtime/InterceptAttemptPolicy.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptAttemptInputFactory.java"
       - "src/test/java/io/autoptu/core/runtime/InterceptAttemptPolicyTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptAttemptInputFactoryTest.java"
       - "tools/python/export_intercept_attempt_contract.py"
       - ".github/workflows/intercept-attempt-parity.yml"
   push:
@@ -45,3 +49,4 @@ jobs:
           gradle test --stacktrace
           -Dautoptu.intercept.attempt.oracle="$GITHUB_WORKSPACE/build/oracle/intercept-attempt.tsv"
           --tests io.autoptu.core.runtime.InterceptAttemptPolicyTest
+          --tests io.autoptu.core.runtime.RuntimeInterceptAttemptInputFactoryTest
