@@ -62,6 +62,7 @@ jobs:
             --tests io.autoptu.core.runtime.TemporaryAccuracyBonusOracleParityTest \
             --tests io.autoptu.core.runtime.RuntimeTemporaryAccuracyBonusInputsTest \
             --tests io.autoptu.core.runtime.RuntimeChroniclerAccuracyBonusInputsTest \
+            --tests io.autoptu.core.runtime.RuntimeEffectiveAccuracyPreparationTest \
             --tests io.autoptu.core.runtime.AccuracyHelperContractOracleParityTest \
             --tests io.autoptu.core.runtime.FocusedTrainingAccuracyBonusOracleParityTest \
             --tests io.autoptu.core.runtime.FocusedTrainingAccuracyRuntimeInputsTest \
