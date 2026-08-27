@@ -14,11 +14,13 @@ import java.util.Map;
  * Mutable server-owned trainer state shared by combatants controlled by one trainer.
  *
  * Trainer Feature ownership, skills, AP, action state, initiative inputs, feature resources,
- * and feature usage are PTU rule state. Minecraft/Cobblemon may render them, but adapters
- * must not supply these values while battle rules are resolving.
+ * feature usage, identity, and Chronicler archive metadata are PTU rule state. Minecraft/Cobblemon
+ * may render them, but adapters must not supply these values while battle rules are resolving.
  */
 public final class TrainerRuntimeState {
     private final String trainerId;
+    private final String trainerName;
+    private final ChroniclerProfileMetadata chroniclerProfileMetadata;
     private final LinkedHashMap<String, String> featuresByNormalizedName = new LinkedHashMap<>();
     private final LinkedHashMap<String, Integer> skillRanksByNormalizedName = new LinkedHashMap<>();
     private final ActionBudget actionBudget = new ActionBudget();
@@ -95,6 +97,30 @@ public final class TrainerRuntimeState {
             Map<String, ?> featureResources,
             Map<String, ? extends Map<String, ?>> featureUsage
     ) {
+        this(
+                trainerId, trainerFeatures, ap, initiativeModifier, skillRanks,
+                explicitInitiativeSpeed, teamId, featureResources, featureUsage,
+                trainerId, ChroniclerProfileMetadata.empty()
+        );
+    }
+
+    /**
+     * Full server-owned Trainer snapshot including the display name and Chronicler archives used
+     * by profile matching. These values are battle content, not action-request inputs.
+     */
+    public TrainerRuntimeState(
+            String trainerId,
+            Collection<String> trainerFeatures,
+            int ap,
+            int initiativeModifier,
+            Map<String, Integer> skillRanks,
+            Integer explicitInitiativeSpeed,
+            String teamId,
+            Map<String, ?> featureResources,
+            Map<String, ? extends Map<String, ?>> featureUsage,
+            String trainerName,
+            ChroniclerProfileMetadata chroniclerProfileMetadata
+    ) {
         if (trainerId == null || trainerId.isBlank()) {
             throw new IllegalArgumentException("trainerId is required");
         }
@@ -102,6 +128,10 @@ public final class TrainerRuntimeState {
             throw new IllegalArgumentException("trainer AP cannot be negative");
         }
         this.trainerId = trainerId.strip();
+        this.trainerName = trainerName == null || trainerName.isBlank() ? this.trainerId : trainerName.strip();
+        this.chroniclerProfileMetadata = chroniclerProfileMetadata == null
+                ? ChroniclerProfileMetadata.empty()
+                : chroniclerProfileMetadata;
         if (trainerFeatures != null) {
             for (String feature : trainerFeatures) {
                 if (feature == null || feature.isBlank()) continue;
@@ -131,6 +161,16 @@ public final class TrainerRuntimeState {
 
     public String trainerId() {
         return trainerId;
+    }
+
+    /** Canonical Trainer name used by profile-aware battle rules. */
+    public String trainerName() {
+        return trainerName;
+    }
+
+    /** Immutable server-owned Chronicler archive/record metadata. */
+    public ChroniclerProfileMetadata chroniclerProfileMetadata() {
+        return chroniclerProfileMetadata;
     }
 
     /** Canonical feature names in deterministic insertion order. */

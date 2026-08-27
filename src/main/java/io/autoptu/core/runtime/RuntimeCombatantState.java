@@ -39,6 +39,7 @@ public final class RuntimeCombatantState {
     private List<String> types = List.of();
     private List<AttackModifier> damageModifiers = List.of();
     private List<String> abilities = List.of();
+    private CombatantProfileIdentity profileIdentity;
 
     public RuntimeCombatantState(
             String combatantId,
@@ -161,6 +162,7 @@ public final class RuntimeCombatantState {
             throw new IllegalArgumentException("actionBudget is required");
         }
         this.combatantId = combatantId;
+        this.profileIdentity = CombatantProfileIdentity.fromCombatantId(combatantId);
         this.movementProfile = movementProfile;
         this.hp = hp;
         this.maxHp = maxHp;
@@ -254,8 +256,42 @@ public final class RuntimeCombatantState {
         this.abilities = normalizeNames(abilities);
     }
 
+    /**
+     * Full current combatant snapshot including the canonical name/species identity used by
+     * rule families such as Chronicler Profile matching.
+     */
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage,
+            boolean sniper,
+            boolean noGuard,
+            boolean blur,
+            boolean probabilityControl,
+            List<String> types,
+            List<AttackModifier> damageModifiers,
+            List<String> abilities,
+            CombatantProfileIdentity profileIdentity
+    ) {
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile,
+                accuracyStage, sniper, noGuard, blur, probabilityControl, types, damageModifiers, abilities);
+        this.profileIdentity = profileIdentity == null
+                ? CombatantProfileIdentity.fromCombatantId(combatantId)
+                : profileIdentity;
+    }
+
     public String combatantId() {
         return combatantId;
+    }
+
+    /** Canonical Pokemon name/species identity used by profile-aware server rules. */
+    public CombatantProfileIdentity profileIdentity() {
+        return profileIdentity;
     }
 
     public GridCoord position() {
