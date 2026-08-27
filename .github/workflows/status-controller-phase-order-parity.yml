@@ -40,3 +40,4 @@ jobs:
           -Dautoptu.status.controller.phase.order.oracle="$GITHUB_WORKSPACE/build/oracle/status-controller-phase-order.tsv"
           --tests io.autoptu.core.runtime.StatusControllerPhaseOrderingOracleParityTest
           --tests io.autoptu.core.runtime.StatusControllerPhaseEnvelopeDispatcherTest
+          --tests io.autoptu.core.hook.BuiltinLifecyclePhaseEnvelopeWiringTest
