@@ -4,6 +4,7 @@ import io.autoptu.core.runtime.BattleRuntime;
 import io.autoptu.core.runtime.DeclaredActionRoundLifecycleHook;
 import io.autoptu.core.runtime.DelayedHitRoundLifecycleHook;
 import io.autoptu.core.runtime.FieldRoundLifecycleHook;
+import io.autoptu.core.runtime.HeldItemRuleCatalog;
 import io.autoptu.core.runtime.RoundTemporaryEffectExpiryHook;
 import io.autoptu.core.runtime.RuntimeCombatantState;
 import io.autoptu.core.runtime.TrainerRuntimeState;
@@ -23,6 +24,16 @@ public final class BuiltinLifecycleHooks {
     private BuiltinLifecycleHooks() {}
 
     public static LifecycleHookRegistry registry() {
+        return registry(new HeldItemRuleCatalog(Map.of()));
+    }
+
+    /**
+     * Lifecycle registry with server-owned held-item rule metadata injected by the core bootstrap.
+     * The default registry remains compatibility-safe until canonical item content is materialized.
+     */
+    public static LifecycleHookRegistry registry(HeldItemRuleCatalog heldItemRuleCatalog) {
+        if (heldItemRuleCatalog == null) throw new IllegalArgumentException("heldItemRuleCatalog is required");
+
         CombatantPhaseEffectDispatcher phaseDispatcher = CombatantPhaseEffectDispatcher.builder()
                 .family(
                         CombatantPhaseEffectFamily.STATUS,
@@ -39,6 +50,10 @@ public final class BuiltinLifecycleHooks {
                 .build();
 
         StatusControllerPhaseEnvelopeDispatcher phaseEnvelope = StatusControllerPhaseEnvelopeDispatcher.builder()
+                .step(
+                        StatusControllerPhaseOrderingPolicy.Step.HELD_ITEM_START,
+                        new HeldItemStartLifecycleHook(heldItemRuleCatalog)
+                )
                 .step(StatusControllerPhaseOrderingPolicy.Step.COMBATANT_PHASE_EFFECTS, phaseDispatcher)
                 .build();
 
