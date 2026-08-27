@@ -1,0 +1,46 @@
+name: Intercept Geometry Parity
+
+on:
+  pull_request:
+    paths:
+      - "src/main/java/io/autoptu/core/runtime/InterceptGeometryResolution.java"
+      - "src/test/java/io/autoptu/core/runtime/InterceptGeometryResolutionTest.java"
+      - "tools/python/export_intercept_geometry_contract.py"
+      - ".github/workflows/intercept-geometry-parity.yml"
+  push:
+    branches:
+      - main
+
+jobs:
+  parity:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Export Python intercept geometry contract
+        run: |
+          python3 -m py_compile tools/python/export_intercept_geometry_contract.py
+          python3 tools/python/export_intercept_geometry_contract.py \
+            --source-root python-oracle \
+            --output build/oracle/intercept-geometry.tsv
+
+      - name: Run intercept geometry parity tests
+        run: >-
+          gradle test --stacktrace
+          -Dautoptu.intercept.geometry.oracle="$GITHUB_WORKSPACE/build/oracle/intercept-geometry.tsv"
+          --tests io.autoptu.core.runtime.InterceptGeometryResolutionTest
