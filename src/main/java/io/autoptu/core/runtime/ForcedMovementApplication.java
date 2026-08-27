@@ -24,7 +24,16 @@ public final class ForcedMovementApplication {
                 ? away
                 : new GridCoord(-away.x(), -away.y());
 
-        return ForcedDisplacementResolution.resolve(state, targetCombatantId, direction, instruction.distance());
+        ForcedDisplacementResolution.Result result = ForcedDisplacementResolution.resolve(
+                state,
+                targetCombatantId,
+                direction,
+                instruction.distance()
+        );
+        if (!result.destination().equals(target.position())) {
+            target.moveTo(result.destination());
+        }
+        return result;
     }
 
     private static GridCoord direction(GridCoord source, GridCoord target) {
