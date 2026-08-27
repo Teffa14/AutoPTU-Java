@@ -52,7 +52,7 @@ class ChroniclerRuntimeOwnershipTest {
     }
 
     @Test
-    void legacyConstructorsFailClosedWithoutInventingSpeciesOrArchives() {
+    void legacyConstructorsFailClosedWithoutInventingProfileIdentityOrArchives() {
         RuntimeCombatantState target = new RuntimeCombatantState(
                 "legacy-mon",
                 MovementProfile.walking(new GridCoord(1, 1), 5),
@@ -62,7 +62,7 @@ class ChroniclerRuntimeOwnershipTest {
         );
         TrainerRuntimeState trainer = new TrainerRuntimeState("trainer-legacy", List.of(), 0);
 
-        assertEquals("legacy-mon", target.profileIdentity().name());
+        assertEquals("", target.profileIdentity().name());
         assertEquals("", target.profileIdentity().species());
         assertEquals("trainer-legacy", trainer.trainerName());
         assertEquals(ChroniclerProfileMetadata.empty(), trainer.chroniclerProfileMetadata());
