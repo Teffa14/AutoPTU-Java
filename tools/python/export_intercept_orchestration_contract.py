@@ -31,6 +31,37 @@ def first_node(nodes: list[ast.stmt], *needles: str) -> ast.stmt | None:
     return None
 
 
+def assignment_parts(node: ast.stmt) -> tuple[list[ast.expr], ast.expr] | None:
+    if isinstance(node, ast.Assign):
+        return list(node.targets), node.value
+    if isinstance(node, ast.AnnAssign) and node.value is not None:
+        return [node.target], node.value
+    return None
+
+
+def contains_name(node: ast.AST, name: str) -> bool:
+    return any(isinstance(child, ast.Name) and child.id == name for child in ast.walk(node))
+
+
+def first_position_commit(nodes: list[ast.stmt], source_name: str) -> ast.stmt | None:
+    """Find a semantic position assignment without depending on the target object's spelling.
+
+    The pinned oracle may address the interceptor through a local variable or through the
+    combatant map. Both are the same orchestration contract: a `.position` attribute is
+    assigned a value derived from the named position variable.
+    """
+    for node in nodes:
+        parts = assignment_parts(node)
+        if parts is None:
+            continue
+        targets, value = parts
+        if not contains_name(value, source_name):
+            continue
+        if any(isinstance(target, ast.Attribute) and target.attr == "position" for target in targets):
+            return node
+    return None
+
+
 def line_of(node: ast.AST | None) -> int:
     return int(node.lineno) if node is not None and hasattr(node, "lineno") else -1
 
@@ -85,9 +116,9 @@ def main() -> None:
         "consume_intercept_ready": line_of(ready_node),
         "consume_coaching": line_of(coaching_node),
         "success_branch": line_of(success_branch),
-        "commit_intercept_position": line_of(first_node(nodes, "interceptor.position", "intercept_pos")),
+        "commit_intercept_position": line_of(first_position_commit(nodes, "intercept_pos")),
         "melee_forced_movement": line_of(first_node(nodes, "apply_forced_movement", "interceptor_id", "target_id")),
-        "commit_target_anchor": line_of(first_node(nodes, "interceptor.position", "target_pos")),
+        "commit_target_anchor": line_of(first_position_commit(nodes, "target_pos")),
     }
 
     facts = {
