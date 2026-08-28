@@ -33,4 +33,6 @@ jobs:
           export PATH="$JAVA_HOME/bin:$PATH"
           gradle test \
             --tests io.autoptu.core.hook.PreResolutionTargetHookRegistryTest \
-            --tests io.autoptu.core.runtime.RuntimePreResolutionTargetApplicationTest
+            --tests io.autoptu.core.runtime.RuntimePreResolutionTargetApplicationTest \
+            --tests io.autoptu.core.runtime.RuntimePreResolutionMovePreparationTest \
+            --tests io.autoptu.core.runtime.RuntimeValidatedPreResolutionMovePreparationTest
