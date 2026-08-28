@@ -139,6 +139,11 @@ def main() -> None:
         for child in ast.iter_child_nodes(parent):
             parents[child] = parent
 
+    tree_parents: dict[ast.AST, ast.AST] = {}
+    for parent in ast.walk(tree):
+        for child in ast.iter_child_nodes(parent):
+            tree_parents[child] = parent
+
     def guarded_by_exact_success(node: ast.AST | None) -> bool:
         current = node
         while current is not None:
@@ -184,6 +189,19 @@ def main() -> None:
     forced_movement = first_method_call(nodes, "apply_forced_movement")
     target_anchor = position_assignment(nodes, lambda value: is_name(value, "target_pos"))
 
+    intercept_calls = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and call_method_name(node) == "_attempt_intercept"
+    ]
+    target_replacement_calls: list[ast.Call] = []
+    for call in intercept_calls:
+        parent = tree_parents.get(call)
+        if isinstance(parent, ast.Assign) and parent.value is call:
+            if any(target_is_name(target, "target_id") for target in parent.targets):
+                target_replacement_calls.append(call)
+        elif isinstance(parent, ast.AnnAssign) and parent.value is call and target_is_name(parent.target, "target_id"):
+            target_replacement_calls.append(call)
+
     checkpoints = {
         "candidate_sort": line_of(candidate_sort),
         "intercept_check": line_of(check_node),
@@ -193,6 +211,7 @@ def main() -> None:
         "commit_candidate_position": line_of(candidate_position),
         "melee_forced_movement": line_of(forced_movement),
         "commit_target_anchor": line_of(target_anchor),
+        "target_replacement_call": min((line_of(call) for call in target_replacement_calls), default=-1),
     }
 
     facts = {
@@ -207,6 +226,7 @@ def main() -> None:
         "function_mentions_intercept_ready": "intercept_ready" in src,
         "function_mentions_coaching_intercept": "coaching_intercept" in src,
         "function_calls_forced_movement": "apply_forced_movement" in src,
+        "call_site_assigns_result_to_target_id": bool(target_replacement_calls),
     }
 
     output = Path(args.output)
@@ -229,6 +249,7 @@ def main() -> None:
         "function_mentions_intercept_ready": True,
         "function_mentions_coaching_intercept": True,
         "function_calls_forced_movement": True,
+        "call_site_assigns_result_to_target_id": True,
     }
     mismatched = [name for name, value in expected.items() if facts[name] != value]
     if mismatched:
@@ -243,6 +264,7 @@ def main() -> None:
         "commit_candidate_position",
         "melee_forced_movement",
         "commit_target_anchor",
+        "target_replacement_call",
     )
     absent = [name for name in required_checkpoints if checkpoints[name] < 0]
     if absent:
