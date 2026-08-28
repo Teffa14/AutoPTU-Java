@@ -19,6 +19,7 @@ import io.autoptu.core.hook.PostDamageHookResult;
 import io.autoptu.core.hook.PreDamageReactionContext;
 import io.autoptu.core.hook.PreDamageReactionHookRegistry;
 import io.autoptu.core.hook.PreDamageReactionResult;
+import io.autoptu.core.hook.PreResolutionTargetHookRegistry;
 import io.autoptu.core.model.AccuracyResult;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.DamageResult;
@@ -186,6 +187,70 @@ public final class BattleRuntime {
     }
 
     /**
+     * Runtime-only composition seam for reaction-driven target replacement. The declared choice
+     * is validated against its controller-selected target before any PRE-target hook runs. The
+     * effective target is then prepared from authoritative state and enters the ordinary move
+     * pipeline without a second declaration check, while action economy and move frequency retain
+     * their normal single-owner timing.
+     */
+    static AppliedActionResult applyAuthoritativeMoveWithPreResolutionTargets(
+            BattleRuntimeState state,
+            MoveChoice declaredChoice,
+            MoveOption move,
+            String actorSize,
+            String declaredTargetSize,
+            Set<GridCoord> lineOfSightBlockers,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput legacyInput,
+            PreResolutionTargetHookRegistry targetRegistry,
+            MoveSpecialHookRegistry moveSpecialHookRegistry,
+            PreDamageReactionHookRegistry preDamageHookRegistry,
+            PostDamageHookRegistry postDamageHookRegistry,
+            boolean ignorePositiveAttackStage,
+            boolean ignorePositiveDefenseStage
+    ) {
+        if (targetRegistry == null) throw new IllegalArgumentException("targetRegistry is required");
+        if (moveSpecialHookRegistry == null) throw new IllegalArgumentException("moveSpecialHookRegistry is required");
+        if (preDamageHookRegistry == null) throw new IllegalArgumentException("preDamageHookRegistry is required");
+        if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHookRegistry is required");
+
+        RuntimePreResolutionMovePreparation.Result prepared = RuntimeValidatedPreResolutionMovePreparation.prepare(
+                state,
+                declaredChoice,
+                move,
+                actorSize,
+                declaredTargetSize,
+                lineOfSightBlockers,
+                legacyInput,
+                targetRegistry,
+                ignorePositiveAttackStage,
+                ignorePositiveDefenseStage
+        );
+        return applyAuthoritativeMoveInternal(
+                state,
+                prepared.effectiveChoice(),
+                move,
+                actorSize,
+                declaredTargetSize,
+                lineOfSightBlockers,
+                source,
+                rng,
+                prepared.input(),
+                prepared.preResolutionEvents(),
+                moveSpecialHookRegistry,
+                preDamageHookRegistry,
+                null,
+                postDamageHookRegistry,
+                prepared.effectiveMetadata(),
+                null,
+                true,
+                true,
+                true
+        );
+    }
+
+    /**
      * Runtime-only AoE target seam. The TILE action has already been revalidated and its ordered
      * targets expanded from authoritative state. Each target still receives the ordinary
      * accuracy/damage/PRE/post pipeline, but action economy and move frequency are owned by the
@@ -272,13 +337,38 @@ public final class BattleRuntime {
             boolean spendOrdinaryMoveResources,
             boolean runPreDamageReactions
     ) {
+        return applyAuthoritativeMoveInternal(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
+                rng, input, preResolutionEvents, moveSpecialHookRegistry, preDamageReactionHooks,
+                precomputedPostDamageHooks, deferredPostDamageHooks, effectiveMetadata, reactionAnchor,
+                spendOrdinaryMoveResources, runPreDamageReactions, false
+        );
+    }
+
+    private static AppliedActionResult applyAuthoritativeMoveInternal(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            PythonRandom rng, MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            MoveSpecialHookRegistry moveSpecialHookRegistry,
+            PreDamageReactionHookRegistry preDamageReactionHooks,
+            PostDamageHookResult precomputedPostDamageHooks,
+            PostDamageHookRegistry deferredPostDamageHooks,
+            MoveCombatProfile effectiveMetadata,
+            GridCoord reactionAnchor,
+            boolean spendOrdinaryMoveResources,
+            boolean runPreDamageReactions,
+            boolean declaredChoiceAlreadyValidated
+    ) {
         if (rng == null) throw new IllegalArgumentException("rng is required");
         if (input == null) throw new IllegalArgumentException("input is required");
         if (moveSpecialHookRegistry == null) throw new IllegalArgumentException("moveSpecialHookRegistry is required");
         if (preDamageReactionHooks == null) throw new IllegalArgumentException("preDamageReactionHooks is required");
 
         if (spendOrdinaryMoveResources) {
-            MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
+            if (!declaredChoiceAlreadyValidated) {
+                MoveChoiceRevalidation.requireLegalCombatantMove(state, choice, move, actorSize, targetSize, lineOfSightBlockers);
+            }
         } else if (runPreDamageReactions) {
             requireAreaResolvedCombatantChoice(state, choice, move);
         } else {
