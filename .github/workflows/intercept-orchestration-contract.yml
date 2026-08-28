@@ -40,8 +40,9 @@ jobs:
             --output build/oracle/intercept-orchestration.tsv
           cat build/oracle/intercept-orchestration.tsv
 
-      - name: Verify server-owned intercept RNG and attempt mutation ordering
+      - name: Verify server-owned intercept RNG and candidate sequence ordering
         run: |
           gradle test \
             --tests io.autoptu.core.runtime.RuntimeInterceptCheckApplicationTest \
-            --tests io.autoptu.core.runtime.RuntimeInterceptCandidateAttemptApplicationTest
+            --tests io.autoptu.core.runtime.RuntimeInterceptCandidateAttemptApplicationTest \
+            --tests io.autoptu.core.runtime.RuntimeInterceptCandidateSequenceApplicationTest
