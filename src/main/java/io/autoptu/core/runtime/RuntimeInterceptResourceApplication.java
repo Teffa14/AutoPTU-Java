@@ -6,11 +6,13 @@ import io.autoptu.core.rules.ActionBudget;
 import java.util.Locale;
 
 /**
- * Applies the server-owned resource mutations caused by one successful interception.
+ * Applies the server-owned resource mutations caused by one selected interception attempt.
  *
- * <p>This boundary intentionally runs after candidate selection and a successful intercept check.
- * It does not choose an interceptor, roll RNG, move combatants, or resolve damage. Minecraft and
- * Cobblemon therefore never decide which PTU resources are spent.</p>
+ * <p>The pinned Python oracle performs these mutations after it computes the candidate's check
+ * but before it branches on the success flag. Callers must therefore apply this boundary for a
+ * selected candidate even when the check fails. It does not choose an interceptor, roll RNG,
+ * move combatants, or resolve damage. Minecraft and Cobblemon never decide which PTU resources
+ * are spent.</p>
  */
 public final class RuntimeInterceptResourceApplication {
     private RuntimeInterceptResourceApplication() {}
@@ -40,7 +42,7 @@ public final class RuntimeInterceptResourceApplication {
     /**
      * Classifies the source identity emitted by {@link InterceptCandidateDiscoveryResolution}.
      * Python uses canonical source strings for Weaponize and Sentinel Stance; every other source
-     * comes from an intercept_ready entry and therefore consumes that prepared token on success.
+     * comes from an intercept_ready entry and therefore consumes that prepared token on attempt.
      */
     public static SourceKind classify(InterceptCandidateDiscoveryResolution.Candidate candidate) {
         if (candidate == null) throw new IllegalArgumentException("candidate is required");
@@ -50,7 +52,7 @@ public final class RuntimeInterceptResourceApplication {
         return SourceKind.PREPARED;
     }
 
-    /** Apply exactly the resource mutations for a successful interception. */
+    /** Apply exactly the resource mutations for a selected interception attempt. */
     public static Result apply(
             BattleRuntimeState state,
             InterceptCandidateDiscoveryResolution.Candidate candidate
@@ -96,7 +98,7 @@ public final class RuntimeInterceptResourceApplication {
             // Sentinel Stance itself is intentionally retained; Python does not remove it here.
         }
 
-        // Coaching is a one-shot successful-intercept modifier independent of the source family.
+        // Coaching is a one-shot modifier consumed for the selected attempt regardless of check result.
         boolean coachingConsumed = effects.removeFirst("coaching_intercept");
 
         return new Result(
