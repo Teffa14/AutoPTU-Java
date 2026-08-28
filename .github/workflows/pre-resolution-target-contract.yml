@@ -1,0 +1,34 @@
+name: Pre Resolution Target Contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Java port
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Freeze Python intercept target replacement contract
+        run: |
+          python3 tools/python/export_intercept_orchestration_contract.py \
+            --source-root python-oracle \
+            --output build/intercept-orchestration-contract.tsv
+          grep -F $'fact\tcall_site_assigns_result_to_target_id\t1' build/intercept-orchestration-contract.tsv
+
+      - name: Run ordered target hook tests
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_21_X64 }}
+        run: |
+          export PATH="$JAVA_HOME/bin:$PATH"
+          gradle test --tests io.autoptu.core.hook.PreResolutionTargetHookRegistryTest
