@@ -122,6 +122,50 @@ def line_of(node: ast.AST | None) -> int:
     return int(node.lineno) if node is not None and hasattr(node, "lineno") else -1
 
 
+def assigned_name_for_call(call: ast.Call, parents: dict[ast.AST, ast.AST]) -> str | None:
+    parent = parents.get(call)
+    if isinstance(parent, ast.Assign) and parent.value is call and len(parent.targets) == 1:
+        target = parent.targets[0]
+        if isinstance(target, ast.Name):
+            return target.id
+    if isinstance(parent, ast.AnnAssign) and parent.value is call and isinstance(parent.target, ast.Name):
+        return parent.target.id
+    return None
+
+
+def tuple_binding_from_name(tree: ast.AST, source_name: str) -> tuple[str, ast.stmt] | None:
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        parts = assignment_parts(node)
+        if parts is None:
+            continue
+        targets, value = parts
+        if not is_name(value, source_name):
+            continue
+        for target in targets:
+            if isinstance(target, (ast.Tuple, ast.List)) and target.elts:
+                first = target.elts[0]
+                if isinstance(first, ast.Name):
+                    return first.id, node
+    return None
+
+
+def assignment_from_name_to_name(tree: ast.AST, target_name: str, source_name: str) -> ast.stmt | None:
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        parts = assignment_parts(node)
+        if parts is None:
+            continue
+        targets, value = parts
+        if not is_name(value, source_name):
+            continue
+        if any(target_is_name(target, target_name) for target in targets):
+            return node
+    return None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True)
@@ -193,14 +237,27 @@ def main() -> None:
         node for node in ast.walk(tree)
         if isinstance(node, ast.Call) and call_method_name(node) == "_attempt_intercept"
     ]
-    target_replacement_calls: list[ast.Call] = []
+    target_replacement_mutations: list[ast.stmt] = []
     for call in intercept_calls:
         parent = tree_parents.get(call)
         if isinstance(parent, ast.Assign) and parent.value is call:
             if any(target_is_name(target, "target_id") for target in parent.targets):
-                target_replacement_calls.append(call)
+                target_replacement_mutations.append(parent)
+                continue
         elif isinstance(parent, ast.AnnAssign) and parent.value is call and target_is_name(parent.target, "target_id"):
-            target_replacement_calls.append(call)
+            target_replacement_mutations.append(parent)
+            continue
+
+        intercept_result_name = assigned_name_for_call(call, tree_parents)
+        if intercept_result_name is None:
+            continue
+        unpacked = tuple_binding_from_name(tree, intercept_result_name)
+        if unpacked is None:
+            continue
+        replacement_name, _unpack_node = unpacked
+        replacement_assignment = assignment_from_name_to_name(tree, "target_id", replacement_name)
+        if replacement_assignment is not None and line_of(call) < line_of(replacement_assignment):
+            target_replacement_mutations.append(replacement_assignment)
 
     checkpoints = {
         "candidate_sort": line_of(candidate_sort),
@@ -211,7 +268,7 @@ def main() -> None:
         "commit_candidate_position": line_of(candidate_position),
         "melee_forced_movement": line_of(forced_movement),
         "commit_target_anchor": line_of(target_anchor),
-        "target_replacement_call": min((line_of(call) for call in target_replacement_calls), default=-1),
+        "target_replacement_call": min((line_of(node) for node in target_replacement_mutations), default=-1),
     }
 
     facts = {
@@ -226,7 +283,7 @@ def main() -> None:
         "function_mentions_intercept_ready": "intercept_ready" in src,
         "function_mentions_coaching_intercept": "coaching_intercept" in src,
         "function_calls_forced_movement": "apply_forced_movement" in src,
-        "call_site_assigns_result_to_target_id": bool(target_replacement_calls),
+        "call_site_assigns_result_to_target_id": bool(target_replacement_mutations),
     }
 
     output = Path(args.output)
