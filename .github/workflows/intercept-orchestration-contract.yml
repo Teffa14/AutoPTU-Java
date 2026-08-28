@@ -25,6 +25,13 @@ jobs:
           ref: 16d228efa63aabecb67fa788959a359aac7f8f03
           path: python-oracle
 
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
       - name: Freeze Python intercept orchestration
         run: |
           python3 -m py_compile tools/python/export_intercept_orchestration_contract.py
@@ -32,3 +39,6 @@ jobs:
             --source-root python-oracle \
             --output build/oracle/intercept-orchestration.tsv
           cat build/oracle/intercept-orchestration.tsv
+
+      - name: Verify server-owned intercept RNG check
+        run: gradle test --tests io.autoptu.core.runtime.RuntimeInterceptCheckApplicationTest
