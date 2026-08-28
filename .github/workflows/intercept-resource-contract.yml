@@ -3,6 +3,9 @@ name: Intercept Resource Contract
 on:
   pull_request:
     paths:
+      - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptResourceApplication.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptResourceApplicationTest.java"
+      - "src/test/java/io/autoptu/core/runtime/InterceptResourceOracleParityTest.java"
       - "tools/python/export_intercept_resource_contract.py"
       - ".github/workflows/intercept-resource-contract.yml"
   push:
@@ -23,6 +26,13 @@ jobs:
           ref: 16d228efa63aabecb67fa788959a359aac7f8f03
           path: python-oracle
 
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
       - name: Export Python intercept resource contract
         run: |
           python3 -m py_compile tools/python/export_intercept_resource_contract.py
@@ -30,3 +40,10 @@ jobs:
             --source-root python-oracle \
             --output build/oracle/intercept-resource.tsv
           cat build/oracle/intercept-resource.tsv
+
+      - name: Run intercept resource parity tests
+        run: >-
+          gradle test --stacktrace
+          -Dautoptu.intercept.resource.oracle="$GITHUB_WORKSPACE/build/oracle/intercept-resource.tsv"
+          --tests io.autoptu.core.runtime.InterceptResourceOracleParityTest
+          --tests io.autoptu.core.runtime.RuntimeInterceptResourceApplicationTest
