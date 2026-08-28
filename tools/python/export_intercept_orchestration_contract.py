@@ -22,15 +22,6 @@ def statements_in_source_order(function: ast.FunctionDef) -> list[ast.stmt]:
     return sorted(nodes, key=lambda node: (node.lineno, getattr(node, "col_offset", 0)))
 
 
-def first_node(nodes: list[ast.stmt], *needles: str) -> ast.stmt | None:
-    lowered = tuple(needle.lower() for needle in needles)
-    for node in nodes:
-        text = norm(node)
-        if all(needle in text for needle in lowered):
-            return node
-    return None
-
-
 def assignment_parts(node: ast.stmt) -> tuple[list[ast.expr], ast.expr] | None:
     if isinstance(node, ast.Assign):
         return list(node.targets), node.value
@@ -39,27 +30,92 @@ def assignment_parts(node: ast.stmt) -> tuple[list[ast.expr], ast.expr] | None:
     return None
 
 
-def contains_name(node: ast.AST, name: str) -> bool:
-    return any(isinstance(child, ast.Name) and child.id == name for child in ast.walk(node))
+def target_is_name(target: ast.expr, name: str) -> bool:
+    return isinstance(target, ast.Name) and target.id == name
 
 
-def first_position_commit(nodes: list[ast.stmt], source_name: str) -> ast.stmt | None:
-    """Find a semantic position assignment without depending on the target object's spelling.
+def assignment_to_name(nodes: list[ast.stmt], name: str) -> ast.stmt | None:
+    for node in nodes:
+        parts = assignment_parts(node)
+        if parts is None:
+            continue
+        targets, _value = parts
+        if any(target_is_name(target, name) for target in targets):
+            return node
+    return None
 
-    The pinned oracle may address the interceptor through a local variable or through the
-    combatant map. Both are the same orchestration contract: a `.position` attribute is
-    assigned a value derived from the named position variable.
-    """
+
+def call_from_statement(node: ast.stmt) -> ast.Call | None:
+    if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+        return node.value
+    return None
+
+
+def call_method_name(call: ast.Call) -> str | None:
+    if isinstance(call.func, ast.Attribute):
+        return call.func.attr
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    return None
+
+
+def call_receiver_name(call: ast.Call) -> str | None:
+    if isinstance(call.func, ast.Attribute) and isinstance(call.func.value, ast.Name):
+        return call.func.value.id
+    return None
+
+
+def call_has_string_arg(call: ast.Call, value: str) -> bool:
+    expected = value.lower()
+    return any(
+        isinstance(arg, ast.Constant)
+        and isinstance(arg.value, str)
+        and arg.value.lower() == expected
+        for arg in call.args
+    )
+
+
+def first_method_call(
+    nodes: list[ast.stmt],
+    method: str,
+    *,
+    receiver: str | None = None,
+    string_arg: str | None = None,
+) -> ast.stmt | None:
+    for node in nodes:
+        call = call_from_statement(node)
+        if call is None or call_method_name(call) != method:
+            continue
+        if receiver is not None and call_receiver_name(call) != receiver:
+            continue
+        if string_arg is not None and not call_has_string_arg(call, string_arg):
+            continue
+        return node
+    return None
+
+
+def position_assignment(nodes: list[ast.stmt], value_predicate) -> ast.stmt | None:
     for node in nodes:
         parts = assignment_parts(node)
         if parts is None:
             continue
         targets, value = parts
-        if not contains_name(value, source_name):
+        if not any(isinstance(target, ast.Attribute) and target.attr == "position" for target in targets):
             continue
-        if any(isinstance(target, ast.Attribute) and target.attr == "position" for target in targets):
+        if value_predicate(value):
             return node
     return None
+
+
+def is_candidates_zero(value: ast.expr) -> bool:
+    if not isinstance(value, ast.Subscript) or not isinstance(value.value, ast.Name) or value.value.id != "candidates":
+        return False
+    index = value.slice
+    return isinstance(index, ast.Constant) and index.value == 0
+
+
+def is_name(value: ast.expr, name: str) -> bool:
+    return isinstance(value, ast.Name) and value.id == name
 
 
 def line_of(node: ast.AST | None) -> int:
@@ -83,11 +139,22 @@ def main() -> None:
         for child in ast.iter_child_nodes(parent):
             parents[child] = parent
 
-    def guarded_by_success(node: ast.AST | None) -> bool:
+    def guarded_by_exact_success(node: ast.AST | None) -> bool:
         current = node
         while current is not None:
             current = parents.get(current)
-            if isinstance(current, ast.If) and norm(current.test) == "success":
+            if isinstance(current, ast.If) and isinstance(current.test, ast.Name) and current.test.id == "success":
+                return True
+        return False
+
+    def guarded_by_success_and_melee(node: ast.AST | None) -> bool:
+        current = node
+        while current is not None:
+            current = parents.get(current)
+            if not isinstance(current, ast.If) or not isinstance(current.test, ast.BoolOp):
+                continue
+            terms = [norm(value) for value in current.test.values]
+            if isinstance(current.test.op, ast.And) and "success" in terms and "kind == 'melee'" in terms:
                 return True
         return False
 
@@ -102,30 +169,40 @@ def main() -> None:
         for node in failed_check_ifs
     )
 
-    check_node = first_node(nodes, "success", "dc")
-    ready_node = first_node(nodes, "remove_temporary_effect", "intercept_ready")
-    coaching_node = first_node(nodes, "remove_temporary_effect", "coaching_intercept")
+    check_node = assignment_to_name(nodes, "success")
+    ready_node = first_method_call(nodes, "remove_temporary_effect", string_arg="intercept_ready")
+    coaching_node = first_method_call(nodes, "remove_temporary_effect", string_arg="coaching_intercept")
     success_branch = next(
-        (node for node in nodes if isinstance(node, ast.If) and norm(node.test) == "success"),
+        (
+            node for node in nodes
+            if isinstance(node, ast.If) and isinstance(node.test, ast.Name) and node.test.id == "success"
+        ),
         None,
     )
+    candidate_sort = first_method_call(nodes, "sort", receiver="interceptors")
+    candidate_position = position_assignment(nodes, is_candidates_zero)
+    forced_movement = first_method_call(nodes, "apply_forced_movement")
+    target_anchor = position_assignment(nodes, lambda value: is_name(value, "target_pos"))
 
     checkpoints = {
-        "candidate_sort": line_of(first_node(nodes, "sort", "distance")),
+        "candidate_sort": line_of(candidate_sort),
         "intercept_check": line_of(check_node),
         "consume_intercept_ready": line_of(ready_node),
         "consume_coaching": line_of(coaching_node),
         "success_branch": line_of(success_branch),
-        "commit_intercept_position": line_of(first_position_commit(nodes, "intercept_pos")),
-        "melee_forced_movement": line_of(first_node(nodes, "apply_forced_movement", "interceptor_id", "target_id")),
-        "commit_target_anchor": line_of(first_position_commit(nodes, "target_pos")),
+        "commit_candidate_position": line_of(candidate_position),
+        "melee_forced_movement": line_of(forced_movement),
+        "commit_target_anchor": line_of(target_anchor),
     }
 
     facts = {
         "failed_check_has_direct_return": failed_check_has_direct_return,
-        "intercept_ready_guarded_by_success": guarded_by_success(ready_node),
-        "coaching_guarded_by_success": guarded_by_success(coaching_node),
-        "success_return_mentions_interceptor": any("interceptor_id" in text for text in return_text),
+        "intercept_ready_guarded_by_success": guarded_by_exact_success(ready_node),
+        "coaching_guarded_by_success": guarded_by_exact_success(coaching_node),
+        "candidate_position_guarded_by_success": guarded_by_exact_success(candidate_position),
+        "target_anchor_guarded_by_success": guarded_by_exact_success(target_anchor),
+        "melee_forced_movement_guarded_by_success_and_melee": guarded_by_success_and_melee(forced_movement),
+        "success_return_mentions_interceptor": any("interceptor_id if success else target_id" in text for text in return_text),
         "function_mentions_target_id": "target_id" in src,
         "function_mentions_intercept_ready": "intercept_ready" in src,
         "function_mentions_coaching_intercept": "coaching_intercept" in src,
@@ -144,6 +221,9 @@ def main() -> None:
         "failed_check_has_direct_return": False,
         "intercept_ready_guarded_by_success": False,
         "coaching_guarded_by_success": False,
+        "candidate_position_guarded_by_success": False,
+        "target_anchor_guarded_by_success": False,
+        "melee_forced_movement_guarded_by_success_and_melee": True,
         "success_return_mentions_interceptor": True,
         "function_mentions_target_id": True,
         "function_mentions_intercept_ready": True,
@@ -155,24 +235,30 @@ def main() -> None:
         raise RuntimeError("intercept orchestration contract changed: " + ", ".join(mismatched))
 
     required_checkpoints = (
+        "candidate_sort",
         "intercept_check",
         "consume_intercept_ready",
         "consume_coaching",
         "success_branch",
-        "commit_intercept_position",
+        "commit_candidate_position",
         "melee_forced_movement",
         "commit_target_anchor",
     )
     absent = [name for name in required_checkpoints if checkpoints[name] < 0]
     if absent:
         raise RuntimeError("intercept orchestration checkpoints not found: " + ", ".join(absent))
+
     if not (
-        checkpoints["intercept_check"]
+        checkpoints["candidate_sort"]
+        < checkpoints["intercept_check"]
         < checkpoints["consume_intercept_ready"]
         <= checkpoints["consume_coaching"]
         < checkpoints["success_branch"]
+        < checkpoints["commit_candidate_position"]
+        < checkpoints["melee_forced_movement"]
+        < checkpoints["commit_target_anchor"]
     ):
-        raise RuntimeError("intercept resource/check ordering changed in Python oracle")
+        raise RuntimeError("intercept orchestration ordering changed in Python oracle")
 
 
 if __name__ == "__main__":
