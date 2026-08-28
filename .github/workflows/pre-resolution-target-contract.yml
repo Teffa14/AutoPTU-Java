@@ -31,4 +31,6 @@ jobs:
           JAVA_HOME: ${{ env.JAVA_HOME_21_X64 }}
         run: |
           export PATH="$JAVA_HOME/bin:$PATH"
-          gradle test --tests io.autoptu.core.hook.PreResolutionTargetHookRegistryTest
+          gradle test \
+            --tests io.autoptu.core.hook.PreResolutionTargetHookRegistryTest \
+            --tests io.autoptu.core.runtime.RuntimePreResolutionTargetApplicationTest
