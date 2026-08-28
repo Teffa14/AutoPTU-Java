@@ -80,7 +80,7 @@ class BattleRuntimePreResolutionEffectiveTargetPipelineTest {
         );
 
         assertEquals("interceptor", reactionDefender.get());
-        assertEquals(2.0, reactionTypeMultiplier.get());
+        assertEquals(1.5, reactionTypeMultiplier.get());
         assertEquals(40, state.requireCombatant("protected").hp());
         assertTrue(state.requireCombatant("interceptor").hp() < 40);
         assertFalse(state.damageHistory().damageReceivedThisRound().containsKey("protected"));
