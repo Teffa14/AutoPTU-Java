@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class RuntimeInterceptCandidateCleanupApplicationTest {
     @Test
-    void removesOnlyExpiredNoInterceptEntriesReportedByDiscovery() {
+    void appliesNoInterceptRemovalCountWithFirstFamilySemantics() {
         RuntimeCombatantState attacker = combatant("attacker", 1, 1);
         RuntimeCombatantState target = combatant("target", 3, 1);
         attacker.temporaryEffects().add("no_intercept", Map.of("expires_round", 2));
@@ -43,7 +43,7 @@ class RuntimeInterceptCandidateCleanupApplicationTest {
     }
 
     @Test
-    void removesExpiredSentinelSnapshotsWithoutDeletingActiveMultiplicity() {
+    void sentinelExpiryTriggerRemovesFirstFamilyOccurrenceLikePython() {
         RuntimeCombatantState attacker = combatant("attacker", 1, 1);
         RuntimeCombatantState sentinel = combatant("sentinel", 2, 2);
         sentinel.temporaryEffects().add("sentinel_stance", Map.of("expires_round", 9));
@@ -65,7 +65,7 @@ class RuntimeInterceptCandidateCleanupApplicationTest {
 
         assertEquals(Map.of("sentinel", 2), cleanup.sentinelRemovedByCombatant());
         assertEquals(
-                List.of(9, 8),
+                List.of(8, 4),
                 sentinel.temporaryEffects().getAll("sentinel_stance").stream()
                         .map(entry -> ((Number) entry.payload().get("expires_round")).intValue())
                         .toList()
@@ -73,7 +73,7 @@ class RuntimeInterceptCandidateCleanupApplicationTest {
     }
 
     @Test
-    void neverRemovesActiveEntryWhenCleanupCountIsStaleOrOversized() {
+    void removalCountCannotRemoveMoreOccurrencesThanExist() {
         RuntimeCombatantState attacker = combatant("attacker", 1, 1);
         attacker.temporaryEffects().add("no_intercept", Map.of("expires_round", 5));
         BattleRuntimeState state = battle(attacker);
@@ -89,8 +89,8 @@ class RuntimeInterceptCandidateCleanupApplicationTest {
         RuntimeInterceptCandidateCleanupApplication.Result cleanup =
                 RuntimeInterceptCandidateCleanupApplication.apply(state, "attacker", discovery);
 
-        assertEquals(0, cleanup.attackerNoInterceptRemoved());
-        assertEquals(1, attacker.temporaryEffects().count("no_intercept"));
+        assertEquals(1, cleanup.attackerNoInterceptRemoved());
+        assertEquals(0, attacker.temporaryEffects().count("no_intercept"));
     }
 
     private static BattleRuntimeState battle(RuntimeCombatantState... combatants) {
