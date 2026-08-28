@@ -72,7 +72,7 @@ class RuntimeValidatedPreResolutionMovePreparationTest {
     @Test
     void rejectsStaleDeclarationBeforeAnyTargetHookRuns() {
         BattleRuntimeState state = state();
-        state.requireCombatant("attacker").actionBudget().spend(ActionType.STANDARD);
+        state.requireCombatant("attacker").actionBudget().markAction(ActionType.STANDARD, "already spent");
         AtomicInteger hookCalls = new AtomicInteger();
         PreResolutionTargetHookRegistry registry = PreResolutionTargetHookRegistry.builder()
                 .register("intercept", HookSource.REACTION, 10, (context, current) -> {
