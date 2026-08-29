@@ -27,11 +27,20 @@ class InterceptCheckResolutionTest {
                 "uses_terrain_intercept_bonus",
                 "dc_is_distance_times_three",
                 "coaching_can_force_success",
-                "success_uses_greater_equal"
+                "success_uses_greater_equal",
+                "terrain_requires_survivalist",
+                "terrain_uses_naturewalk_match",
+                "terrain_skill_athletics",
+                "terrain_skill_acrobatics",
+                "terrain_skill_stealth",
+                "terrain_skill_perception",
+                "terrain_skill_survival"
         }) {
             assertEquals(1, fixture.get(key), key);
         }
         assertEquals(4, fixture.get("justified_errata_bonus"), "justified_errata_bonus");
+        assertEquals(2, fixture.get("terrain_skill_bonus"), "terrain_skill_bonus");
+        assertEquals(5, fixture.get("terrain_skill_count"), "terrain_skill_count");
     }
 
     @Test
