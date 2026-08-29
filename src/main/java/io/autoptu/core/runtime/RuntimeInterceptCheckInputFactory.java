@@ -3,11 +3,14 @@ package io.autoptu.core.runtime;
 /**
  * Materializes interception check input from server-owned combatant state/content.
  *
- * <p>Skill ranks and Coaching are derived here so adapters cannot provide those
- * rule-critical conclusions. Justified and terrain remain explicit internal inputs
- * until their authoritative source families are frozen independently against Python.</p>
+ * <p>Skill ranks, Justified, and Coaching are derived here so adapters cannot provide
+ * those rule-critical conclusions. Terrain remains an explicit internal input until
+ * its authoritative environment contract is frozen independently against Python.</p>
  */
 final class RuntimeInterceptCheckInputFactory {
+    private static final String JUSTIFIED_ERRATA = "Justified [Errata]";
+    private static final int JUSTIFIED_INTERCEPT_BONUS = 4;
+
     private RuntimeInterceptCheckInputFactory() {}
 
     static RuntimeInterceptCheckApplication.Input fromState(
@@ -15,11 +18,13 @@ final class RuntimeInterceptCheckInputFactory {
             String interceptorId,
             CombatantRuleContent interceptorContent,
             int distance,
-            int justifiedBonus,
             int terrainBonus
     ) {
         if (state == null) throw new IllegalArgumentException("state is required");
         RuntimeCombatantState interceptor = state.requireCombatant(interceptorId);
+        int justifiedBonus = interceptor.hasAbilityExact(JUSTIFIED_ERRATA)
+                ? JUSTIFIED_INTERCEPT_BONUS
+                : 0;
         boolean coachingAutomaticSuccess = interceptor.temporaryEffects().has("coaching_intercept");
         return RuntimeInterceptCheckApplication.fromServerOwnedSkills(
                 distance,
