@@ -53,7 +53,24 @@ class Foreign:
             [helper.qualified_name for helper in helpers],
         )
 
-    def test_rejects_ambiguous_root_function_names(self) -> None:
+    def test_same_scope_duplicate_uses_last_definition_like_python(self) -> None:
+        tree = ast.parse(
+            """
+class BattleState:
+    def _attempt_intercept(self):
+        return "old"
+
+    def _attempt_intercept(self):
+        return "live"
+"""
+        )
+
+        resolved = EXPORTER.find_scoped_function(tree, "_attempt_intercept")
+        self.assertEqual("BattleState._attempt_intercept", resolved.qualified_name)
+        self.assertIn("'live'", ast.unparse(resolved.function))
+        self.assertIn("'live'", ast.unparse(EXPORTER.direct_function_index(resolved.owner)["_attempt_intercept"]))
+
+    def test_rejects_same_name_across_distinct_lexical_owners(self) -> None:
         tree = ast.parse(
             """
 class First:
