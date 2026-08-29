@@ -38,6 +38,39 @@ def intercept_justified_bonus(function: ast.FunctionDef) -> int:
     raise RuntimeError("missing exact Justified [Errata] intercept bonus assignment")
 
 
+def terrain_skill_contract(function: ast.FunctionDef) -> tuple[set[str], int, bool, bool]:
+    eligible: set[str] = set()
+    bonus = None
+    src = normalized(function)
+
+    for node in ast.walk(function):
+        if isinstance(node, ast.Compare) and len(node.ops) == 1 and isinstance(node.ops[0], ast.NotIn):
+            if len(node.comparators) != 1 or not isinstance(node.comparators[0], ast.Set):
+                continue
+            left = normalized(node.left)
+            if "normalized_skill" not in left:
+                continue
+            values = node.comparators[0].elts
+            if all(isinstance(value, ast.Constant) and isinstance(value.value, str) for value in values):
+                eligible = {str(value.value).strip().lower() for value in values}
+        if isinstance(node, ast.Return) and isinstance(node.value, ast.IfExp):
+            value = node.value
+            if "_matches_naturewalk_terrain" not in normalized(value.test):
+                continue
+            if isinstance(value.body, ast.Constant) and isinstance(value.body.value, int):
+                if isinstance(value.orelse, ast.Constant) and value.orelse.value == 0:
+                    bonus = int(value.body.value)
+
+    if not eligible:
+        raise RuntimeError("missing terrain skill eligibility set")
+    if bonus is None:
+        raise RuntimeError("missing Naturewalk terrain skill bonus")
+
+    requires_survivalist = "has_trainer_feature('survivalist')" in src or 'has_trainer_feature("survivalist")' in src
+    uses_naturewalk_match = "_matches_naturewalk_terrain" in src
+    return eligible, bonus, requires_survivalist, uses_naturewalk_match
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True)
@@ -49,6 +82,8 @@ def main() -> None:
     tree = ast.parse(source)
     function = find_function(tree, "_attempt_intercept")
     src = normalized(function)
+    terrain_function = find_function(tree, "_terrain_skill_check_bonus")
+    terrain_skills, terrain_bonus, requires_survivalist, uses_naturewalk_match = terrain_skill_contract(terrain_function)
 
     # Freeze only the reusable check arithmetic here. Geometry, candidate selection and
     # movement remain separate contracts so Java can compose them without one monolith.
@@ -60,9 +95,18 @@ def main() -> None:
         "dc_is_distance_times_three": "distance * 3" in src or "3 * distance" in src,
         "coaching_can_force_success": "coaching" in src and "success" in src,
         "success_uses_greater_equal": ">= dc" in src or ">= check_dc" in src,
+        "terrain_requires_survivalist": requires_survivalist,
+        "terrain_uses_naturewalk_match": uses_naturewalk_match,
+        "terrain_skill_athletics": "athletics" in terrain_skills,
+        "terrain_skill_acrobatics": "acrobatics" in terrain_skills,
+        "terrain_skill_stealth": "stealth" in terrain_skills,
+        "terrain_skill_perception": "perception" in terrain_skills,
+        "terrain_skill_survival": "survival" in terrain_skills,
     }
     values = {
         "justified_errata_bonus": intercept_justified_bonus(function),
+        "terrain_skill_bonus": terrain_bonus,
+        "terrain_skill_count": len(terrain_skills),
     }
 
     output = Path(args.output)
