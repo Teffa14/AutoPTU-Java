@@ -36,4 +36,5 @@ jobs:
             --tests io.autoptu.core.runtime.RuntimePreResolutionTargetApplicationTest \
             --tests io.autoptu.core.runtime.RuntimePreResolutionMovePreparationTest \
             --tests io.autoptu.core.runtime.RuntimeValidatedPreResolutionMovePreparationTest \
-            --tests io.autoptu.core.runtime.BattleRuntimePreResolutionEffectiveTargetPipelineTest
+            --tests io.autoptu.core.runtime.BattleRuntimePreResolutionEffectiveTargetPipelineTest \
+            --tests io.autoptu.core.runtime.RuntimeInterceptPreResolutionTargetHookTest

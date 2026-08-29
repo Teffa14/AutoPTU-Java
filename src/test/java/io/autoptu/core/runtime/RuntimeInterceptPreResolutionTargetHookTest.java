@@ -1,0 +1,112 @@
+package io.autoptu.core.runtime;
+
+import io.autoptu.core.event.RuleEffectEvent;
+import io.autoptu.core.hook.PreResolutionTargetContext;
+import io.autoptu.core.hook.PreResolutionTargetResult;
+import io.autoptu.core.model.GridCoord;
+import io.autoptu.core.model.MovementGrid;
+import io.autoptu.core.model.MovementProfile;
+import io.autoptu.core.rules.ActionBudget;
+import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Modifier;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+
+class RuntimeInterceptPreResolutionTargetHookTest {
+    @Test
+    void realSpatialSequenceBecomesGenericPreTargetReplacement() {
+        RuntimeCombatantState attacker = combatant("attacker", 0, 0);
+        RuntimeCombatantState target = combatant("target", 3, 1);
+        RuntimeCombatantState interceptor = combatant("interceptor", 1, 1);
+        interceptor.temporaryEffects().add("intercept_ready");
+        interceptor.temporaryEffects().add("coaching_intercept");
+        BattleRuntimeState state = state(List.of(attacker, target, interceptor), 991L);
+
+        RuntimeInterceptPreResolutionTargetHook hook = new RuntimeInterceptPreResolutionTargetHook(
+                (context, currentTargetId) -> new RuntimeInterceptPreResolutionTargetHook.Plan(
+                        false,
+                        List.of(new RuntimeInterceptSpatialSequenceApplication.Attempt(
+                                new InterceptCandidateDiscoveryResolution.Candidate("interceptor", "Intercept", false),
+                                new RuntimeInterceptCheckApplication.Input(1, 0, 0, 0, 0, true),
+                                new GridCoord(2, 1)
+                        ))
+                )
+        );
+
+        PreResolutionTargetResult result = hook.resolve(
+                new PreResolutionTargetContext(state, "attacker", "Ember", "target", target.position()),
+                PreResolutionTargetResult.initial("target")
+        );
+
+        assertEquals("interceptor", result.targetId());
+        assertEquals(new GridCoord(2, 1), interceptor.position());
+        assertEquals(new GridCoord(3, 1), target.position());
+        assertEquals(1, result.events().size());
+        RuleEffectEvent event = assertInstanceOf(RuleEffectEvent.class, result.events().get(0));
+        assertEquals("reaction", event.sourceKind());
+        assertEquals("Intercept", event.sourceName());
+        assertEquals("interceptor", event.actorId());
+        assertEquals("target", event.targetId());
+        assertEquals("Ember", event.moveId());
+        assertEquals("target_replaced", event.effect());
+    }
+
+    @Test
+    void failedRealSequenceLeavesCurrentTargetAndPosition() {
+        RuntimeCombatantState attacker = combatant("attacker", 0, 0);
+        RuntimeCombatantState target = combatant("target", 3, 1);
+        RuntimeCombatantState interceptor = combatant("interceptor", 1, 1);
+        interceptor.temporaryEffects().add("intercept_ready");
+        BattleRuntimeState state = state(List.of(attacker, target, interceptor), 992L);
+
+        RuntimeInterceptPreResolutionTargetHook hook = new RuntimeInterceptPreResolutionTargetHook(
+                (context, currentTargetId) -> new RuntimeInterceptPreResolutionTargetHook.Plan(
+                        false,
+                        List.of(new RuntimeInterceptSpatialSequenceApplication.Attempt(
+                                new InterceptCandidateDiscoveryResolution.Candidate("interceptor", "Intercept", false),
+                                new RuntimeInterceptCheckApplication.Input(99, 0, 0, 0, 0, false),
+                                new GridCoord(2, 1)
+                        ))
+                )
+        );
+
+        PreResolutionTargetResult result = hook.resolve(
+                new PreResolutionTargetContext(state, "attacker", "Ember", "target", target.position()),
+                PreResolutionTargetResult.initial("target")
+        );
+
+        assertEquals("target", result.targetId());
+        assertEquals(List.of(), result.events());
+        assertEquals(new GridCoord(1, 1), interceptor.position());
+    }
+
+    @Test
+    void adaptersCannotConstructHookOrPlannerPublicly() {
+        assertFalse(Modifier.isPublic(RuntimeInterceptPreResolutionTargetHook.class.getModifiers()));
+        assertFalse(Modifier.isPublic(RuntimeInterceptPreResolutionTargetHook.AttemptPlanner.class.getModifiers()));
+    }
+
+    private static RuntimeCombatantState combatant(String id, int x, int y) {
+        return new RuntimeCombatantState(
+                id,
+                MovementProfile.walking(new GridCoord(x, y), 6),
+                20,
+                20,
+                new ActionBudget()
+        );
+    }
+
+    private static BattleRuntimeState state(List<RuntimeCombatantState> combatants, long seed) {
+        return new BattleRuntimeState(
+                new MovementGrid(8, 8, Set.of(), Map.of()),
+                combatants,
+                seed
+        );
+    }
+}
