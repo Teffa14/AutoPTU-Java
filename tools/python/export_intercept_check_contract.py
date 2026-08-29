@@ -38,10 +38,56 @@ def intercept_justified_bonus(function: ast.FunctionDef) -> int:
     raise RuntimeError("missing exact Justified [Errata] intercept bonus assignment")
 
 
+def called_function_names(function: ast.FunctionDef) -> list[str]:
+    names: set[str] = set()
+    for node in ast.walk(function):
+        if not isinstance(node, ast.Call):
+            continue
+        if isinstance(node.func, ast.Name):
+            names.add(node.func.id)
+        elif isinstance(node.func, ast.Attribute):
+            names.add(node.func.attr)
+    return sorted(names)
+
+
+def string_literals(function: ast.FunctionDef) -> list[str]:
+    return sorted({
+        str(node.value)
+        for node in ast.walk(function)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    })
+
+
+def integer_literals(function: ast.FunctionDef) -> list[int]:
+    return sorted({
+        int(node.value)
+        for node in ast.walk(function)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, int)
+        and not isinstance(node.value, bool)
+    })
+
+
+def write_terrain_contract(tree: ast.AST, output: Path) -> None:
+    function = find_function(tree, "_terrain_skill_check_bonus")
+    rows = {
+        "terrain_skill_check_bonus_source": normalized(function),
+        "terrain_skill_check_bonus_calls": "|".join(called_function_names(function)),
+        "terrain_skill_check_bonus_strings": "|".join(string_literals(function)),
+        "terrain_skill_check_bonus_integers": "|".join(str(value) for value in integer_literals(function)),
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        "\n".join(f"{key}\t{value}" for key, value in rows.items()) + "\n",
+        encoding="utf-8",
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--terrain-output")
     args = parser.parse_args()
 
     path = Path(args.source_root) / "auto_ptu" / "rules" / "battle_state.py"
@@ -74,6 +120,9 @@ def main() -> None:
         ) + "\n",
         encoding="utf-8",
     )
+
+    if args.terrain_output:
+        write_terrain_contract(tree, Path(args.terrain_output))
 
 
 if __name__ == "__main__":
