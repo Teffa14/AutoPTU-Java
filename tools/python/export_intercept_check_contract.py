@@ -3,22 +3,72 @@ from __future__ import annotations
 
 import argparse
 import ast
+from dataclasses import dataclass
 from pathlib import Path
 
 
-def find_function(tree: ast.AST, name: str) -> ast.FunctionDef:
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == name:
-            return node
-    raise RuntimeError(f"missing Python function: {name}")
+LexicalScope = ast.Module | ast.ClassDef | ast.FunctionDef
 
 
-def function_index(tree: ast.AST) -> dict[str, ast.FunctionDef]:
-    return {
-        node.name: node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.FunctionDef)
-    }
+@dataclass(frozen=True)
+class ScopedFunction:
+    function: ast.FunctionDef
+    owner: LexicalScope
+
+    @property
+    def qualified_name(self) -> str:
+        if isinstance(self.owner, ast.Module):
+            return self.function.name
+        owner_name = getattr(self.owner, "name", "<scope>")
+        return f"{owner_name}.{self.function.name}"
+
+
+def child_scopes(scope: LexicalScope) -> list[LexicalScope]:
+    return [
+        node
+        for node in scope.body
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef))
+    ]
+
+
+def scoped_functions(tree: ast.Module) -> list[ScopedFunction]:
+    found: list[ScopedFunction] = []
+
+    def visit(scope: LexicalScope) -> None:
+        for node in scope.body:
+            if isinstance(node, ast.FunctionDef):
+                found.append(ScopedFunction(node, scope))
+                visit(node)
+            elif isinstance(node, ast.ClassDef):
+                visit(node)
+
+    visit(tree)
+    return found
+
+
+def find_scoped_function(tree: ast.Module, name: str) -> ScopedFunction:
+    matches = [item for item in scoped_functions(tree) if item.function.name == name]
+    if not matches:
+        raise RuntimeError(f"missing Python function: {name}")
+    if len(matches) != 1:
+        qualified = ", ".join(item.qualified_name for item in matches)
+        raise RuntimeError(f"ambiguous Python function {name}: {qualified}")
+    return matches[0]
+
+
+def find_function(tree: ast.Module, name: str) -> ast.FunctionDef:
+    return find_scoped_function(tree, name).function
+
+
+def direct_function_index(scope: LexicalScope) -> dict[str, ast.FunctionDef]:
+    functions: dict[str, ast.FunctionDef] = {}
+    for node in scope.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name in functions:
+            raise RuntimeError(f"duplicate function in lexical scope: {node.name}")
+        functions[node.name] = node
+    return functions
 
 
 def normalized(node: ast.AST) -> str:
@@ -46,11 +96,28 @@ def intercept_justified_bonus(function: ast.FunctionDef) -> int:
     raise RuntimeError("missing exact Justified [Errata] intercept bonus assignment")
 
 
+def calls_in_function(function: ast.FunctionDef) -> list[ast.Call]:
+    calls: list[ast.Call] = []
+
+    class CallVisitor(ast.NodeVisitor):
+        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+            if node is function:
+                self.generic_visit(node)
+
+        def visit_Lambda(self, node: ast.Lambda) -> None:
+            return
+
+        def visit_Call(self, node: ast.Call) -> None:
+            calls.append(node)
+            self.generic_visit(node)
+
+    CallVisitor().visit(function)
+    return calls
+
+
 def called_function_names(function: ast.FunctionDef) -> list[str]:
     names: set[str] = set()
-    for node in ast.walk(function):
-        if not isinstance(node, ast.Call):
-            continue
+    for node in calls_in_function(function):
         if isinstance(node.func, ast.Name):
             names.add(node.func.id)
         elif isinstance(node.func, ast.Attribute):
@@ -58,26 +125,71 @@ def called_function_names(function: ast.FunctionDef) -> list[str]:
     return sorted(names)
 
 
-def local_helper_closure(tree: ast.AST, root: ast.FunctionDef) -> list[ast.FunctionDef]:
-    functions = function_index(tree)
-    pending = list(called_function_names(root))
-    visited: set[str] = {root.name}
-    helpers: list[ast.FunctionDef] = []
+def resolve_local_call(
+    tree: ast.Module,
+    scoped: ScopedFunction,
+    call: ast.Call,
+) -> ScopedFunction | None:
+    module_functions = direct_function_index(tree)
+    owner = scoped.owner
 
+    if isinstance(call.func, ast.Name):
+        # A bare name in a method/function resolves through local/global lexical lookup,
+        # not through an arbitrary class member with the same name.
+        if isinstance(owner, ast.FunctionDef):
+            nested = direct_function_index(owner).get(call.func.id)
+            if nested is not None:
+                return ScopedFunction(nested, owner)
+        module_function = module_functions.get(call.func.id)
+        if module_function is not None:
+            return ScopedFunction(module_function, tree)
+        return None
+
+    if not isinstance(call.func, ast.Attribute) or not isinstance(owner, ast.ClassDef):
+        return None
+
+    value = call.func.value
+    lexical_owner_call = (
+        isinstance(value, ast.Name)
+        and value.id in {"self", "cls", owner.name}
+    )
+    if not lexical_owner_call:
+        # obj.foo() must not bind to an unrelated foo() elsewhere in this file.
+        return None
+
+    method = direct_function_index(owner).get(call.func.attr)
+    if method is None:
+        return None
+    return ScopedFunction(method, owner)
+
+
+def local_helper_closure(tree: ast.Module, root: ScopedFunction) -> list[ScopedFunction]:
+    pending: list[ScopedFunction] = []
+    visited: set[tuple[int, str]] = {(id(root.owner), root.function.name)}
+    helpers: list[ScopedFunction] = []
+
+    def enqueue_calls(scoped: ScopedFunction) -> None:
+        for call in calls_in_function(scoped.function):
+            resolved = resolve_local_call(tree, scoped, call)
+            if resolved is None:
+                continue
+            key = (id(resolved.owner), resolved.function.name)
+            if key in visited:
+                continue
+            visited.add(key)
+            pending.append(resolved)
+
+    enqueue_calls(root)
     while pending:
-        name = pending.pop(0)
-        if name in visited:
-            continue
-        visited.add(name)
-        function = functions.get(name)
-        if function is None:
-            continue
-        helpers.append(function)
-        for called in called_function_names(function):
-            if called not in visited and called not in pending:
-                pending.append(called)
+        scoped = pending.pop(0)
+        helpers.append(scoped)
+        enqueue_calls(scoped)
 
-    return sorted(helpers, key=lambda function: function.name)
+    helpers.sort(key=lambda item: item.qualified_name)
+    simple_names = [item.function.name for item in helpers]
+    if len(simple_names) != len(set(simple_names)):
+        raise RuntimeError("terrain helper closure contains ambiguous simple names")
+    return helpers
 
 
 def string_literals(function: ast.FunctionDef) -> list[str]:
@@ -98,22 +210,26 @@ def integer_literals(function: ast.FunctionDef) -> list[int]:
     })
 
 
-def write_terrain_contract(tree: ast.AST, output: Path) -> None:
-    function = find_function(tree, "_terrain_skill_check_bonus")
-    helpers = local_helper_closure(tree, function)
+def write_terrain_contract(tree: ast.Module, output: Path) -> None:
+    root = find_scoped_function(tree, "_terrain_skill_check_bonus")
+    function = root.function
+    helpers = local_helper_closure(tree, root)
     rows = {
         "terrain_skill_check_bonus_source": normalized(function),
         "terrain_skill_check_bonus_calls": "|".join(called_function_names(function)),
         "terrain_skill_check_bonus_strings": "|".join(string_literals(function)),
         "terrain_skill_check_bonus_integers": "|".join(str(value) for value in integer_literals(function)),
-        "terrain_skill_check_helper_names": "|".join(helper.name for helper in helpers),
+        "terrain_skill_check_helper_names": "|".join(helper.function.name for helper in helpers),
+        "terrain_skill_check_helper_qualified_names": "|".join(helper.qualified_name for helper in helpers),
     }
     for helper in helpers:
-        prefix = f"terrain_skill_check_helper_{helper.name}"
-        rows[f"{prefix}_source"] = normalized(helper)
-        rows[f"{prefix}_calls"] = "|".join(called_function_names(helper))
-        rows[f"{prefix}_strings"] = "|".join(string_literals(helper))
-        rows[f"{prefix}_integers"] = "|".join(str(value) for value in integer_literals(helper))
+        function = helper.function
+        prefix = f"terrain_skill_check_helper_{function.name}"
+        rows[f"{prefix}_qualified_name"] = helper.qualified_name
+        rows[f"{prefix}_source"] = normalized(function)
+        rows[f"{prefix}_calls"] = "|".join(called_function_names(function))
+        rows[f"{prefix}_strings"] = "|".join(string_literals(function))
+        rows[f"{prefix}_integers"] = "|".join(str(value) for value in integer_literals(function))
 
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
