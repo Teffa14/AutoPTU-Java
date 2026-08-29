@@ -31,6 +31,7 @@ class InterceptCheckResolutionTest {
         }) {
             assertEquals(1, fixture.get(key), key);
         }
+        assertEquals(4, fixture.get("justified_errata_bonus"), "justified_errata_bonus");
     }
 
     @Test

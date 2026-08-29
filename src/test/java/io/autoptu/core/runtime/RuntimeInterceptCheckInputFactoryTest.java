@@ -19,8 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RuntimeInterceptCheckInputFactoryTest {
     @Test
-    void derivesSkillsAndCoachingFromServerOwnedState() {
-        RuntimeCombatantState interceptor = combatant("interceptor");
+    void derivesSkillsJustifiedAndCoachingFromServerOwnedState() {
+        RuntimeCombatantState interceptor = combatant("interceptor", List.of("Justified [Errata]"));
         interceptor.temporaryEffects().add("coaching_intercept");
         BattleRuntimeState state = state(interceptor);
         CombatantRuleContent content = new CombatantRuleContent(
@@ -35,33 +35,46 @@ class RuntimeInterceptCheckInputFactoryTest {
                 "interceptor",
                 content,
                 5,
-                2,
                 -1
         );
 
         assertEquals(5, input.distance());
         assertEquals(3, input.acrobaticsRank());
         assertEquals(7, input.athleticsRank());
-        assertEquals(2, input.justifiedBonus());
+        assertEquals(4, input.justifiedBonus());
         assertEquals(-1, input.terrainBonus());
         assertTrue(input.coachingAutomaticSuccess());
     }
 
     @Test
-    void absentCoachingDoesNotForceSuccess() {
+    void absentJustifiedAndCoachingDoNotAddBonuses() {
         RuntimeCombatantState interceptor = combatant("interceptor");
         RuntimeInterceptCheckApplication.Input input = RuntimeInterceptCheckInputFactory.fromState(
                 state(interceptor),
                 "interceptor",
                 CombatantRuleContent.empty(),
                 2,
-                0,
                 0
         );
 
         assertFalse(input.coachingAutomaticSuccess());
+        assertEquals(0, input.justifiedBonus());
         assertEquals(0, input.acrobaticsRank());
         assertEquals(0, input.athleticsRank());
+    }
+
+    @Test
+    void similarlyNamedAbilityDoesNotGrantErrataBonus() {
+        RuntimeCombatantState interceptor = combatant("interceptor", List.of("Justified"));
+        RuntimeInterceptCheckApplication.Input input = RuntimeInterceptCheckInputFactory.fromState(
+                state(interceptor),
+                "interceptor",
+                CombatantRuleContent.empty(),
+                2,
+                0
+        );
+
+        assertEquals(0, input.justifiedBonus());
     }
 
     @Test
@@ -74,7 +87,6 @@ class RuntimeInterceptCheckInputFactoryTest {
                         "missing",
                         CombatantRuleContent.empty(),
                         1,
-                        0,
                         0
                 )
         );
@@ -85,7 +97,6 @@ class RuntimeInterceptCheckInputFactoryTest {
                 String.class,
                 CombatantRuleContent.class,
                 int.class,
-                int.class,
                 int.class
         );
         assertFalse(Modifier.isPublic(RuntimeInterceptCheckInputFactory.class.getModifiers()));
@@ -93,12 +104,26 @@ class RuntimeInterceptCheckInputFactoryTest {
     }
 
     private static RuntimeCombatantState combatant(String id) {
+        return combatant(id, List.of());
+    }
+
+    private static RuntimeCombatantState combatant(String id, List<String> abilities) {
         return new RuntimeCombatantState(
                 id,
                 MovementProfile.walking(new GridCoord(1, 1), 6),
                 20,
                 20,
-                new ActionBudget()
+                new ActionBudget(),
+                null,
+                null,
+                0,
+                false,
+                false,
+                false,
+                false,
+                List.of(),
+                List.of(),
+                abilities
         );
     }
 
