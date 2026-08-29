@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import importlib.util
 from pathlib import Path
+import sys
 import unittest
 
 
@@ -12,6 +13,7 @@ SPEC = importlib.util.spec_from_file_location("export_intercept_check_contract",
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError("unable to load intercept contract exporter")
 EXPORTER = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = EXPORTER
 SPEC.loader.exec_module(EXPORTER)
 
 
