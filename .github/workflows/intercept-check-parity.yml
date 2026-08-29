@@ -44,7 +44,9 @@ jobs:
           python3 -m py_compile tools/python/export_intercept_check_contract.py
           python3 tools/python/export_intercept_check_contract.py \
             --source-root python-oracle \
-            --output build/oracle/intercept-check.tsv
+            --output build/oracle/intercept-check.tsv \
+            --terrain-output build/oracle/intercept-terrain-contract.tsv
+          cat build/oracle/intercept-terrain-contract.tsv
 
       - name: Run intercept check parity tests
         run: >-
