@@ -13,6 +13,14 @@ def find_function(tree: ast.AST, name: str) -> ast.FunctionDef:
     raise RuntimeError(f"missing Python function: {name}")
 
 
+def function_index(tree: ast.AST) -> dict[str, ast.FunctionDef]:
+    return {
+        node.name: node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef)
+    }
+
+
 def normalized(node: ast.AST) -> str:
     return " ".join(ast.unparse(node).lower().split())
 
@@ -50,6 +58,28 @@ def called_function_names(function: ast.FunctionDef) -> list[str]:
     return sorted(names)
 
 
+def local_helper_closure(tree: ast.AST, root: ast.FunctionDef) -> list[ast.FunctionDef]:
+    functions = function_index(tree)
+    pending = list(called_function_names(root))
+    visited: set[str] = {root.name}
+    helpers: list[ast.FunctionDef] = []
+
+    while pending:
+        name = pending.pop(0)
+        if name in visited:
+            continue
+        visited.add(name)
+        function = functions.get(name)
+        if function is None:
+            continue
+        helpers.append(function)
+        for called in called_function_names(function):
+            if called not in visited and called not in pending:
+                pending.append(called)
+
+    return sorted(helpers, key=lambda function: function.name)
+
+
 def string_literals(function: ast.FunctionDef) -> list[str]:
     return sorted({
         str(node.value)
@@ -70,12 +100,21 @@ def integer_literals(function: ast.FunctionDef) -> list[int]:
 
 def write_terrain_contract(tree: ast.AST, output: Path) -> None:
     function = find_function(tree, "_terrain_skill_check_bonus")
+    helpers = local_helper_closure(tree, function)
     rows = {
         "terrain_skill_check_bonus_source": normalized(function),
         "terrain_skill_check_bonus_calls": "|".join(called_function_names(function)),
         "terrain_skill_check_bonus_strings": "|".join(string_literals(function)),
         "terrain_skill_check_bonus_integers": "|".join(str(value) for value in integer_literals(function)),
+        "terrain_skill_check_helper_names": "|".join(helper.name for helper in helpers),
     }
+    for helper in helpers:
+        prefix = f"terrain_skill_check_helper_{helper.name}"
+        rows[f"{prefix}_source"] = normalized(helper)
+        rows[f"{prefix}_calls"] = "|".join(called_function_names(helper))
+        rows[f"{prefix}_strings"] = "|".join(string_literals(helper))
+        rows[f"{prefix}_integers"] = "|".join(str(value) for value in integer_literals(helper))
+
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
         "\n".join(f"{key}\t{value}" for key, value in rows.items()) + "\n",
