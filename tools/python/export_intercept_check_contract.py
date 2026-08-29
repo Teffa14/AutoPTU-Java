@@ -50,10 +50,15 @@ def find_scoped_function(tree: ast.Module, name: str) -> ScopedFunction:
     matches = [item for item in scoped_functions(tree) if item.function.name == name]
     if not matches:
         raise RuntimeError(f"missing Python function: {name}")
-    if len(matches) != 1:
+
+    owners = {id(item.owner) for item in matches}
+    if len(owners) != 1:
         qualified = ", ".join(item.qualified_name for item in matches)
         raise RuntimeError(f"ambiguous Python function {name}: {qualified}")
-    return matches[0]
+
+    # Python class/module bodies execute top-to-bottom. A later def with the same name
+    # replaces the earlier binding in that lexical scope, so freeze the runtime-visible def.
+    return matches[-1]
 
 
 def find_function(tree: ast.Module, name: str) -> ast.FunctionDef:
@@ -65,8 +70,7 @@ def direct_function_index(scope: LexicalScope) -> dict[str, ast.FunctionDef]:
     for node in scope.body:
         if not isinstance(node, ast.FunctionDef):
             continue
-        if node.name in functions:
-            raise RuntimeError(f"duplicate function in lexical scope: {node.name}")
+        # Match Python namespace binding semantics: later definitions shadow earlier ones.
         functions[node.name] = node
     return functions
 
