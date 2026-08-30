@@ -4,9 +4,7 @@ import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.hook.PreResolutionTargetContext;
 import io.autoptu.core.hook.PreResolutionTargetHook;
 import io.autoptu.core.hook.PreResolutionTargetResult;
-import io.autoptu.core.model.GridCoord;
 
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -15,7 +13,8 @@ import java.util.List;
  * <p>The planner is intentionally package-private: only authoritative runtime orchestration may
  * materialize interception attempts. The hook executes the existing RNG/resource/spatial sequence
  * and exposes only the resulting replacement target plus semantic playback event to the generic
- * PRE-target registry.</p>
+ * PRE-target registry. Attack-line geometry is derived inside the runtime from authoritative
+ * attacker and target positions.</p>
  */
 final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTargetHook {
     @FunctionalInterface
@@ -25,15 +24,10 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
 
     record Plan(
             boolean melee,
-            Collection<GridCoord> attackLine,
             List<RuntimeInterceptSpatialSequenceApplication.Attempt> attempts
     ) {
         Plan {
-            attackLine = attackLine == null ? List.of() : List.copyOf(attackLine);
             attempts = attempts == null ? List.of() : List.copyOf(attempts);
-            if (attackLine.stream().anyMatch(java.util.Objects::isNull)) {
-                throw new IllegalArgumentException("attackLine cannot contain null");
-            }
             if (attempts.stream().anyMatch(java.util.Objects::isNull)) {
                 throw new IllegalArgumentException("attempts cannot contain null");
             }
@@ -61,9 +55,9 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
         RuntimeInterceptSpatialSequenceApplication.Result resolution =
                 RuntimeInterceptSpatialSequenceApplication.apply(
                         context.state(),
+                        context.attackerId(),
                         current.targetId(),
                         plan.melee(),
-                        plan.attackLine(),
                         plan.attempts()
                 );
         if (!resolution.intercepted()) return current;
