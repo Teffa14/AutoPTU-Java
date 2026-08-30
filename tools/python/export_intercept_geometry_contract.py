@@ -25,22 +25,22 @@ def assignment_line(fn: ast.AST, name: str) -> int:
 
 
 def line_tile_skip_line(fn: ast.AST, line_tiles_line: int, check_line: int) -> int:
-    """Return the oracle continue that guards an unusable line_tiles result.
+    """Return the candidate-skip continue between line-tile resolution and the check.
 
-    This intentionally follows Python AST shape rather than source formatting. The pinned oracle may
-    spell the guard as a positive condition with an else branch instead of `if not line_tiles`.
+    The pinned oracle may express the no-line path as a sibling/outer branch rather than putting
+    the continue inside the same ``if`` node that directly references ``line_tiles``. Freeze the
+    control-flow ordering instead of source formatting: line tiles must have been resolved, then a
+    candidate can terminate through ``continue``, and that termination must precede the check.
     """
-    candidates = []
-    for node in ast.walk(fn):
-        if not isinstance(node, ast.If):
-            continue
-        if not any(isinstance(child, ast.Name) and child.id == "line_tiles" for child in ast.walk(node.test)):
-            continue
-        for child in ast.walk(node):
-            if isinstance(child, ast.Continue) and child.lineno > line_tiles_line:
-                if check_line < 0 or child.lineno < check_line:
-                    candidates.append(child.lineno)
-    return min(candidates, default=-1)
+    if line_tiles_line < 0 or check_line < 0 or check_line <= line_tiles_line:
+        return -1
+
+    continues = sorted(
+        node.lineno
+        for node in ast.walk(fn)
+        if isinstance(node, ast.Continue) and line_tiles_line < node.lineno < check_line
+    )
+    return continues[0] if continues else -1
 
 
 def main() -> None:
