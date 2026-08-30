@@ -13,6 +13,7 @@ on:
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptServerOwnedSkillInputTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptCheckInputFactoryTest.java"
       - "tools/python/export_intercept_check_contract.py"
+      - "tools/python/test_export_intercept_check_contract.py"
       - ".github/workflows/intercept-check-parity.yml"
   push:
     branches:
@@ -41,7 +42,8 @@ jobs:
 
       - name: Export Python intercept check contract
         run: |
-          python3 -m py_compile tools/python/export_intercept_check_contract.py
+          python3 -m py_compile tools/python/export_intercept_check_contract.py tools/python/test_export_intercept_check_contract.py
+          python3 tools/python/test_export_intercept_check_contract.py
           python3 tools/python/export_intercept_check_contract.py \
             --source-root python-oracle \
             --output build/oracle/intercept-check.tsv \
