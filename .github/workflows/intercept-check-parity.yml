@@ -62,6 +62,7 @@ jobs:
         run: >-
           gradle test --stacktrace
           -Dautoptu.intercept.check.oracle="$GITHUB_WORKSPACE/build/oracle/intercept-check.tsv"
+          -Dautoptu.intercept.terrain.oracle="$GITHUB_WORKSPACE/build/oracle/intercept-terrain-contract.tsv"
           --tests io.autoptu.core.runtime.InterceptCheckResolutionTest
           --tests io.autoptu.core.runtime.RuntimeInterceptServerOwnedSkillInputTest
           --tests io.autoptu.core.runtime.RuntimeInterceptCheckInputFactoryTest
