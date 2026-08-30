@@ -6,13 +6,19 @@ on:
       - "src/main/java/io/autoptu/core/runtime/InterceptCheckResolution.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptCheckApplication.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptCheckInputFactory.java"
+      - "src/main/java/io/autoptu/core/runtime/TerrainContextLabelResolver.java"
       - "src/main/java/io/autoptu/core/runtime/TerrainSkillCheckBonusResolver.java"
+      - "src/main/java/io/autoptu/core/runtime/BattleEnvironmentState.java"
+      - "src/main/java/io/autoptu/core/runtime/BattleRuntimeState.java"
       - "src/main/java/io/autoptu/core/runtime/CombatantRuleContent.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeCombatantState.java"
+      - "src/main/java/io/autoptu/core/runtime/TemporaryEffectEntry.java"
       - "src/main/java/io/autoptu/core/runtime/TemporaryEffectStore.java"
+      - "src/main/java/io/autoptu/core/model/MovementGrid.java"
       - "src/test/java/io/autoptu/core/runtime/InterceptCheckResolutionTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptServerOwnedSkillInputTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptCheckInputFactoryTest.java"
+      - "src/test/java/io/autoptu/core/runtime/TerrainContextLabelResolverTest.java"
       - "src/test/java/io/autoptu/core/runtime/TerrainSkillCheckBonusResolverTest.java"
       - "tools/python/export_intercept_check_contract.py"
       - "tools/python/test_export_intercept_check_contract.py"
@@ -59,4 +65,5 @@ jobs:
           --tests io.autoptu.core.runtime.InterceptCheckResolutionTest
           --tests io.autoptu.core.runtime.RuntimeInterceptServerOwnedSkillInputTest
           --tests io.autoptu.core.runtime.RuntimeInterceptCheckInputFactoryTest
+          --tests io.autoptu.core.runtime.TerrainContextLabelResolverTest
           --tests io.autoptu.core.runtime.TerrainSkillCheckBonusResolverTest
