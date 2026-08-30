@@ -85,7 +85,7 @@ class RuntimeInterceptPreResolutionTargetHookTest {
         assertEquals("target", result.targetId());
         assertEquals(List.of(), result.events());
         assertEquals(new GridCoord(1, 1), interceptor.position());
-        assertTrue(interceptor.temporaryEffects().contains("intercept_ready"));
+        assertTrue(interceptor.temporaryEffects().has("intercept_ready"));
     }
 
     @Test
