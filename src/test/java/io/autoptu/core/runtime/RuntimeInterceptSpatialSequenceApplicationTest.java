@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,8 +34,8 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
                 "target",
                 false,
                 List.of(
-                        attempt("first", 99, false, new GridCoord(2, 0)),
-                        attempt("second", 1, true, new GridCoord(2, 1))
+                        attempt("first", new GridCoord(7, 7)),
+                        attempt("second", new GridCoord(2, 1))
                 )
         );
 
@@ -59,7 +60,7 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
                 state,
                 "target",
                 true,
-                List.of(attempt("interceptor", 1, true, new GridCoord(2, 1)))
+                List.of(attempt("interceptor", new GridCoord(2, 1)))
         );
 
         assertTrue(result.intercepted());
@@ -86,7 +87,7 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
                 state,
                 "target",
                 true,
-                List.of(attempt("interceptor", 1, true, new GridCoord(2, 1)))
+                List.of(attempt("interceptor", new GridCoord(2, 1)))
         );
 
         assertEquals(0, result.meleeMovement().targetPush().movedDistance());
@@ -109,8 +110,8 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
                 "target",
                 true,
                 List.of(
-                        attempt("first", 99, false, new GridCoord(2, 0)),
-                        attempt("second", 99, false, new GridCoord(2, 1))
+                        attempt("first", new GridCoord(7, 7)),
+                        attempt("second", new GridCoord(7, 7))
                 )
         );
 
@@ -121,6 +122,14 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
         assertEquals(new GridCoord(3, 1), target.position());
         assertNull(result.interceptMovement());
         assertNull(result.meleeMovement());
+    }
+
+    @Test
+    void spatialAttemptBoundaryRejectsPrecomputedCheckInput() {
+        assertTrue(Arrays.stream(RuntimeInterceptSpatialSequenceApplication.Attempt.class.getRecordComponents())
+                .noneMatch(component -> component.getType().equals(RuntimeInterceptCheckApplication.Input.class)));
+        assertTrue(Arrays.stream(RuntimeInterceptSpatialSequenceApplication.Attempt.class.getRecordComponents())
+                .anyMatch(component -> component.getType().equals(CombatantRuleContent.class)));
     }
 
     @Test
@@ -137,13 +146,11 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
 
     private static RuntimeInterceptSpatialSequenceApplication.Attempt attempt(
             String interceptorId,
-            int distance,
-            boolean coachingAutomaticSuccess,
             GridCoord interceptPosition
     ) {
         return new RuntimeInterceptSpatialSequenceApplication.Attempt(
                 new InterceptCandidateDiscoveryResolution.Candidate(interceptorId, "Intercept", false),
-                new RuntimeInterceptCheckApplication.Input(distance, 0, 0, 0, 0, coachingAutomaticSuccess),
+                CombatantRuleContent.empty(),
                 interceptPosition
         );
     }
