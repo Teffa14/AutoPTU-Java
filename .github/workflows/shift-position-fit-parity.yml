@@ -50,4 +50,5 @@ jobs:
       - name: Run Java Shift position-fit tests
         run: >-
           gradle test --stacktrace
+          -Dautoptu.shift.positionFit.oracle="$GITHUB_WORKSPACE/build/oracle/shift-position-fit.tsv"
           --tests io.autoptu.core.runtime.RuntimeShiftDestinationResolverTest
