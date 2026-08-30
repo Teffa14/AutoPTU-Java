@@ -10,9 +10,9 @@ import java.util.regex.Pattern;
 /**
  * Resolves Python-compatible terrain context labels from authoritative battle state.
  *
- * <p>The runtime owns global terrain, combatant position, movement-grid tile type, and
- * temporary terrain aliases. Minecraft/Cobblemon may render those facts but does not
- * provide the resolved labels used by PTU rules.</p>
+ * <p>The runtime owns active field terrain, legacy terrain name, combatant position,
+ * movement-grid tile type, and temporary terrain aliases. Minecraft/Cobblemon may
+ * render those facts but does not provide the resolved labels used by PTU rules.</p>
  */
 final class TerrainContextLabelResolver {
     private static final Pattern NON_ALPHANUMERIC = Pattern.compile("[^a-z0-9]+");
@@ -27,7 +27,7 @@ final class TerrainContextLabelResolver {
         if (state == null) throw new IllegalArgumentException("state is required");
         RuntimeCombatantState actor = state.requireCombatant(combatantId);
 
-        String terrainName = normalizeTerrainName(state.environment().terrainName());
+        String terrainName = normalizeTerrainName(activeTerrainName(state.environment()));
         String tileType = normalizeTerrainName(state.grid().tileType(actor.position()));
         String base = terrainName.isEmpty() ? tileType : terrainName;
 
@@ -42,6 +42,12 @@ final class TerrainContextLabelResolver {
 
         if (!tileType.isEmpty()) labels.add(tileType);
         return List.copyOf(new ArrayList<>(labels));
+    }
+
+    private static String activeTerrainName(BattleEnvironmentState environment) {
+        return environment.terrainEffect()
+                .map(FieldEffectEntry::name)
+                .orElseGet(environment::terrainName);
     }
 
     static String normalizeTerrainName(Object value) {
