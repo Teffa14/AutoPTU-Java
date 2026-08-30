@@ -26,15 +26,19 @@ final class RuntimeShiftDestinationResolverTest {
             return;
         }
         Map<String, String> contract = readContract(Path.of(oraclePath));
-        assertEquals("actor.footprint_tiles(destination)", contract.get("position_fit.footprint"));
+        assertEquals("actor footprint at destination", contract.get("position_fit.footprint"));
+        assertEquals("reject", contract.get("position_fit.empty_footprint"));
         assertEquals("reject", contract.get("position_fit.out_of_bounds"));
-        assertEquals("wall,blocker,blocking,void", contract.get("position_fit.blocking_tile_types"));
+        assertEquals("wall,blocker,blocking,void", contract.get("position_fit.blocking_tile_tokens"));
+        assertEquals("substring", contract.get("position_fit.blocking_tile_match"));
         assertEquals("true", contract.get("position_fit.default.exclude_self"));
         assertEquals("true", contract.get("position_fit.default.active_only"));
         assertEquals("true", contract.get("position_fit.default.conscious_only"));
         assertEquals("true", contract.get("position_fit.default.block_on_terrain"));
+        assertEquals("footprints disjoint", contract.get("position_fit.occupancy"));
         assertEquals("battle_state", contract.get("shift.position_fit_source"));
-        assertEquals("actor", contract.get("shift.profile_source"));
+        assertEquals("actor movement capability", contract.get("shift.profile_source"));
+        assertEquals("true", contract.get("shift.final_position_fit_filter"));
     }
 
     @Test
@@ -45,14 +49,14 @@ final class RuntimeShiftDestinationResolverTest {
                 4,
                 4,
                 Set.of(new GridCoord(0, 1)),
-                Map.of(new GridCoord(1, 0), " Wall ")
+                Map.of(new GridCoord(1, 0), " Stone Wall ")
         );
         BattleRuntimeState state = new BattleRuntimeState(grid, List.of(actor, occupant));
 
         assertTrue(RuntimePositionFitResolver.canFit(state, "actor", new GridCoord(1, 1)), "self footprint is excluded");
         assertTrue(RuntimePositionFitResolver.canFit(state, "actor", new GridCoord(2, 1)), "fainted occupants do not block");
         assertFalse(RuntimePositionFitResolver.canFit(state, "actor", new GridCoord(0, 1)), "explicit blockers reject landing");
-        assertFalse(RuntimePositionFitResolver.canFit(state, "actor", new GridCoord(1, 0)), "Python blocking tile names reject landing");
+        assertFalse(RuntimePositionFitResolver.canFit(state, "actor", new GridCoord(1, 0)), "Python blocking tokens reject composite tile names");
     }
 
     @Test
@@ -63,8 +67,9 @@ final class RuntimeShiftDestinationResolverTest {
 
         Set<GridCoord> legal = RuntimeShiftDestinationResolver.legalShiftTiles(state, "actor", 0);
 
-        assertTrue(legal.contains(new GridCoord(3, 1)), "ordinary Overland reach comes from the runtime movement profile");
+        assertTrue(legal.contains(new GridCoord(1, 3)), "ordinary Overland reach remains available along an unoccupied path");
         assertFalse(legal.contains(new GridCoord(2, 1)), "active conscious combatants block a landing tile");
+        assertFalse(legal.contains(new GridCoord(3, 1)), "an occupied intermediate tile cannot be traversed within a two-meter Shift");
     }
 
     @Test
