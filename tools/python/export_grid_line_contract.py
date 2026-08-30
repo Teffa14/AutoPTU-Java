@@ -2,6 +2,7 @@
 import argparse
 import ast
 from pathlib import Path
+from typing import Sequence, Tuple
 
 
 def find_line_cells(tree: ast.AST) -> ast.FunctionDef:
@@ -17,7 +18,7 @@ def load_oracle_function(source_root: Path):
     fn = find_line_cells(tree)
     module = ast.Module(body=[fn], type_ignores=[])
     ast.fix_missing_locations(module)
-    namespace = {}
+    namespace = {"Sequence": Sequence, "Tuple": Tuple}
     exec(compile(module, str(path), "exec"), namespace)
     return namespace["_line_cells"]
 
