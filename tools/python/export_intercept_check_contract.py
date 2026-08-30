@@ -218,6 +218,8 @@ def write_terrain_contract(tree: ast.Module, output: Path) -> None:
     root = find_scoped_function(tree, "_terrain_skill_check_bonus")
     function = root.function
     helpers = local_helper_closure(tree, root)
+    naturewalk_labels = find_scoped_function(tree, "naturewalk_labels")
+    species_naturewalk = find_scoped_function(tree, "_species_naturewalk")
     rows = {
         "terrain_skill_check_bonus_source": normalized(function),
         "terrain_skill_check_bonus_calls": "|".join(called_function_names(function)),
@@ -225,6 +227,10 @@ def write_terrain_contract(tree: ast.Module, output: Path) -> None:
         "terrain_skill_check_bonus_integers": "|".join(str(value) for value in integer_literals(function)),
         "terrain_skill_check_helper_names": "|".join(helper.function.name for helper in helpers),
         "terrain_skill_check_helper_qualified_names": "|".join(helper.qualified_name for helper in helpers),
+        "naturewalk_labels_qualified_name": naturewalk_labels.qualified_name,
+        "naturewalk_labels_source": normalized(naturewalk_labels.function),
+        "species_naturewalk_qualified_name": species_naturewalk.qualified_name,
+        "species_naturewalk_source": normalized(species_naturewalk.function),
     }
     for helper in helpers:
         function = helper.function
