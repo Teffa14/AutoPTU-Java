@@ -17,13 +17,14 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RuntimeInterceptPreResolutionTargetHookTest {
     @Test
     void realSpatialSequenceBecomesGenericPreTargetReplacement() {
-        RuntimeCombatantState attacker = combatant("attacker", 0, 0);
-        RuntimeCombatantState target = combatant("target", 3, 1);
-        RuntimeCombatantState interceptor = combatant("interceptor", 1, 1);
+        RuntimeCombatantState attacker = combatant("attacker", 0, 0, 6);
+        RuntimeCombatantState target = combatant("target", 3, 1, 6);
+        RuntimeCombatantState interceptor = combatant("interceptor", 1, 1, 6);
         interceptor.temporaryEffects().add("intercept_ready");
         interceptor.temporaryEffects().add("coaching_intercept");
         BattleRuntimeState state = state(List.of(attacker, target, interceptor), 991L);
@@ -31,10 +32,10 @@ class RuntimeInterceptPreResolutionTargetHookTest {
         RuntimeInterceptPreResolutionTargetHook hook = new RuntimeInterceptPreResolutionTargetHook(
                 (context, currentTargetId) -> new RuntimeInterceptPreResolutionTargetHook.Plan(
                         false,
+                        List.of(new GridCoord(2, 1)),
                         List.of(new RuntimeInterceptSpatialSequenceApplication.Attempt(
                                 new InterceptCandidateDiscoveryResolution.Candidate("interceptor", "Intercept", false),
-                                CombatantRuleContent.empty(),
-                                new GridCoord(2, 1)
+                                CombatantRuleContent.empty()
                         ))
                 )
         );
@@ -58,20 +59,20 @@ class RuntimeInterceptPreResolutionTargetHookTest {
     }
 
     @Test
-    void failedRealSequenceLeavesCurrentTargetAndPosition() {
-        RuntimeCombatantState attacker = combatant("attacker", 0, 0);
-        RuntimeCombatantState target = combatant("target", 3, 1);
-        RuntimeCombatantState interceptor = combatant("interceptor", 1, 1);
+    void unreachableRealSequenceLeavesCurrentTargetPositionAndResource() {
+        RuntimeCombatantState attacker = combatant("attacker", 0, 0, 6);
+        RuntimeCombatantState target = combatant("target", 3, 1, 6);
+        RuntimeCombatantState interceptor = combatant("interceptor", 1, 1, 0);
         interceptor.temporaryEffects().add("intercept_ready");
         BattleRuntimeState state = state(List.of(attacker, target, interceptor), 992L);
 
         RuntimeInterceptPreResolutionTargetHook hook = new RuntimeInterceptPreResolutionTargetHook(
                 (context, currentTargetId) -> new RuntimeInterceptPreResolutionTargetHook.Plan(
                         false,
+                        List.of(new GridCoord(3, 3)),
                         List.of(new RuntimeInterceptSpatialSequenceApplication.Attempt(
                                 new InterceptCandidateDiscoveryResolution.Candidate("interceptor", "Intercept", false),
-                                CombatantRuleContent.empty(),
-                                new GridCoord(9, 9)
+                                CombatantRuleContent.empty()
                         ))
                 )
         );
@@ -84,6 +85,7 @@ class RuntimeInterceptPreResolutionTargetHookTest {
         assertEquals("target", result.targetId());
         assertEquals(List.of(), result.events());
         assertEquals(new GridCoord(1, 1), interceptor.position());
+        assertTrue(interceptor.temporaryEffects().contains("intercept_ready"));
     }
 
     @Test
@@ -92,10 +94,10 @@ class RuntimeInterceptPreResolutionTargetHookTest {
         assertFalse(Modifier.isPublic(RuntimeInterceptPreResolutionTargetHook.AttemptPlanner.class.getModifiers()));
     }
 
-    private static RuntimeCombatantState combatant(String id, int x, int y) {
+    private static RuntimeCombatantState combatant(String id, int x, int y, int overland) {
         return new RuntimeCombatantState(
                 id,
-                MovementProfile.walking(new GridCoord(x, y), 6),
+                MovementProfile.walking(new GridCoord(x, y), overland),
                 20,
                 20,
                 new ActionBudget()
