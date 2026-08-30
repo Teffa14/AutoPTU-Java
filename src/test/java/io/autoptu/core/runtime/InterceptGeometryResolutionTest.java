@@ -26,6 +26,10 @@ class InterceptGeometryResolutionTest {
         assertEquals(1, fixture.get("off_line_uses_legal_shift_tiles"));
         assertEquals(1, fixture.get("line_tile_sort_uses_footprint_distance"));
         assertEquals(1, fixture.get("line_tile_sort_targets_medium_anchor"));
+        assertEquals(1, fixture.get("check_distance_uses_footprint_distance"));
+        assertEquals(1, fixture.get("check_distance_targets_medium_anchor"));
+        assertEquals(1, fixture.get("check_distance_floor_one"));
+        assertEquals(1, fixture.get("line_tile_recomputes_check_distance"));
     }
 
     @Test
@@ -77,6 +81,16 @@ class InterceptGeometryResolutionTest {
                 List.of(new GridCoord(2, 2), new GridCoord(3, 3)),
                 List.of(new GridCoord(1, 0))
         ));
+    }
+
+    @Test
+    void checkDistanceUsesFootprintGeometryAndFloorsOverlapToOne() {
+        var medium = new InterceptGeometryResolution.Candidate("i", new GridCoord(1, 1), "Medium");
+        assertEquals(3, InterceptGeometryResolution.checkDistance(medium, new GridCoord(4, 1)));
+        assertEquals(1, InterceptGeometryResolution.checkDistance(medium, new GridCoord(1, 1)));
+
+        var large = new InterceptGeometryResolution.Candidate("large", new GridCoord(1, 1), "Large");
+        assertEquals(1, InterceptGeometryResolution.checkDistance(large, new GridCoord(3, 1)));
     }
 
     private static Map<String, Integer> readFixture(Path path) throws IOException {

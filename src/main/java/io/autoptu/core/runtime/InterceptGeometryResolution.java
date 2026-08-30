@@ -73,4 +73,16 @@ public final class InterceptGeometryResolution {
         )));
         return lineTiles.get(0);
     }
+
+    /**
+     * Python computes the Intercept check DC from footprint distance to the selected
+     * intercept anchor and floors an overlapping distance to one before multiplying by 3.
+     */
+    public static int checkDistance(Candidate interceptor, GridCoord interceptPosition) {
+        if (interceptor == null) throw new IllegalArgumentException("interceptor is required");
+        if (interceptPosition == null) throw new IllegalArgumentException("intercept position is required");
+        return Math.max(1, Targeting.footprintDistance(
+                interceptor.position(), interceptor.sizeLabel(), interceptPosition, "Medium"
+        ));
+    }
 }

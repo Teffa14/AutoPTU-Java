@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RuntimeInterceptCheckInputFactoryTest {
     @Test
-    void derivesSkillsJustifiedCoachingAndTerrainFromServerOwnedState() {
+    void derivesDistanceSkillsJustifiedCoachingAndTerrainFromServerOwnedState() {
         RuntimeCombatantState interceptor = combatant("interceptor", List.of("Justified [Errata]"));
         interceptor.temporaryEffects().add("coaching_intercept");
         BattleRuntimeState state = state(interceptor, "Forest");
@@ -36,7 +36,7 @@ class RuntimeInterceptCheckInputFactoryTest {
                 state,
                 "interceptor",
                 content,
-                5
+                new GridCoord(6, 1)
         );
 
         assertEquals(5, input.distance());
@@ -45,6 +45,19 @@ class RuntimeInterceptCheckInputFactoryTest {
         assertEquals(4, input.justifiedBonus());
         assertEquals(2, input.terrainBonus());
         assertTrue(input.coachingAutomaticSuccess());
+    }
+
+    @Test
+    void overlappingInterceptAnchorUsesPythonMinimumDistanceOne() {
+        RuntimeCombatantState interceptor = combatant("interceptor");
+        RuntimeInterceptCheckApplication.Input input = RuntimeInterceptCheckInputFactory.fromState(
+                state(interceptor),
+                "interceptor",
+                CombatantRuleContent.empty(),
+                interceptor.position()
+        );
+
+        assertEquals(1, input.distance());
     }
 
     @Test
@@ -63,7 +76,7 @@ class RuntimeInterceptCheckInputFactoryTest {
                 state(interceptor, "Grassland"),
                 "interceptor",
                 content,
-                2
+                new GridCoord(3, 1)
         );
 
         assertEquals(2, input.terrainBonus());
@@ -108,10 +121,10 @@ class RuntimeInterceptCheckInputFactoryTest {
         );
 
         assertEquals(0, RuntimeInterceptCheckInputFactory.fromState(
-                state(interceptor, "Forest"), "interceptor", withoutSurvivalist, 2
+                state(interceptor, "Forest"), "interceptor", withoutSurvivalist, new GridCoord(3, 1)
         ).terrainBonus());
         assertEquals(0, RuntimeInterceptCheckInputFactory.fromState(
-                state(interceptor, "Forest"), "interceptor", mismatched, 2
+                state(interceptor, "Forest"), "interceptor", mismatched, new GridCoord(3, 1)
         ).terrainBonus());
     }
 
@@ -122,7 +135,7 @@ class RuntimeInterceptCheckInputFactoryTest {
                 state(interceptor),
                 "interceptor",
                 CombatantRuleContent.empty(),
-                2
+                new GridCoord(3, 1)
         );
 
         assertFalse(input.coachingAutomaticSuccess());
@@ -139,7 +152,7 @@ class RuntimeInterceptCheckInputFactoryTest {
                 state(interceptor),
                 "interceptor",
                 CombatantRuleContent.empty(),
-                2
+                new GridCoord(3, 1)
         );
 
         assertEquals(0, input.justifiedBonus());
@@ -154,7 +167,7 @@ class RuntimeInterceptCheckInputFactoryTest {
                         state,
                         "missing",
                         CombatantRuleContent.empty(),
-                        1
+                        new GridCoord(2, 1)
                 )
         );
 
@@ -163,7 +176,7 @@ class RuntimeInterceptCheckInputFactoryTest {
                 BattleRuntimeState.class,
                 String.class,
                 CombatantRuleContent.class,
-                int.class
+                GridCoord.class
         );
         assertFalse(Modifier.isPublic(RuntimeInterceptCheckInputFactory.class.getModifiers()));
         assertFalse(Modifier.isPublic(method.getModifiers()));
