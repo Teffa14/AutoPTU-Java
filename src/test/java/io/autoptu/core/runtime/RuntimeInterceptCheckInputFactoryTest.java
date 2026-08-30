@@ -73,7 +73,7 @@ class RuntimeInterceptCheckInputFactoryTest {
     @Test
     void naturewalkCapabilityLabelsFollowPythonOrderAndCaseInsensitiveDeduplication() {
         CombatantRuleContent content = new CombatantRuleContent(
-                List.of("Naturewalk (Forest)", "naturewalk Tundra", "Naturewalk (grassland)"),
+                List.of("Naturewalk (Forest)", "Naturewalk Tundra", "Naturewalk (grassland)"),
                 4,
                 "trainer-a",
                 Map.of(),
