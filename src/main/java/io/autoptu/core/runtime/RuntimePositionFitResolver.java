@@ -15,7 +15,7 @@ import java.util.Set;
  * resolved exclusively from the authoritative battle snapshot.
  */
 public final class RuntimePositionFitResolver {
-    private static final Set<String> BLOCKING_TILE_TYPES = Set.of("wall", "blocker", "blocking", "void");
+    private static final Set<String> BLOCKING_TILE_TOKENS = Set.of("wall", "blocker", "blocking", "void");
 
     private RuntimePositionFitResolver() {
     }
@@ -42,6 +42,9 @@ public final class RuntimePositionFitResolver {
                 destination,
                 state.geometry(actorId).sizeLabel()
         );
+        if (candidateTiles.isEmpty()) {
+            return false;
+        }
         MovementGrid grid = state.grid();
         for (GridCoord tile : candidateTiles) {
             if (!grid.inBounds(tile)) {
@@ -54,7 +57,7 @@ public final class RuntimePositionFitResolver {
                 String tileType = grid.tileType(tile) == null
                         ? ""
                         : grid.tileType(tile).strip().toLowerCase(Locale.ROOT);
-                if (BLOCKING_TILE_TYPES.contains(tileType)) {
+                if (BLOCKING_TILE_TOKENS.stream().anyMatch(tileType::contains)) {
                     return false;
                 }
             }
