@@ -55,7 +55,7 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
     void failedSelectedCheckConsumesItsResourceAndDoesNotTryLaterCandidate() {
         RuntimeCombatantState attacker = combatant("attacker", 0, 0, 6);
         RuntimeCombatantState target = combatant("target", 8, 0, 6);
-        RuntimeCombatantState first = combatant("first", 0, 8, 8);
+        RuntimeCombatantState first = combatant("first", 0, 7, 8);
         RuntimeCombatantState second = combatant("second", 8, 8, 6);
         first.temporaryEffects().add("intercept_ready");
         second.temporaryEffects().add("intercept_ready");
@@ -76,7 +76,7 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
         assertFalse(first.temporaryEffects().has("intercept_ready"));
         assertTrue(second.temporaryEffects().has("intercept_ready"));
         assertTrue(second.temporaryEffects().has("coaching_intercept"));
-        assertEquals(new GridCoord(0, 8), first.position());
+        assertEquals(new GridCoord(0, 7), first.position());
         assertEquals(new GridCoord(8, 8), second.position());
         assertNull(result.interceptMovement());
         assertNull(result.meleeMovement());
