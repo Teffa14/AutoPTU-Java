@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,19 +21,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RuntimeInterceptSpatialSequenceApplicationTest {
     @Test
     void unreachableSelectedCandidateAbortsWithoutTryingLaterCandidate() {
+        RuntimeCombatantState attacker = combatant("attacker", 0, 0, 6);
         RuntimeCombatantState target = combatant("target", 3, 1, 6);
         RuntimeCombatantState first = combatant("first", 0, 8, 0);
         RuntimeCombatantState second = combatant("second", 1, 1, 6);
         first.temporaryEffects().add("intercept_ready");
         second.temporaryEffects().add("intercept_ready");
         second.temporaryEffects().add("coaching_intercept");
-        BattleRuntimeState state = state(List.of(target, first, second), Set.of(), 12345L);
+        BattleRuntimeState state = state(List.of(attacker, target, first, second), Set.of(), 12345L);
 
         RuntimeInterceptSpatialSequenceApplication.Result result = RuntimeInterceptSpatialSequenceApplication.apply(
                 state,
+                "attacker",
                 "target",
                 false,
-                List.of(new GridCoord(2, 1)),
                 List.of(attempt("first"), attempt("second"))
         );
 
@@ -53,19 +53,20 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
 
     @Test
     void failedSelectedCheckConsumesItsResourceAndDoesNotTryLaterCandidate() {
-        RuntimeCombatantState target = combatant("target", 3, 1, 6);
-        RuntimeCombatantState first = combatant("first", 0, 0, 8);
-        RuntimeCombatantState second = combatant("second", 1, 1, 6);
+        RuntimeCombatantState attacker = combatant("attacker", 0, 0, 6);
+        RuntimeCombatantState target = combatant("target", 8, 0, 6);
+        RuntimeCombatantState first = combatant("first", 0, 8, 8);
+        RuntimeCombatantState second = combatant("second", 8, 8, 6);
         first.temporaryEffects().add("intercept_ready");
         second.temporaryEffects().add("intercept_ready");
         second.temporaryEffects().add("coaching_intercept");
-        BattleRuntimeState state = state(List.of(target, first, second), Set.of(), 777L);
+        BattleRuntimeState state = state(List.of(attacker, target, first, second), Set.of(), 777L);
 
         RuntimeInterceptSpatialSequenceApplication.Result result = RuntimeInterceptSpatialSequenceApplication.apply(
                 state,
+                "attacker",
                 "target",
                 false,
-                List.of(new GridCoord(8, 0)),
                 List.of(attempt("first"), attempt("second"))
         );
 
@@ -75,25 +76,26 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
         assertFalse(first.temporaryEffects().has("intercept_ready"));
         assertTrue(second.temporaryEffects().has("intercept_ready"));
         assertTrue(second.temporaryEffects().has("coaching_intercept"));
-        assertEquals(new GridCoord(0, 0), first.position());
-        assertEquals(new GridCoord(1, 1), second.position());
+        assertEquals(new GridCoord(0, 8), first.position());
+        assertEquals(new GridCoord(8, 8), second.position());
         assertNull(result.interceptMovement());
         assertNull(result.meleeMovement());
     }
 
     @Test
-    void meleeWinnerUsesResolvedLineTileThenSharedPushAndPythonAnchor() {
+    void meleeWinnerUsesServerOwnedLineThenSharedPushAndPythonAnchor() {
+        RuntimeCombatantState attacker = combatant("attacker", 0, 0, 6);
         RuntimeCombatantState target = combatant("target", 3, 1, 6);
         RuntimeCombatantState interceptor = combatant("interceptor", 1, 1, 6);
         interceptor.temporaryEffects().add("intercept_ready");
         interceptor.temporaryEffects().add("coaching_intercept");
-        BattleRuntimeState state = state(List.of(target, interceptor), Set.of(), 222L);
+        BattleRuntimeState state = state(List.of(attacker, target, interceptor), Set.of(), 222L);
 
         RuntimeInterceptSpatialSequenceApplication.Result result = RuntimeInterceptSpatialSequenceApplication.apply(
                 state,
+                "attacker",
                 "target",
                 true,
-                List.of(new GridCoord(2, 1)),
                 List.of(attempt("interceptor"))
         );
 
@@ -106,22 +108,23 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
     }
 
     @Test
-    void blockedMeleePushKeepsSharedPartialStopAfterServerOwnedPositionResolution() {
+    void blockedMeleePushKeepsSharedPartialStopAfterServerOwnedLineResolution() {
+        RuntimeCombatantState attacker = combatant("attacker", 0, 0, 6);
         RuntimeCombatantState target = combatant("target", 3, 1, 6);
         RuntimeCombatantState interceptor = combatant("interceptor", 1, 1, 6);
         interceptor.temporaryEffects().add("intercept_ready");
         interceptor.temporaryEffects().add("coaching_intercept");
         BattleRuntimeState state = state(
-                List.of(target, interceptor),
+                List.of(attacker, target, interceptor),
                 Set.of(new GridCoord(4, 1)),
                 333L
         );
 
         RuntimeInterceptSpatialSequenceApplication.Result result = RuntimeInterceptSpatialSequenceApplication.apply(
                 state,
+                "attacker",
                 "target",
                 true,
-                List.of(new GridCoord(2, 1)),
                 List.of(attempt("interceptor"))
         );
 
@@ -133,18 +136,19 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
 
     @Test
     void noReachableSelectedCandidateDoesNotRollConsumeResourcesOrMove() {
+        RuntimeCombatantState attacker = combatant("attacker", 0, 0, 6);
         RuntimeCombatantState target = combatant("target", 3, 1, 6);
         RuntimeCombatantState first = combatant("first", 0, 8, 0);
         RuntimeCombatantState second = combatant("second", 8, 8, 0);
         first.temporaryEffects().add("intercept_ready");
         second.temporaryEffects().add("intercept_ready");
-        BattleRuntimeState state = state(List.of(target, first, second), Set.of(), 444L);
+        BattleRuntimeState state = state(List.of(attacker, target, first, second), Set.of(), 444L);
 
         RuntimeInterceptSpatialSequenceApplication.Result result = RuntimeInterceptSpatialSequenceApplication.apply(
                 state,
+                "attacker",
                 "target",
                 true,
-                List.of(new GridCoord(2, 1)),
                 List.of(attempt("first"), attempt("second"))
         );
 
@@ -171,16 +175,17 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
     }
 
     @Test
-    void adaptersCannotInvokeSpatialSequenceBoundaryPublicly() throws Exception {
+    void adaptersCannotInvokeSpatialSequenceBoundaryPubliclyOrSupplyAttackLine() throws Exception {
         Method method = RuntimeInterceptSpatialSequenceApplication.class.getDeclaredMethod(
                 "apply",
                 BattleRuntimeState.class,
                 String.class,
+                String.class,
                 boolean.class,
-                Collection.class,
                 List.class
         );
         assertFalse(Modifier.isPublic(method.getModifiers()));
+        assertEquals(5, method.getParameterCount());
     }
 
     private static RuntimeInterceptSpatialSequenceApplication.Attempt attempt(String interceptorId) {
