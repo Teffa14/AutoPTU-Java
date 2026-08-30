@@ -1,6 +1,5 @@
 package io.autoptu.core.runtime;
 
-import io.autoptu.core.model.CombatantSize;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
@@ -18,7 +17,7 @@ final class RuntimeShiftDestinationResolverTest {
     @Test
     void positionFitMatchesPythonDefaultOccupancyAndTerrainBoundary() {
         RuntimeCombatantState actor = combatant("actor", new GridCoord(1, 1), 2, 10);
-        RuntimeCombatantState occupant = combatant("occupant", new GridCoord(2, 1), 0, 10);
+        RuntimeCombatantState occupant = combatant("occupant", new GridCoord(2, 1), 0, 0);
         MovementGrid grid = new MovementGrid(
                 4,
                 4,
@@ -53,7 +52,7 @@ final class RuntimeShiftDestinationResolverTest {
                 List.of(actor),
                 Map.of(),
                 Map.of(),
-                Map.of("large", new CombatantGeometryState(CombatantSize.LARGE))
+                Map.of("large", new CombatantGeometryState("Large"))
         );
 
         assertFalse(RuntimePositionFitResolver.canFit(state, "large", new GridCoord(2, 2)));
