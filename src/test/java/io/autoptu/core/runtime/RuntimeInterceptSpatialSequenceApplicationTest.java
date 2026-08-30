@@ -65,7 +65,7 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
                 state,
                 "target",
                 false,
-                List.of(new GridCoord(8, 8)),
+                List.of(new GridCoord(8, 0)),
                 List.of(attempt("first"), attempt("second"))
         );
 
