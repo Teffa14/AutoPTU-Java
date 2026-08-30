@@ -42,7 +42,7 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
         assertEquals("second", result.replacementTargetId());
         assertEquals(1, result.sequence().attemptedCandidates().size());
         assertEquals("second", result.sequence().attemptedCandidates().get(0).interceptorId());
-        assertTrue(first.temporaryEffects().contains("intercept_ready"));
+        assertTrue(first.temporaryEffects().has("intercept_ready"));
         assertEquals(new GridCoord(0, 8), first.position());
         assertEquals(new GridCoord(2, 1), second.position());
         assertEquals(new GridCoord(3, 1), target.position());
@@ -120,8 +120,8 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
         assertFalse(result.intercepted());
         assertEquals("target", result.replacementTargetId());
         assertTrue(result.sequence().attemptedCandidates().isEmpty());
-        assertTrue(first.temporaryEffects().contains("intercept_ready"));
-        assertTrue(second.temporaryEffects().contains("intercept_ready"));
+        assertTrue(first.temporaryEffects().has("intercept_ready"));
+        assertTrue(second.temporaryEffects().has("intercept_ready"));
         assertEquals(new GridCoord(0, 8), first.position());
         assertEquals(new GridCoord(8, 8), second.position());
         assertEquals(new GridCoord(3, 1), target.position());
