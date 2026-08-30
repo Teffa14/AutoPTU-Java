@@ -104,7 +104,7 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
         assertEquals(1, result.meleeMovement().targetPush().requestedDistance());
         assertEquals(1, result.meleeMovement().targetPush().movedDistance());
         assertEquals(new GridCoord(3, 1), interceptor.position());
-        assertEquals(new GridCoord(4, 1), target.position());
+        assertEquals(new GridCoord(4, 2), target.position());
     }
 
     @Test
@@ -116,7 +116,7 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
         interceptor.temporaryEffects().add("coaching_intercept");
         BattleRuntimeState state = state(
                 List.of(attacker, target, interceptor),
-                Set.of(new GridCoord(4, 1)),
+                Set.of(new GridCoord(4, 2)),
                 333L
         );
 
