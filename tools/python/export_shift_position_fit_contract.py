@@ -18,10 +18,11 @@ def main() -> None:
     movement = (root / "auto_ptu" / "rules" / "movement.py").read_text(encoding="utf-8")
 
     required_battle = {
-        "candidate_tiles": "candidate_tiles = actor.footprint_tiles(destination)",
-        "in_bounds": "if any(not self.grid.in_bounds(tile) for tile in candidate_tiles):",
-        "blocking_names": 'blocked_names = {"wall", "blocker", "blocking", "void"}',
-        "self_exclusion": "exclude_id=(exclude_id if exclude_id is not None else actor_id)",
+        "candidate_tiles": "candidate_tiles = actor.footprint_tiles(None, destination)",
+        "non_empty_footprint": "if not candidate_tiles:\n                return False",
+        "in_bounds": "if not self.grid.in_bounds(coord):",
+        "blocking_tokens": 'any(token in tile_type for token in ("wall", "blocker", "blocking", "void"))',
+        "self_exclusion": "exclude_id=exclude_id if exclude_id is not None else actor_id,",
         "active_default": "active_only: bool = True",
         "conscious_default": "conscious_only: bool = True",
         "terrain_default": "block_on_terrain: bool = True",
@@ -29,7 +30,8 @@ def main() -> None:
     }
     required_movement = {
         "server_fit_call": "battle._position_can_fit(actor_id, nxt)",
-        "movement_profile": "actor.movement_profile()",
+        "movement_profile": 'actor.movement_speed("overland", weather=weather)',
+        "final_fit_filter": "coord == actor.position or battle._position_can_fit(actor_id, coord)",
     }
 
     for key, snippet in required_battle.items():
@@ -42,15 +44,19 @@ def main() -> None:
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     rows = [
-        ("position_fit.footprint", "actor.footprint_tiles(destination)"),
+        ("position_fit.footprint", "actor footprint at destination"),
+        ("position_fit.empty_footprint", "reject"),
         ("position_fit.out_of_bounds", "reject"),
-        ("position_fit.blocking_tile_types", "wall,blocker,blocking,void"),
+        ("position_fit.blocking_tile_tokens", "wall,blocker,blocking,void"),
+        ("position_fit.blocking_tile_match", "substring"),
         ("position_fit.default.exclude_self", "true"),
         ("position_fit.default.active_only", "true"),
         ("position_fit.default.conscious_only", "true"),
         ("position_fit.default.block_on_terrain", "true"),
+        ("position_fit.occupancy", "footprints disjoint"),
         ("shift.position_fit_source", "battle_state"),
-        ("shift.profile_source", "actor"),
+        ("shift.profile_source", "actor movement capability"),
+        ("shift.final_position_fit_filter", "true"),
     ]
     out.write_text("key\tvalue\n" + "".join(f"{k}\t{v}\n" for k, v in rows), encoding="utf-8")
 
