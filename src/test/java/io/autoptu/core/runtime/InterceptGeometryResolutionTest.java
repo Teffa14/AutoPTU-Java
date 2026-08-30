@@ -24,6 +24,8 @@ class InterceptGeometryResolutionTest {
         assertEquals(1, fixture.get("candidate_sort_targets_medium_anchor"));
         assertEquals(1, fixture.get("attack_line_uses_line_cells"));
         assertEquals(1, fixture.get("off_line_uses_legal_shift_tiles"));
+        assertEquals(1, fixture.get("no_legal_line_tile_skips_candidate"));
+        assertEquals(1, fixture.get("no_legal_line_tile_skips_before_check"));
         assertEquals(1, fixture.get("line_tile_sort_uses_footprint_distance"));
         assertEquals(1, fixture.get("line_tile_sort_targets_medium_anchor"));
         assertEquals(1, fixture.get("check_distance_uses_footprint_distance"));
