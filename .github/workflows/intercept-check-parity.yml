@@ -18,6 +18,7 @@ on:
       - "src/test/java/io/autoptu/core/runtime/InterceptCheckResolutionTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptServerOwnedSkillInputTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptCheckInputFactoryTest.java"
+      - "src/test/java/io/autoptu/core/runtime/CombatantRuleContentNaturewalkParityTest.java"
       - "src/test/java/io/autoptu/core/runtime/TerrainContextLabelResolverTest.java"
       - "src/test/java/io/autoptu/core/runtime/TerrainSkillCheckBonusResolverTest.java"
       - "tools/python/export_intercept_check_contract.py"
@@ -66,5 +67,6 @@ jobs:
           --tests io.autoptu.core.runtime.InterceptCheckResolutionTest
           --tests io.autoptu.core.runtime.RuntimeInterceptServerOwnedSkillInputTest
           --tests io.autoptu.core.runtime.RuntimeInterceptCheckInputFactoryTest
+          --tests io.autoptu.core.runtime.CombatantRuleContentNaturewalkParityTest
           --tests io.autoptu.core.runtime.TerrainContextLabelResolverTest
           --tests io.autoptu.core.runtime.TerrainSkillCheckBonusResolverTest

@@ -2,55 +2,109 @@ package io.autoptu.core.runtime;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Immutable server-owned rule content that is not derived from Minecraft/Cobblemon entities.
  *
- * <p>Capabilities, Loyalty and PTU skill ranks are generic content used by multiple rule
- * families. Keeping them in one content snapshot prevents adapters from supplying
- * rule-specific conclusions such as an already-resolved interception bonus.</p>
+ * <p>Capabilities, Loyalty, PTU skill ranks, Trainer Features, and Naturewalk labels are generic
+ * content used by multiple rule families. Keeping them in one content snapshot prevents adapters
+ * from supplying rule-specific conclusions such as an already-resolved interception bonus.</p>
  */
 public record CombatantRuleContent(
         List<String> capabilities,
         Integer loyalty,
         String controllerId,
-        Map<String, Integer> skillRanks
+        Map<String, Integer> skillRanks,
+        List<String> trainerFeatures,
+        List<String> naturewalkLabels
 ) {
+    private static final Pattern NATUREWALK_PARENTHETICAL = Pattern.compile("\\(([^)]+)\\)");
+
     public CombatantRuleContent {
         capabilities = normalize(capabilities);
         if (loyalty != null) loyalty = Math.max(0, loyalty);
         controllerId = controllerId == null ? "" : controllerId.strip();
         skillRanks = normalizeSkillRanks(skillRanks);
+        trainerFeatures = normalize(trainerFeatures);
+        naturewalkLabels = normalize(naturewalkLabels);
+    }
+
+    public CombatantRuleContent(
+            List<String> capabilities,
+            Integer loyalty,
+            String controllerId,
+            Map<String, Integer> skillRanks
+    ) {
+        this(capabilities, loyalty, controllerId, skillRanks, List.of(), List.of());
     }
 
     public CombatantRuleContent(List<String> capabilities, Integer loyalty, String controllerId) {
-        this(capabilities, loyalty, controllerId, Map.of());
+        this(capabilities, loyalty, controllerId, Map.of(), List.of(), List.of());
     }
 
     public CombatantRuleContent(List<String> capabilities, Integer loyalty) {
-        this(capabilities, loyalty, "", Map.of());
+        this(capabilities, loyalty, "", Map.of(), List.of(), List.of());
     }
 
     public static CombatantRuleContent empty() {
-        return new CombatantRuleContent(List.of(), null, "", Map.of());
+        return new CombatantRuleContent(List.of(), null, "", Map.of(), List.of(), List.of());
     }
 
     public boolean hasCapability(String capability) {
-        if (capability == null || capability.isBlank()) return false;
-        String expected = capability.strip().toLowerCase(Locale.ROOT);
-        for (String value : capabilities) {
-            if (value.toLowerCase(Locale.ROOT).equals(expected)) return true;
+        return containsIgnoreCase(capabilities, capability);
+    }
+
+    /** Returns whether canonical server-owned content grants the exact Trainer Feature. */
+    public boolean hasTrainerFeature(String featureName) {
+        return containsIgnoreCase(trainerFeatures, featureName);
+    }
+
+    /**
+     * Returns Python-compatible effective Naturewalk labels.
+     *
+     * <p>Species-derived Naturewalk labels are supplied explicitly by the content loader. PTU
+     * capabilities can grant additional Naturewalk entries (for example {@code Naturewalk
+     * (Tundra)}); Python appends those after species labels and de-duplicates case-insensitively.</p>
+     */
+    public List<String> effectiveNaturewalkLabels() {
+        LinkedHashMap<String, String> labels = new LinkedHashMap<>();
+        for (String label : naturewalkLabels) addNaturewalkLabel(labels, label);
+        for (String capability : capabilities) {
+            if (!capability.toLowerCase(Locale.ROOT).startsWith("naturewalk")) continue;
+            Matcher matcher = NATUREWALK_PARENTHETICAL.matcher(capability);
+            String label = matcher.find()
+                    ? matcher.group(1)
+                    : capability.replace("Naturewalk", "").strip().replaceAll("^[ ()]+|[ ()]+$", "");
+            addNaturewalkLabel(labels, label);
         }
-        return false;
+        return List.copyOf(labels.values());
     }
 
     /** Returns the server-owned PTU rank for a skill, defaulting missing skills to zero. */
     public int skillRank(String skillName) {
         if (skillName == null || skillName.isBlank()) return 0;
         return skillRanks.getOrDefault(skillName.strip().toLowerCase(Locale.ROOT), 0);
+    }
+
+    private static void addNaturewalkLabel(Map<String, String> labels, String value) {
+        if (value == null || value.isBlank()) return;
+        String label = value.strip();
+        labels.putIfAbsent(label.toLowerCase(Locale.ROOT), label);
+    }
+
+    private static boolean containsIgnoreCase(List<String> values, String expectedValue) {
+        if (expectedValue == null || expectedValue.isBlank()) return false;
+        String expected = expectedValue.strip().toLowerCase(Locale.ROOT);
+        for (String value : values) {
+            if (value.toLowerCase(Locale.ROOT).equals(expected)) return true;
+        }
+        return false;
     }
 
     private static List<String> normalize(List<String> values) {
