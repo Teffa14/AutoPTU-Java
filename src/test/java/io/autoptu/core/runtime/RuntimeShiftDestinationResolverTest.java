@@ -6,14 +6,37 @@ import io.autoptu.core.model.MovementProfile;
 import io.autoptu.core.rules.ActionBudget;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class RuntimeShiftDestinationResolverTest {
+    @Test
+    void pinnedPythonContractRemainsWiredIntoJavaGate() throws IOException {
+        String oraclePath = System.getProperty("autoptu.shift.positionFit.oracle", "").strip();
+        if (oraclePath.isEmpty()) {
+            return;
+        }
+        Map<String, String> contract = readContract(Path.of(oraclePath));
+        assertEquals("actor.footprint_tiles(destination)", contract.get("position_fit.footprint"));
+        assertEquals("reject", contract.get("position_fit.out_of_bounds"));
+        assertEquals("wall,blocker,blocking,void", contract.get("position_fit.blocking_tile_types"));
+        assertEquals("true", contract.get("position_fit.default.exclude_self"));
+        assertEquals("true", contract.get("position_fit.default.active_only"));
+        assertEquals("true", contract.get("position_fit.default.conscious_only"));
+        assertEquals("true", contract.get("position_fit.default.block_on_terrain"));
+        assertEquals("battle_state", contract.get("shift.position_fit_source"));
+        assertEquals("actor", contract.get("shift.profile_source"));
+    }
+
     @Test
     void positionFitMatchesPythonDefaultOccupancyAndTerrainBoundary() {
         RuntimeCombatantState actor = combatant("actor", new GridCoord(1, 1), 2, 10);
@@ -57,6 +80,18 @@ final class RuntimeShiftDestinationResolverTest {
 
         assertFalse(RuntimePositionFitResolver.canFit(state, "large", new GridCoord(2, 2)));
         assertTrue(RuntimePositionFitResolver.canFit(state, "large", new GridCoord(1, 1)));
+    }
+
+    private static Map<String, String> readContract(Path path) throws IOException {
+        Map<String, String> values = new LinkedHashMap<>();
+        List<String> lines = Files.readAllLines(path);
+        for (int i = 1; i < lines.size(); i++) {
+            String[] parts = lines.get(i).split("\\t", 2);
+            if (parts.length == 2) {
+                values.put(parts[0], parts[1]);
+            }
+        }
+        return values;
     }
 
     private static RuntimeCombatantState combatant(String id, GridCoord position, int overland, int hp) {
