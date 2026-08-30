@@ -10,6 +10,7 @@ import io.autoptu.core.rules.ActionBudget;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,7 +33,6 @@ class RuntimeInterceptPreResolutionTargetHookTest {
         RuntimeInterceptPreResolutionTargetHook hook = new RuntimeInterceptPreResolutionTargetHook(
                 (context, currentTargetId) -> new RuntimeInterceptPreResolutionTargetHook.Plan(
                         false,
-                        List.of(new GridCoord(2, 1)),
                         List.of(new RuntimeInterceptSpatialSequenceApplication.Attempt(
                                 new InterceptCandidateDiscoveryResolution.Candidate("interceptor", "Intercept", false),
                                 CombatantRuleContent.empty()
@@ -46,7 +46,7 @@ class RuntimeInterceptPreResolutionTargetHookTest {
         );
 
         assertEquals("interceptor", result.targetId());
-        assertEquals(new GridCoord(2, 1), interceptor.position());
+        assertEquals(new GridCoord(1, 0), interceptor.position());
         assertEquals(new GridCoord(3, 1), target.position());
         assertEquals(1, result.events().size());
         RuleEffectEvent event = assertInstanceOf(RuleEffectEvent.class, result.events().get(0));
@@ -69,7 +69,6 @@ class RuntimeInterceptPreResolutionTargetHookTest {
         RuntimeInterceptPreResolutionTargetHook hook = new RuntimeInterceptPreResolutionTargetHook(
                 (context, currentTargetId) -> new RuntimeInterceptPreResolutionTargetHook.Plan(
                         false,
-                        List.of(new GridCoord(3, 3)),
                         List.of(new RuntimeInterceptSpatialSequenceApplication.Attempt(
                                 new InterceptCandidateDiscoveryResolution.Candidate("interceptor", "Intercept", false),
                                 CombatantRuleContent.empty()
@@ -89,9 +88,12 @@ class RuntimeInterceptPreResolutionTargetHookTest {
     }
 
     @Test
-    void adaptersCannotConstructHookOrPlannerPublicly() {
+    void adaptersCannotConstructHookPlannerOrAttackLinePlanPublicly() {
         assertFalse(Modifier.isPublic(RuntimeInterceptPreResolutionTargetHook.class.getModifiers()));
         assertFalse(Modifier.isPublic(RuntimeInterceptPreResolutionTargetHook.AttemptPlanner.class.getModifiers()));
+        assertTrue(Arrays.stream(RuntimeInterceptPreResolutionTargetHook.Plan.class.getRecordComponents())
+                .noneMatch(component -> component.getType().equals(GridCoord.class)));
+        assertEquals(2, RuntimeInterceptPreResolutionTargetHook.Plan.class.getRecordComponents().length);
     }
 
     private static RuntimeCombatantState combatant(String id, int x, int y, int overland) {
