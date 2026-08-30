@@ -34,7 +34,7 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
                 "target",
                 false,
                 List.of(
-                        attempt("first", new GridCoord(7, 7)),
+                        attempt("first", new GridCoord(8, 8)),
                         attempt("second", new GridCoord(2, 1))
                 )
         );
@@ -110,8 +110,8 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
                 "target",
                 true,
                 List.of(
-                        attempt("first", new GridCoord(7, 7)),
-                        attempt("second", new GridCoord(7, 7))
+                        attempt("first", new GridCoord(8, 8)),
+                        attempt("second", new GridCoord(8, 8))
                 )
         );
 
@@ -171,7 +171,7 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
             long seed
     ) {
         return new BattleRuntimeState(
-                new MovementGrid(8, 8, blocked, Map.of()),
+                new MovementGrid(9, 9, blocked, Map.of()),
                 combatants,
                 seed
         );
