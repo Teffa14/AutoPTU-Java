@@ -23,12 +23,17 @@ def main() -> None:
     source = ast.unparse(fn)
     line_tile_index = source.find("target_pos = line_tiles[0]")
     line_tile_distance_index = source.find("distance = targeting.footprint_distance(", line_tile_index)
+    no_line_index = source.find("if not line_tiles:")
+    no_line_continue_index = source.find("continue", no_line_index)
+    check_index = source.find("success =", max(no_line_continue_index, 0))
 
     contract = {
         "candidate_sort_uses_footprint_distance": int("interceptors.sort(key=lambda item: targeting.footprint_distance(" in source),
         "candidate_sort_targets_medium_anchor": int("target_pos, 'Medium', self.grid" in source),
         "attack_line_uses_line_cells": int("line = self._line_cells(attacker.position, target_pos)" in source),
         "off_line_uses_legal_shift_tiles": int("reachable = movement.legal_shift_tiles(self, interceptor_id)" in source and "line_tiles = [coord for coord in line if coord in reachable]" in source),
+        "no_legal_line_tile_skips_candidate": int(no_line_index >= 0 and no_line_continue_index > no_line_index),
+        "no_legal_line_tile_skips_before_check": int(no_line_continue_index >= 0 and check_index > no_line_continue_index),
         "line_tile_sort_uses_footprint_distance": int("line_tiles.sort(key=lambda coord: targeting.footprint_distance(" in source),
         "line_tile_sort_targets_medium_anchor": int("coord, 'Medium', self.grid" in source),
         "check_distance_uses_footprint_distance": int("distance = targeting.footprint_distance(" in source),
@@ -40,6 +45,10 @@ def main() -> None:
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("key\tvalue\n" + "".join(f"{key}\t{value}\n" for key, value in contract.items()), encoding="utf-8")
+
+    missing = [key for key, value in contract.items() if value != 1]
+    if missing:
+        raise RuntimeError("intercept geometry contract changed: " + ", ".join(missing))
 
 
 if __name__ == "__main__":
