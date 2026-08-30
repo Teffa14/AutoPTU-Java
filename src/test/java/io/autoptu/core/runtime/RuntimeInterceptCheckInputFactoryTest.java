@@ -19,31 +19,100 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RuntimeInterceptCheckInputFactoryTest {
     @Test
-    void derivesSkillsJustifiedAndCoachingFromServerOwnedState() {
+    void derivesSkillsJustifiedCoachingAndTerrainFromServerOwnedState() {
         RuntimeCombatantState interceptor = combatant("interceptor", List.of("Justified [Errata]"));
         interceptor.temporaryEffects().add("coaching_intercept");
-        BattleRuntimeState state = state(interceptor);
+        BattleRuntimeState state = state(interceptor, "Forest");
         CombatantRuleContent content = new CombatantRuleContent(
-                List.of(),
+                List.of("Naturewalk (Forest)"),
                 4,
                 "trainer-a",
-                Map.of("Acrobatics", 3, "Athletics", 7)
+                Map.of("Acrobatics", 3, "Athletics", 7),
+                List.of("Survivalist"),
+                List.of()
         );
 
         RuntimeInterceptCheckApplication.Input input = RuntimeInterceptCheckInputFactory.fromState(
                 state,
                 "interceptor",
                 content,
-                5,
-                -1
+                5
         );
 
         assertEquals(5, input.distance());
         assertEquals(3, input.acrobaticsRank());
         assertEquals(7, input.athleticsRank());
         assertEquals(4, input.justifiedBonus());
-        assertEquals(-1, input.terrainBonus());
+        assertEquals(2, input.terrainBonus());
         assertTrue(input.coachingAutomaticSuccess());
+    }
+
+    @Test
+    void speciesNaturewalkLabelAlsoFeedsTerrainBonus() {
+        RuntimeCombatantState interceptor = combatant("interceptor");
+        CombatantRuleContent content = new CombatantRuleContent(
+                List.of(),
+                4,
+                "trainer-a",
+                Map.of(),
+                List.of("Survivalist"),
+                List.of("Grassland")
+        );
+
+        RuntimeInterceptCheckApplication.Input input = RuntimeInterceptCheckInputFactory.fromState(
+                state(interceptor, "Grassland"),
+                "interceptor",
+                content,
+                2
+        );
+
+        assertEquals(2, input.terrainBonus());
+        assertEquals(List.of("Grassland"), content.effectiveNaturewalkLabels());
+    }
+
+    @Test
+    void naturewalkCapabilityLabelsFollowPythonOrderAndCaseInsensitiveDeduplication() {
+        CombatantRuleContent content = new CombatantRuleContent(
+                List.of("Naturewalk (Forest)", "naturewalk Tundra", "Naturewalk (grassland)"),
+                4,
+                "trainer-a",
+                Map.of(),
+                List.of(),
+                List.of("Grassland")
+        );
+
+        assertEquals(
+                List.of("Grassland", "Forest", "Tundra"),
+                content.effectiveNaturewalkLabels()
+        );
+    }
+
+    @Test
+    void missingSurvivalistOrTerrainMatchDoesNotAddTerrainBonus() {
+        RuntimeCombatantState interceptor = combatant("interceptor");
+        CombatantRuleContent withoutSurvivalist = new CombatantRuleContent(
+                List.of("Naturewalk (Forest)"),
+                4,
+                "trainer-a",
+                Map.of(),
+                List.of(),
+                List.of()
+        );
+        CombatantRuleContent mismatched = new CombatantRuleContent(
+                List.of("Naturewalk (Tundra)"),
+                4,
+                "trainer-a",
+                Map.of(),
+                List.of("Survivalist"),
+                List.of()
+        );
+
+        assertEquals(0, RuntimeInterceptCheckInputFactory.fromState(
+                state(interceptor, "Forest"), "interceptor", withoutSurvivalist, 2
+        ).terrainBonus());
+        assertEquals(0, RuntimeInterceptCheckInputFactory.fromState(
+                state(interceptor, "Forest"), "interceptor", mismatched, 2
+        ).terrainBonus());
     }
 
     @Test
@@ -53,12 +122,12 @@ class RuntimeInterceptCheckInputFactoryTest {
                 state(interceptor),
                 "interceptor",
                 CombatantRuleContent.empty(),
-                2,
-                0
+                2
         );
 
         assertFalse(input.coachingAutomaticSuccess());
         assertEquals(0, input.justifiedBonus());
+        assertEquals(0, input.terrainBonus());
         assertEquals(0, input.acrobaticsRank());
         assertEquals(0, input.athleticsRank());
     }
@@ -70,8 +139,7 @@ class RuntimeInterceptCheckInputFactoryTest {
                 state(interceptor),
                 "interceptor",
                 CombatantRuleContent.empty(),
-                2,
-                0
+                2
         );
 
         assertEquals(0, input.justifiedBonus());
@@ -86,8 +154,7 @@ class RuntimeInterceptCheckInputFactoryTest {
                         state,
                         "missing",
                         CombatantRuleContent.empty(),
-                        1,
-                        0
+                        1
                 )
         );
 
@@ -96,7 +163,6 @@ class RuntimeInterceptCheckInputFactoryTest {
                 BattleRuntimeState.class,
                 String.class,
                 CombatantRuleContent.class,
-                int.class,
                 int.class
         );
         assertFalse(Modifier.isPublic(RuntimeInterceptCheckInputFactory.class.getModifiers()));
@@ -128,9 +194,15 @@ class RuntimeInterceptCheckInputFactoryTest {
     }
 
     private static BattleRuntimeState state(RuntimeCombatantState interceptor) {
-        return new BattleRuntimeState(
+        return state(interceptor, "");
+    }
+
+    private static BattleRuntimeState state(RuntimeCombatantState interceptor, String terrain) {
+        BattleRuntimeState state = new BattleRuntimeState(
                 new MovementGrid(8, 8, Set.of(), Map.of()),
                 List.of(interceptor)
         );
+        state.syncEnvironmentFromRuntime(new BattleEnvironmentState("", terrain, Set.of(), Map.of()));
+        return state;
     }
 }
