@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RuntimeInterceptSpatialSequenceApplicationTest {
     @Test
-    void unreachableCandidateIsSkippedBeforeResourcesAndRangedWinnerCommitsResolvedPosition() {
+    void unreachableSelectedCandidateAbortsWithoutTryingLaterCandidate() {
         RuntimeCombatantState target = combatant("target", 3, 1, 6);
         RuntimeCombatantState first = combatant("first", 0, 8, 0);
         RuntimeCombatantState second = combatant("second", 1, 1, 6);
@@ -38,15 +38,46 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
                 List.of(attempt("first"), attempt("second"))
         );
 
-        assertTrue(result.intercepted());
-        assertEquals("second", result.replacementTargetId());
-        assertEquals(1, result.sequence().attemptedCandidates().size());
-        assertEquals("second", result.sequence().attemptedCandidates().get(0).interceptorId());
+        assertFalse(result.intercepted());
+        assertEquals("target", result.replacementTargetId());
+        assertTrue(result.sequence().attemptedCandidates().isEmpty());
         assertTrue(first.temporaryEffects().has("intercept_ready"));
+        assertTrue(second.temporaryEffects().has("intercept_ready"));
+        assertTrue(second.temporaryEffects().has("coaching_intercept"));
         assertEquals(new GridCoord(0, 8), first.position());
-        assertEquals(new GridCoord(2, 1), second.position());
+        assertEquals(new GridCoord(1, 1), second.position());
         assertEquals(new GridCoord(3, 1), target.position());
-        assertTrue(result.interceptMovement().checkSucceeded());
+        assertNull(result.interceptMovement());
+        assertNull(result.meleeMovement());
+    }
+
+    @Test
+    void failedSelectedCheckConsumesItsResourceAndDoesNotTryLaterCandidate() {
+        RuntimeCombatantState target = combatant("target", 3, 1, 6);
+        RuntimeCombatantState first = combatant("first", 0, 0, 8);
+        RuntimeCombatantState second = combatant("second", 1, 1, 6);
+        first.temporaryEffects().add("intercept_ready");
+        second.temporaryEffects().add("intercept_ready");
+        second.temporaryEffects().add("coaching_intercept");
+        BattleRuntimeState state = state(List.of(target, first, second), Set.of(), 777L);
+
+        RuntimeInterceptSpatialSequenceApplication.Result result = RuntimeInterceptSpatialSequenceApplication.apply(
+                state,
+                "target",
+                false,
+                List.of(new GridCoord(8, 8)),
+                List.of(attempt("first"), attempt("second"))
+        );
+
+        assertFalse(result.intercepted());
+        assertEquals(1, result.sequence().attemptedCandidates().size());
+        assertEquals("first", result.sequence().attemptedCandidates().get(0).interceptorId());
+        assertFalse(first.temporaryEffects().has("intercept_ready"));
+        assertTrue(second.temporaryEffects().has("intercept_ready"));
+        assertTrue(second.temporaryEffects().has("coaching_intercept"));
+        assertEquals(new GridCoord(0, 0), first.position());
+        assertEquals(new GridCoord(1, 1), second.position());
+        assertNull(result.interceptMovement());
         assertNull(result.meleeMovement());
     }
 
@@ -101,7 +132,7 @@ class RuntimeInterceptSpatialSequenceApplicationTest {
     }
 
     @Test
-    void noReachableCandidatesDoNotRollConsumeResourcesOrMove() {
+    void noReachableSelectedCandidateDoesNotRollConsumeResourcesOrMove() {
         RuntimeCombatantState target = combatant("target", 3, 1, 6);
         RuntimeCombatantState first = combatant("first", 0, 8, 0);
         RuntimeCombatantState second = combatant("second", 8, 8, 0);
