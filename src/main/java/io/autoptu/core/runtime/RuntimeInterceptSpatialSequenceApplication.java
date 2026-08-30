@@ -2,45 +2,33 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.model.GridCoord;
 
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
- * Composes the authoritative interception attempt sequence with the spatial mutations
- * that Python performs only for the first successful candidate.
+ * Composes the authoritative interception attempt sequence with server-owned spatial resolution.
  *
- * <p>RNG, PTU check conclusions and interception resources are owned by the runtime.
- * Callers provide candidate identity, canonical combatant rule content and the already-resolved
- * legal intercept position; this boundary materializes the check input itself before delegating
- * ordered attempt/resource resolution. Only after that sequence finds a winner does this boundary
- * commit the winner's intercept position. Melee interceptions reuse
- * {@link InterceptMovementApplication#applyMelee} so Push 1, collisions and partial stops remain
- * owned by the shared forced-movement engine.</p>
+ * <p>Callers provide candidate identity, canonical combatant rule content and the PTU attack-line
+ * cells. The caller must preserve Python's candidate ordering; the runtime selects only the first
+ * candidate, matching Python's {@code interceptors[0]} behavior. It then derives that candidate's
+ * legal intercept position from authoritative Shift legality before materializing the check input.
+ * If the selected candidate cannot reach an attack-line cell, interception ends before RNG or
+ * resources are consumed; later candidates are not tried. Only a successful selected candidate
+ * commits movement. Melee interceptions reuse {@link InterceptMovementApplication#applyMelee} so
+ * Push 1, collisions and partial stops remain owned by the shared forced-movement engine.</p>
  */
 public final class RuntimeInterceptSpatialSequenceApplication {
     private RuntimeInterceptSpatialSequenceApplication() {}
 
     public record Attempt(
             InterceptCandidateDiscoveryResolution.Candidate candidate,
-            CombatantRuleContent interceptorContent,
-            GridCoord interceptPosition
+            CombatantRuleContent interceptorContent
     ) {
         public Attempt {
             if (candidate == null) throw new IllegalArgumentException("candidate is required");
             if (interceptorContent == null) {
                 throw new IllegalArgumentException("interceptor rule content is required");
             }
-            if (interceptPosition == null) throw new IllegalArgumentException("interceptPosition is required");
-        }
-
-        RuntimeInterceptCandidateSequenceApplication.Attempt sequenceAttempt(BattleRuntimeState state) {
-            RuntimeInterceptCheckApplication.Input checkInput = RuntimeInterceptCheckInputFactory.fromState(
-                    state,
-                    candidate.combatantId(),
-                    interceptorContent,
-                    interceptPosition
-            );
-            return new RuntimeInterceptCandidateSequenceApplication.Attempt(candidate, checkInput);
         }
     }
 
@@ -69,6 +57,7 @@ public final class RuntimeInterceptSpatialSequenceApplication {
             BattleRuntimeState state,
             String originalTargetId,
             boolean melee,
+            Collection<GridCoord> attackLine,
             List<Attempt> attempts
     ) {
         if (state == null) throw new IllegalArgumentException("battle state is required");
@@ -76,29 +65,51 @@ public final class RuntimeInterceptSpatialSequenceApplication {
             throw new IllegalArgumentException("originalTargetId is required");
         }
 
+        Collection<GridCoord> line = attackLine == null ? List.of() : List.copyOf(attackLine);
         List<Attempt> requested = attempts == null ? List.of() : List.copyOf(attempts);
-        ArrayList<RuntimeInterceptCandidateSequenceApplication.Attempt> sequenceAttempts = new ArrayList<>();
-        for (Attempt attempt : requested) {
-            if (attempt == null) throw new IllegalArgumentException("attempt entries are required");
-            sequenceAttempts.add(attempt.sequenceAttempt(state));
+        if (requested.stream().anyMatch(java.util.Objects::isNull)) {
+            throw new IllegalArgumentException("attempt entries are required");
+        }
+        if (requested.isEmpty()) {
+            RuntimeInterceptCandidateSequenceApplication.Result sequence =
+                    RuntimeInterceptCandidateSequenceApplication.apply(state, originalTargetId, List.of());
+            return new Result(sequence, null, null);
         }
 
+        Attempt selected = requested.get(0);
+        GridCoord interceptPosition = RuntimeInterceptPositionResolver.resolve(
+                state,
+                selected.candidate().combatantId(),
+                line
+        );
+        if (interceptPosition == null) {
+            RuntimeInterceptCandidateSequenceApplication.Result sequence =
+                    RuntimeInterceptCandidateSequenceApplication.apply(state, originalTargetId, List.of());
+            return new Result(sequence, null, null);
+        }
+
+        RuntimeInterceptCheckApplication.Input checkInput = RuntimeInterceptCheckInputFactory.fromState(
+                state,
+                selected.candidate().combatantId(),
+                selected.interceptorContent(),
+                interceptPosition
+        );
+        RuntimeInterceptCandidateSequenceApplication.Attempt sequenceAttempt =
+                new RuntimeInterceptCandidateSequenceApplication.Attempt(selected.candidate(), checkInput);
         RuntimeInterceptCandidateSequenceApplication.Result sequence =
-                RuntimeInterceptCandidateSequenceApplication.apply(state, originalTargetId, sequenceAttempts);
+                RuntimeInterceptCandidateSequenceApplication.apply(state, originalTargetId, List.of(sequenceAttempt));
         if (!sequence.intercepted()) {
             return new Result(sequence, null, null);
         }
 
-        int winnerIndex = sequence.attemptedCandidates().size() - 1;
-        if (winnerIndex < 0 || winnerIndex >= requested.size()) {
-            throw new IllegalStateException("successful intercept sequence has no matching spatial attempt");
+        if (sequence.attemptedCandidates().size() != 1) {
+            throw new IllegalStateException("Python-compatible intercept sequence must attempt only the selected candidate");
         }
-        Attempt winner = requested.get(winnerIndex);
         RuntimeInterceptCandidateSequenceApplication.AttemptResult winnerResult =
-                sequence.attemptedCandidates().get(winnerIndex);
-        if (!winner.candidate().combatantId().equals(winnerResult.interceptorId())
+                sequence.attemptedCandidates().get(0);
+        if (!selected.candidate().combatantId().equals(winnerResult.interceptorId())
                 || !winnerResult.attempt().check().success()) {
-            throw new IllegalStateException("intercept winner does not match ordered spatial attempt");
+            throw new IllegalStateException("intercept winner does not match selected spatial attempt");
         }
 
         if (melee) {
@@ -106,7 +117,7 @@ public final class RuntimeInterceptSpatialSequenceApplication {
                     state,
                     winnerResult.interceptorId(),
                     sequence.originalTargetId(),
-                    winner.interceptPosition(),
+                    interceptPosition,
                     winnerResult.attempt().check()
             );
             return new Result(sequence, movement.interceptMovement(), movement);
@@ -115,7 +126,7 @@ public final class RuntimeInterceptSpatialSequenceApplication {
         InterceptMovementApplication.Result movement = InterceptMovementApplication.apply(
                 state,
                 winnerResult.interceptorId(),
-                winner.interceptPosition(),
+                interceptPosition,
                 winnerResult.attempt().check()
         );
         return new Result(sequence, movement, null);

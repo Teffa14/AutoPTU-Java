@@ -4,7 +4,9 @@ import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.hook.PreResolutionTargetContext;
 import io.autoptu.core.hook.PreResolutionTargetHook;
 import io.autoptu.core.hook.PreResolutionTargetResult;
+import io.autoptu.core.model.GridCoord;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -21,9 +23,17 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
         Plan plan(PreResolutionTargetContext context, String currentTargetId);
     }
 
-    record Plan(boolean melee, List<RuntimeInterceptSpatialSequenceApplication.Attempt> attempts) {
+    record Plan(
+            boolean melee,
+            Collection<GridCoord> attackLine,
+            List<RuntimeInterceptSpatialSequenceApplication.Attempt> attempts
+    ) {
         Plan {
+            attackLine = attackLine == null ? List.of() : List.copyOf(attackLine);
             attempts = attempts == null ? List.of() : List.copyOf(attempts);
+            if (attackLine.stream().anyMatch(java.util.Objects::isNull)) {
+                throw new IllegalArgumentException("attackLine cannot contain null");
+            }
             if (attempts.stream().anyMatch(java.util.Objects::isNull)) {
                 throw new IllegalArgumentException("attempts cannot contain null");
             }
@@ -53,6 +63,7 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
                         context.state(),
                         current.targetId(),
                         plan.melee(),
+                        plan.attackLine(),
                         plan.attempts()
                 );
         if (!resolution.intercepted()) return current;
