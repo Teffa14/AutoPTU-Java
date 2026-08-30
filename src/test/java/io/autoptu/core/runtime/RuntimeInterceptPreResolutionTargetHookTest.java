@@ -33,7 +33,7 @@ class RuntimeInterceptPreResolutionTargetHookTest {
                         false,
                         List.of(new RuntimeInterceptSpatialSequenceApplication.Attempt(
                                 new InterceptCandidateDiscoveryResolution.Candidate("interceptor", "Intercept", false),
-                                new RuntimeInterceptCheckApplication.Input(1, 0, 0, 0, 0, true),
+                                CombatantRuleContent.empty(),
                                 new GridCoord(2, 1)
                         ))
                 )
@@ -70,8 +70,8 @@ class RuntimeInterceptPreResolutionTargetHookTest {
                         false,
                         List.of(new RuntimeInterceptSpatialSequenceApplication.Attempt(
                                 new InterceptCandidateDiscoveryResolution.Candidate("interceptor", "Intercept", false),
-                                new RuntimeInterceptCheckApplication.Input(99, 0, 0, 0, 0, false),
-                                new GridCoord(2, 1)
+                                CombatantRuleContent.empty(),
+                                new GridCoord(9, 9)
                         ))
                 )
         );
@@ -104,7 +104,7 @@ class RuntimeInterceptPreResolutionTargetHookTest {
 
     private static BattleRuntimeState state(List<RuntimeCombatantState> combatants, long seed) {
         return new BattleRuntimeState(
-                new MovementGrid(8, 8, Set.of(), Map.of()),
+                new MovementGrid(10, 10, Set.of(), Map.of()),
                 combatants,
                 seed
         );
