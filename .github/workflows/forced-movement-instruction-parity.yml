@@ -13,6 +13,7 @@ on:
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementApplicationTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeForcedMovementMoveApplicationTest.java"
       - "tools/python/export_forced_movement_instruction_fixtures.py"
+      - "tools/python/export_forced_movement_runtime_binding_contract.py"
       - ".github/workflows/forced-movement-instruction-parity.yml"
   push:
     branches:
@@ -42,9 +43,13 @@ jobs:
       - name: Export Python oracle fixture
         run: |
           python3 -m py_compile tools/python/export_forced_movement_instruction_fixtures.py
+          python3 -m py_compile tools/python/export_forced_movement_runtime_binding_contract.py
           python3 tools/python/export_forced_movement_instruction_fixtures.py \
             --source-root python-oracle \
             --output build/oracle/forced-movement-instruction.tsv
+          python3 tools/python/export_forced_movement_runtime_binding_contract.py \
+            --source-root python-oracle \
+            --output build/oracle/forced-movement-runtime-binding.tsv
 
       - name: Run forced movement instruction and displacement tests
         env:
