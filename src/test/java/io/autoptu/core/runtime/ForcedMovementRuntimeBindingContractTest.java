@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -24,6 +23,7 @@ class ForcedMovementRuntimeBindingContractTest {
     @Test
     void freezesPythonRuntimeAndToolingCallsitesWhileJavaOrderingRemainsUnbound() throws IOException {
         assertPinnedPythonFixtureIfAvailable();
+        assertPinnedPythonConsumerFixtureIfAvailable();
 
         Path sourceRoot = Path.of("src", "main", "java");
         assertTrue(Files.isDirectory(sourceRoot), "Java production source root must be available");
@@ -75,6 +75,25 @@ class ForcedMovementRuntimeBindingContractTest {
 
         String[] tooling = toolingRows.get(0);
         assertEquals("auto_ptu/tools/generate_attack_log.py", tooling[1]);
+    }
+
+    private static void assertPinnedPythonConsumerFixtureIfAvailable() throws IOException {
+        String fixture = System.getenv("AUTOPTU_FORCED_MOVEMENT_RUNTIME_CONSUMER_ORACLE");
+        if (fixture == null || fixture.isBlank()) return;
+
+        List<String> lines = Files.readAllLines(Path.of(fixture));
+        assertEquals(2, lines.size(), "pinned oracle forced-movement consumer inventory changed");
+        assertEquals("path\tline\tenclosing\tguard\tstatement\tblock\tprevious\tnext", lines.get(0));
+
+        String[] fields = lines.get(1).split("\\t", -1);
+        assertEquals(8, fields.length, "forced-movement consumer fixture row shape changed");
+        assertEquals("auto_ptu/rules/battle_state.py", fields[0]);
+        assertEquals("resolve_move_targets", fields[2]);
+        assertTrue(fields[3].contains("instruction"), "forced movement must remain guarded by an instruction");
+        assertTrue(fields[3].contains("hit"), "forced movement must remain hit-gated");
+        assertTrue(fields[4].contains("apply_forced_movement"), "runtime consumer must remain apply_forced_movement");
+        assertTrue(fields[4].contains("instruction"), "runtime consumer must consume the resolved instruction");
+        assertFalse(fields[5].isBlank(), "consumer block identity must be frozen");
     }
 
     private static void collectCallsites(Path sourceRoot, Path path, List<String> callsites) {
