@@ -16,12 +16,14 @@ on:
       - "src/test/java/io/autoptu/core/runtime/BattleRuntimeAuthoritativeMoveTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementRuntimeBindingContractTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementObservableOracleContractTest.java"
+      - "src/test/java/io/autoptu/core/runtime/ForcedMovementShadowAnchorOracleContractTest.java"
       - "tools/python/export_forced_movement_instruction_fixtures.py"
       - "tools/python/export_forced_movement_ability_modifier_fixtures.py"
       - "tools/python/export_forced_movement_prevention_fixtures.py"
       - "tools/python/export_forced_movement_state_prevention_fixtures.py"
       - "tools/python/export_forced_movement_runtime_binding_contract.py"
       - "tools/python/export_forced_movement_observable_contract.py"
+      - "tools/python/export_forced_movement_shadow_anchor_contract.py"
       - ".github/workflows/forced-movement-instruction-parity.yml"
   push:
     branches:
@@ -56,6 +58,7 @@ jobs:
           python3 -m py_compile tools/python/export_forced_movement_state_prevention_fixtures.py
           python3 -m py_compile tools/python/export_forced_movement_runtime_binding_contract.py
           python3 -m py_compile tools/python/export_forced_movement_observable_contract.py
+          python3 -m py_compile tools/python/export_forced_movement_shadow_anchor_contract.py
           python3 tools/python/export_forced_movement_instruction_fixtures.py \
             --source-root python-oracle \
             --output build/oracle/forced-movement-instruction.tsv
@@ -76,12 +79,16 @@ jobs:
           python3 tools/python/export_forced_movement_observable_contract.py \
             --source-root python-oracle \
             --output build/oracle/forced-movement-observable.tsv
+          python3 tools/python/export_forced_movement_shadow_anchor_contract.py \
+            --source-root python-oracle \
+            --output build/oracle/forced-movement-shadow-anchor.tsv
           cat build/oracle/forced-movement-prevention.tsv
           cat build/oracle/forced-movement-state-prevention.tsv
           cat build/oracle/forced-movement-runtime-binding.tsv
           cat build/oracle/forced-movement-runtime-trace.tsv
           cat build/oracle/forced-movement-runtime-consumer.tsv
           cat build/oracle/forced-movement-observable.tsv
+          cat build/oracle/forced-movement-shadow-anchor.tsv
 
       - name: Run forced movement instruction and displacement tests
         env:
@@ -92,6 +99,7 @@ jobs:
           AUTOPTU_FORCED_MOVEMENT_RUNTIME_BINDING_ORACLE: ${{ github.workspace }}/build/oracle/forced-movement-runtime-binding.tsv
           AUTOPTU_FORCED_MOVEMENT_RUNTIME_CONSUMER_ORACLE: ${{ github.workspace }}/build/oracle/forced-movement-runtime-consumer.tsv
           AUTOPTU_FORCED_MOVEMENT_OBSERVABLE_ORACLE: ${{ github.workspace }}/build/oracle/forced-movement-observable.tsv
+          AUTOPTU_FORCED_MOVEMENT_SHADOW_ANCHOR_ORACLE: ${{ github.workspace }}/build/oracle/forced-movement-shadow-anchor.tsv
         run: >-
           gradle test --stacktrace
           --tests io.autoptu.core.rules.ForcedMovementInstructionOracleParityTest
@@ -106,3 +114,4 @@ jobs:
           --tests io.autoptu.core.runtime.BattleRuntimeAuthoritativeMoveTest
           --tests io.autoptu.core.runtime.ForcedMovementRuntimeBindingContractTest
           --tests io.autoptu.core.runtime.ForcedMovementObservableOracleContractTest
+          --tests io.autoptu.core.runtime.ForcedMovementShadowAnchorOracleContractTest
