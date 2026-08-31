@@ -29,7 +29,7 @@ def _compile_branch(node: ast.If):
             kw_defaults=[],
             defaults=[],
         ),
-        body=copy.deepcopy(node.body) + [ast.Return(value=ast.Name(id="instruction", ctx=ast.Load()))],
+        body=[copy.deepcopy(node), ast.Return(value=ast.Name(id="instruction", ctx=ast.Load()))],
         decorator_list=[],
     )
     module = ast.fix_missing_locations(ast.Module(body=[fn], type_ignores=[]))
