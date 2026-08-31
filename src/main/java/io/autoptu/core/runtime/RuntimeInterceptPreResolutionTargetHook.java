@@ -4,17 +4,19 @@ import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.hook.PreResolutionTargetContext;
 import io.autoptu.core.hook.PreResolutionTargetHook;
 import io.autoptu.core.hook.PreResolutionTargetResult;
+import io.autoptu.core.rules.Targeting;
 
 import java.util.Map;
 
 /**
  * Core-only PRE-target bridge for interception.
  *
- * <p>The planner is intentionally package-private. External orchestration may provide the
- * Python-normalized move target kind and canonical combatant rule content, but it cannot choose
- * the Intercept reaction kind or materialize eligible candidates or spatial attempts. Intercept
- * kind collapse, discovery, expiry cleanup, candidate ordering, line geometry, Shift legality,
- * RNG/resource use and displacement remain authoritative runtime decisions.</p>
+ * <p>The planner is intentionally package-private. External orchestration may provide canonical
+ * combatant rule content, but it cannot choose the Intercept reaction kind or materialize eligible
+ * candidates or spatial attempts. Intercept kind is derived from the authoritative move metadata
+ * already bound to the pre-target context. Discovery, expiry cleanup, candidate ordering, line
+ * geometry, Shift legality, RNG/resource use and displacement remain authoritative runtime
+ * decisions.</p>
  */
 final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTargetHook {
     @FunctionalInterface
@@ -22,28 +24,13 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
         Plan plan(PreResolutionTargetContext context, String currentTargetId);
     }
 
-    record Plan(
-            String normalizedTargetKind,
-            Map<String, CombatantRuleContent> contentByCombatant
-    ) {
+    record Plan(Map<String, CombatantRuleContent> contentByCombatant) {
         Plan {
-            if (normalizedTargetKind == null || normalizedTargetKind.isBlank()) {
-                throw new IllegalArgumentException("normalizedTargetKind is required");
-            }
-            normalizedTargetKind = normalizedTargetKind.strip().toLowerCase(java.util.Locale.ROOT);
             contentByCombatant = contentByCombatant == null ? Map.of() : Map.copyOf(contentByCombatant);
             if (contentByCombatant.entrySet().stream()
                     .anyMatch(entry -> entry.getKey() == null || entry.getValue() == null)) {
                 throw new IllegalArgumentException("contentByCombatant cannot contain null keys or values");
             }
-        }
-
-        String interceptKind() {
-            return InterceptKindResolution.fromNormalizedTargetKind(normalizedTargetKind);
-        }
-
-        boolean melee() {
-            return InterceptKindResolution.isMelee(normalizedTargetKind);
         }
     }
 
@@ -65,11 +52,15 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
         Plan plan = planner.plan(context, current.targetId());
         if (plan == null) return current;
 
+        String normalizedTargetKind = Targeting.normalizedTargetKind(context.requireMove().spec());
+        String interceptKind = InterceptKindResolution.fromNormalizedTargetKind(normalizedTargetKind);
+        boolean melee = InterceptKindResolution.isMelee(normalizedTargetKind);
+
         RuntimeInterceptAttemptPlanner.Result attemptPlan = RuntimeInterceptAttemptPlanner.plan(
                 context.state(),
                 context.attackerId(),
                 current.targetId(),
-                plan.interceptKind(),
+                interceptKind,
                 plan.contentByCombatant()
         );
         if (attemptPlan.attempts().isEmpty()) return current;
@@ -79,7 +70,7 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
                         context.state(),
                         context.attackerId(),
                         current.targetId(),
-                        plan.melee(),
+                        melee,
                         attemptPlan.attempts()
                 );
         if (!resolution.intercepted()) return current;
