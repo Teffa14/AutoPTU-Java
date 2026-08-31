@@ -53,8 +53,10 @@ jobs:
             --output build/oracle/forced-movement-ability-modifier.tsv
           python3 tools/python/export_forced_movement_runtime_binding_contract.py \
             --source-root python-oracle \
-            --output build/oracle/forced-movement-runtime-binding.tsv
+            --output build/oracle/forced-movement-runtime-binding.tsv \
+            --trace-output build/oracle/forced-movement-runtime-trace.tsv
           cat build/oracle/forced-movement-runtime-binding.tsv
+          cat build/oracle/forced-movement-runtime-trace.tsv
 
       - name: Run forced movement instruction and displacement tests
         env:
