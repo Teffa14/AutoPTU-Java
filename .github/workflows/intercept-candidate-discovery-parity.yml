@@ -8,11 +8,13 @@ on:
       - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptCandidateDiscoveryFactory.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptCandidateCleanupApplication.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptAttemptPlanner.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptPreResolutionTargetHook.java"
       - "src/test/java/io/autoptu/core/runtime/InterceptCandidateDiscoveryResolutionTest.java"
       - "src/test/java/io/autoptu/core/runtime/InterceptCandidateDiscoveryOracleParityTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptCandidateDiscoveryFactoryTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptCandidateCleanupApplicationTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptAttemptPlannerTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptPreResolutionTargetHookTest.java"
       - "tools/python/export_intercept_candidate_discovery_contract.py"
       - ".github/workflows/intercept-candidate-discovery-parity.yml"
   push:
@@ -57,3 +59,4 @@ jobs:
           --tests io.autoptu.core.runtime.RuntimeInterceptCandidateDiscoveryFactoryTest
           --tests io.autoptu.core.runtime.RuntimeInterceptCandidateCleanupApplicationTest
           --tests io.autoptu.core.runtime.RuntimeInterceptAttemptPlannerTest
+          --tests io.autoptu.core.runtime.RuntimeInterceptPreResolutionTargetHookTest
