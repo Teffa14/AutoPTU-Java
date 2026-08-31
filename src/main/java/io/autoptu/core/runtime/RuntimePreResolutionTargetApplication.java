@@ -2,6 +2,7 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
+import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.hook.PreResolutionTargetContext;
 import io.autoptu.core.hook.PreResolutionTargetHookRegistry;
@@ -16,7 +17,8 @@ import java.util.List;
  * after the originally declared combatant move has been revalidated and before accuracy or
  * damage RNG is consumed. A replacement target is looked up in {@link BattleRuntimeState} and
  * its current authoritative position becomes the effective target anchor. Adapters therefore
- * cannot inject either a target id or a renderer-owned position into the PTU move pipeline.</p>
+ * cannot inject either a target id, move metadata or a renderer-owned position into the PTU move
+ * pipeline.</p>
  */
 public final class RuntimePreResolutionTargetApplication {
     private RuntimePreResolutionTargetApplication() {}
@@ -34,10 +36,15 @@ public final class RuntimePreResolutionTargetApplication {
     static Result resolve(
             BattleRuntimeState state,
             MoveChoice declaredChoice,
+            MoveOption move,
             PreResolutionTargetHookRegistry registry
     ) {
         if (state == null) throw new IllegalArgumentException("state is required");
         if (declaredChoice == null) throw new IllegalArgumentException("declaredChoice is required");
+        if (move == null) throw new IllegalArgumentException("move is required");
+        if (!move.moveId().equals(declaredChoice.moveId())) {
+            throw new IllegalArgumentException("move metadata must match declared moveId");
+        }
         if (registry == null) throw new IllegalArgumentException("registry is required");
         if (declaredChoice.targetMode() != ChoiceTargetMode.COMBATANT || declaredChoice.targetId().isBlank()) {
             throw new IllegalArgumentException("pre-resolution target replacement requires a combatant target");
@@ -49,6 +56,7 @@ public final class RuntimePreResolutionTargetApplication {
                 state,
                 declaredChoice.actorId(),
                 declaredChoice.moveId(),
+                move,
                 declaredChoice.targetId(),
                 originalTarget.position()
         ));
