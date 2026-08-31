@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze pinned Python forced-movement callsites and their local execution order."""
+"""Freeze pinned Python forced-movement callsites, dataflow, and runtime consumption order."""
 from __future__ import annotations
 
 import argparse
@@ -7,6 +7,7 @@ import ast
 from pathlib import Path
 
 SYMBOL = "forced_movement_instruction"
+CONSUMER_SYMBOL = "apply_forced_movement"
 
 
 def call_symbol(node: ast.Call) -> str | None:
@@ -46,6 +47,17 @@ def containing_statement(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> ast.
     while current is not None and not isinstance(current, ast.stmt):
         current = parents.get(current)
     return current if isinstance(current, ast.stmt) else None
+
+
+def enclosing_if(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> ast.If | None:
+    current = parents.get(node)
+    while current is not None:
+        if isinstance(current, ast.If):
+            return current
+        if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return None
+        current = parents.get(current)
+    return None
 
 
 def compact(node: ast.AST | None, limit: int = 320) -> str:
@@ -89,9 +101,39 @@ def instruction_trace(function: ast.FunctionDef | ast.AsyncFunctionDef | None) -
     return sorted(set(rows), key=lambda row: (row[0], row[2]))
 
 
+def instruction_consumers(
+    function: ast.FunctionDef | ast.AsyncFunctionDef | None,
+    parents: dict[ast.AST, ast.AST],
+    relative: str,
+) -> list[tuple[str, int, str, str, str, str, str, str]]:
+    if function is None:
+        return []
+    rows: list[tuple[str, int, str, str, str, str, str, str]] = []
+    for node in ast.walk(function):
+        if not isinstance(node, ast.Call) or call_symbol(node) != CONSUMER_SYMBOL:
+            continue
+        if not any(isinstance(child, ast.Name) and child.id == "instruction" for child in ast.walk(node)):
+            continue
+        statement = containing_statement(node, parents)
+        guard_node = enclosing_if(node, parents)
+        block, previous, following = sibling_context(statement, parents)
+        rows.append((
+            relative,
+            node.lineno,
+            function.name,
+            compact(guard_node.test if guard_node is not None else None, 500),
+            compact(statement, 500),
+            block,
+            previous,
+            following,
+        ))
+    return sorted(set(rows), key=lambda row: (row[1], row[4]))
+
+
 def production_calls(source_root: Path) -> tuple[
     list[tuple[str, str, int, str, str, str, str, str]],
     list[tuple[str, int, str, str]],
+    list[tuple[str, int, str, str, str, str, str, str]],
 ]:
     package_root = source_root / "auto_ptu"
     if not package_root.is_dir():
@@ -99,6 +141,7 @@ def production_calls(source_root: Path) -> tuple[
 
     calls: list[tuple[str, str, int, str, str, str, str, str]] = []
     trace_rows: list[tuple[str, int, str, str]] = []
+    consumer_rows: list[tuple[str, int, str, str, str, str, str, str]] = []
     for path in sorted(package_root.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
         parents: dict[ast.AST, ast.AST] = {}
@@ -126,7 +169,8 @@ def production_calls(source_root: Path) -> tuple[
                 function = enclosing_function(node, parents)
                 for line, contexts, rendered in instruction_trace(function):
                     trace_rows.append((relative, line, contexts, rendered))
-    return calls, trace_rows
+                consumer_rows.extend(instruction_consumers(function, parents, relative))
+    return calls, trace_rows, consumer_rows
 
 
 def main() -> None:
@@ -134,9 +178,10 @@ def main() -> None:
     parser.add_argument("--source-root", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--trace-output", type=Path)
+    parser.add_argument("--consumer-output", type=Path)
     args = parser.parse_args()
 
-    calls, trace_rows = production_calls(args.source_root)
+    calls, trace_rows, consumer_rows = production_calls(args.source_root)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     lines = ["role\tpath\tline\tenclosing\tstatement\tblock\tprevious\tnext"]
     for entry in calls:
@@ -148,6 +193,12 @@ def main() -> None:
         trace_lines = ["path\tline\tcontexts\tstatement"]
         trace_lines.extend("\t".join(str(value).replace("\t", " ") for value in row) for row in trace_rows)
         args.trace_output.write_text("\n".join(trace_lines) + "\n", encoding="utf-8")
+
+    if args.consumer_output is not None:
+        args.consumer_output.parent.mkdir(parents=True, exist_ok=True)
+        consumer_lines = ["path\tline\tenclosing\tguard\tstatement\tblock\tprevious\tnext"]
+        consumer_lines.extend("\t".join(str(value).replace("\t", " ") for value in row) for row in consumer_rows)
+        args.consumer_output.write_text("\n".join(consumer_lines) + "\n", encoding="utf-8")
 
     runtime = [entry for entry in calls if entry[0] == "runtime"]
     tooling = [entry for entry in calls if entry[0] == "tooling"]
@@ -166,6 +217,16 @@ def main() -> None:
         )
     if not trace_rows:
         raise SystemExit("runtime forced-movement instruction dataflow trace is empty")
+    if len(consumer_rows) != 1:
+        raise SystemExit(f"runtime forced-movement consumer inventory changed: {consumer_rows}")
+
+    consumer = consumer_rows[0]
+    guard = consumer[3]
+    statement = consumer[4]
+    if "instruction" not in guard or "hit" not in guard:
+        raise SystemExit(f"forced movement consumer is no longer hit-gated by instruction presence: {consumer}")
+    if CONSUMER_SYMBOL not in statement or "instruction" not in statement:
+        raise SystemExit(f"forced movement consumer statement changed: {consumer}")
 
 
 if __name__ == "__main__":
