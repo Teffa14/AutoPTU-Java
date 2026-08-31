@@ -27,13 +27,18 @@ def role_for(path: Path, source_root: Path) -> str:
     return "other"
 
 
-def enclosing_name(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> str:
+def enclosing_function(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
     current = parents.get(node)
     while current is not None:
         if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            return current.name
+            return current
         current = parents.get(current)
-    return "<module>"
+    return None
+
+
+def enclosing_name(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> str:
+    function = enclosing_function(node, parents)
+    return function.name if function is not None else "<module>"
 
 
 def containing_statement(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> ast.stmt | None:
@@ -43,10 +48,10 @@ def containing_statement(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> ast.
     return current if isinstance(current, ast.stmt) else None
 
 
-def compact(node: ast.AST | None) -> str:
+def compact(node: ast.AST | None, limit: int = 320) -> str:
     if node is None:
         return ""
-    return " ".join(ast.unparse(node).split()).replace("\t", " ")[:320]
+    return " ".join(ast.unparse(node).split()).replace("\t", " ")[:limit]
 
 
 def sibling_context(
@@ -69,12 +74,31 @@ def sibling_context(
     return "", "", ""
 
 
-def production_calls(source_root: Path) -> list[tuple[str, str, int, str, str, str, str, str]]:
+def instruction_trace(function: ast.FunctionDef | ast.AsyncFunctionDef | None) -> list[tuple[int, str, str]]:
+    if function is None:
+        return []
+    rows: list[tuple[int, str, str]] = []
+    for statement in ast.walk(function):
+        if not isinstance(statement, ast.stmt):
+            continue
+        names = [node for node in ast.walk(statement) if isinstance(node, ast.Name) and node.id == "instruction"]
+        if not names:
+            continue
+        contexts = sorted({type(node.ctx).__name__.removesuffix("Context") for node in names})
+        rows.append((getattr(statement, "lineno", -1), "+".join(contexts), compact(statement, 500)))
+    return sorted(set(rows), key=lambda row: (row[0], row[2]))
+
+
+def production_calls(source_root: Path) -> tuple[
+    list[tuple[str, str, int, str, str, str, str, str]],
+    list[tuple[str, int, str, str]],
+]:
     package_root = source_root / "auto_ptu"
     if not package_root.is_dir():
         raise SystemExit(f"missing oracle package: {package_root}")
 
     calls: list[tuple[str, str, int, str, str, str, str, str]] = []
+    trace_rows: list[tuple[str, int, str, str]] = []
     for path in sorted(package_root.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
         parents: dict[ast.AST, ast.AST] = {}
@@ -87,8 +111,9 @@ def production_calls(source_root: Path) -> list[tuple[str, str, int, str, str, s
             statement = containing_statement(node, parents)
             block, previous, following = sibling_context(statement, parents)
             relative = path.relative_to(source_root).as_posix()
+            role = role_for(path, source_root)
             calls.append((
-                role_for(path, source_root),
+                role,
                 relative,
                 node.lineno,
                 enclosing_name(node, parents),
@@ -97,21 +122,32 @@ def production_calls(source_root: Path) -> list[tuple[str, str, int, str, str, s
                 previous,
                 following,
             ))
-    return calls
+            if role == "runtime":
+                function = enclosing_function(node, parents)
+                for line, contexts, rendered in instruction_trace(function):
+                    trace_rows.append((relative, line, contexts, rendered))
+    return calls, trace_rows
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--trace-output", type=Path)
     args = parser.parse_args()
 
-    calls = production_calls(args.source_root)
+    calls, trace_rows = production_calls(args.source_root)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     lines = ["role\tpath\tline\tenclosing\tstatement\tblock\tprevious\tnext"]
     for entry in calls:
         lines.append("\t".join(str(value).replace("\t", " ") for value in entry))
     args.output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    if args.trace_output is not None:
+        args.trace_output.parent.mkdir(parents=True, exist_ok=True)
+        trace_lines = ["path\tline\tcontexts\tstatement"]
+        trace_lines.extend("\t".join(str(value).replace("\t", " ") for value in row) for row in trace_rows)
+        args.trace_output.write_text("\n".join(trace_lines) + "\n", encoding="utf-8")
 
     runtime = [entry for entry in calls if entry[0] == "runtime"]
     tooling = [entry for entry in calls if entry[0] == "tooling"]
@@ -128,6 +164,8 @@ def main() -> None:
             "runtime forced-movement callsite no longer has stable neighboring statements; "
             f"entry={runtime_entry}"
         )
+    if not trace_rows:
+        raise SystemExit("runtime forced-movement instruction dataflow trace is empty")
 
 
 if __name__ == "__main__":
