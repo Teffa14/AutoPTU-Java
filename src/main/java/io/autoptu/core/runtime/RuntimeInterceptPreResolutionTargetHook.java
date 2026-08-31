@@ -6,17 +6,13 @@ import io.autoptu.core.hook.PreResolutionTargetHook;
 import io.autoptu.core.hook.PreResolutionTargetResult;
 import io.autoptu.core.rules.Targeting;
 
-import java.util.Map;
-
 /**
  * Core-only PRE-target bridge for interception.
  *
- * <p>The planner is intentionally package-private. External orchestration may provide canonical
- * combatant rule content, but it cannot choose the Intercept reaction kind or materialize eligible
- * candidates or spatial attempts. Intercept kind is derived from the authoritative move metadata
- * already bound to the pre-target context. Discovery, expiry cleanup, candidate ordering, line
- * geometry, Shift legality, RNG/resource use and displacement remain authoritative runtime
- * decisions.</p>
+ * <p>The planner is intentionally package-private and can no longer supply candidate content.
+ * Intercept resolves canonical combatant rule content from the registry bound to this core hook.
+ * Discovery, expiry cleanup, candidate ordering, line geometry, Shift legality, RNG/resource use
+ * and displacement remain authoritative runtime decisions.</p>
  */
 final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTargetHook {
     @FunctionalInterface
@@ -24,21 +20,19 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
         Plan plan(PreResolutionTargetContext context, String currentTargetId);
     }
 
-    record Plan(Map<String, CombatantRuleContent> contentByCombatant) {
-        Plan {
-            contentByCombatant = contentByCombatant == null ? Map.of() : Map.copyOf(contentByCombatant);
-            if (contentByCombatant.entrySet().stream()
-                    .anyMatch(entry -> entry.getKey() == null || entry.getValue() == null)) {
-                throw new IllegalArgumentException("contentByCombatant cannot contain null keys or values");
-            }
-        }
-    }
+    record Plan() {}
 
     private final AttemptPlanner planner;
+    private final CombatantRuleContentRegistry ruleContent;
 
-    RuntimeInterceptPreResolutionTargetHook(AttemptPlanner planner) {
+    RuntimeInterceptPreResolutionTargetHook(
+            AttemptPlanner planner,
+            CombatantRuleContentRegistry ruleContent
+    ) {
         if (planner == null) throw new IllegalArgumentException("planner is required");
+        if (ruleContent == null) throw new IllegalArgumentException("ruleContent is required");
         this.planner = planner;
+        this.ruleContent = ruleContent;
     }
 
     @Override
@@ -61,7 +55,7 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
                 context.attackerId(),
                 current.targetId(),
                 interceptKind,
-                plan.contentByCombatant()
+                ruleContent
         );
         if (attemptPlan.attempts().isEmpty()) return current;
 
