@@ -82,7 +82,7 @@ def sibling_context(
         index = value.index(statement)
         previous = value[index - 1] if index > 0 and isinstance(value[index - 1], ast.stmt) else None
         following = value[index + 1] if index + 1 < len(value) and isinstance(value[index + 1], ast.stmt) else None
-        return field_name, compact(previous), compact(following)
+        return field_name, compact(previous, 700), compact(following, 700)
     return "", "", ""
 
 
@@ -116,7 +116,11 @@ def instruction_consumers(
             continue
         statement = containing_statement(node, parents)
         guard_node = enclosing_if(node, parents)
-        block, previous, following = sibling_context(statement, parents)
+        # The call is the only statement in its guard body. Freeze siblings of the
+        # guard itself so the fixture captures the real pipeline landmarks around
+        # forced movement rather than two empty inner-body neighbors.
+        ordering_anchor = guard_node if guard_node is not None else statement
+        block, previous, following = sibling_context(ordering_anchor, parents)
         rows.append((
             relative,
             node.lineno,
@@ -196,7 +200,7 @@ def main() -> None:
 
     if args.consumer_output is not None:
         args.consumer_output.parent.mkdir(parents=True, exist_ok=True)
-        consumer_lines = ["path\tline\tenclosing\tguard\tstatement\tblock\tprevious\tnext"]
+        consumer_lines = ["path\tline\tenclosing\tguard\tstatement\tordering_block\tprevious\tnext"]
         consumer_lines.extend("\t".join(str(value).replace("\t", " ") for value in row) for row in consumer_rows)
         args.consumer_output.write_text("\n".join(consumer_lines) + "\n", encoding="utf-8")
 
@@ -227,6 +231,11 @@ def main() -> None:
         raise SystemExit(f"forced movement consumer is no longer hit-gated by instruction presence: {consumer}")
     if CONSUMER_SYMBOL not in statement or "instruction" not in statement:
         raise SystemExit(f"forced movement consumer statement changed: {consumer}")
+    if not consumer[5] or not consumer[6] or not consumer[7]:
+        raise SystemExit(
+            "forced movement consumer no longer has stable outer pipeline landmarks; "
+            f"consumer={consumer}"
+        )
 
 
 if __name__ == "__main__":
