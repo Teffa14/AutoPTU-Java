@@ -11,10 +11,10 @@ import java.util.Map;
  * Composes Python-compatible Intercept discovery, expiry cleanup and candidate ordering from
  * authoritative battle/content state.
  *
- * <p>The adapter supplies canonical combatant content, never prepared Intercept candidates. This
- * planner derives eligibility and prepared sources through the shared discovery resolver, commits
- * Python-compatible temporary-effect cleanup, and orders candidates by the shared footprint
- * geometry contract before materializing the internal spatial attempts.</p>
+ * <p>Canonical combatant content comes from the shared server-owned registry. The planner derives
+ * eligibility and prepared sources through the shared discovery resolver, commits Python-compatible
+ * temporary-effect cleanup, and orders candidates by the shared footprint geometry contract before
+ * materializing the internal spatial attempts.</p>
  */
 public final class RuntimeInterceptAttemptPlanner {
     private RuntimeInterceptAttemptPlanner() {}
@@ -36,12 +36,12 @@ public final class RuntimeInterceptAttemptPlanner {
             String attackerId,
             String targetId,
             String interceptKind,
-            Map<String, CombatantRuleContent> contentByCombatant
+            CombatantRuleContentRegistry ruleContent
     ) {
         if (state == null) throw new IllegalArgumentException("battle state is required");
-        Map<String, CombatantRuleContent> content = contentByCombatant == null
-                ? Map.of()
-                : Map.copyOf(contentByCombatant);
+        CombatantRuleContentRegistry content = ruleContent == null
+                ? CombatantRuleContentRegistry.empty()
+                : ruleContent;
 
         InterceptCandidateDiscoveryResolution.Result discovery = InterceptCandidateDiscoveryResolution.resolve(
                 RuntimeInterceptCandidateDiscoveryFactory.build(
@@ -49,7 +49,7 @@ public final class RuntimeInterceptAttemptPlanner {
                         attackerId,
                         targetId,
                         interceptKind,
-                        content
+                        content.snapshot()
                 )
         );
         RuntimeInterceptCandidateCleanupApplication.Result cleanup =
@@ -79,11 +79,10 @@ public final class RuntimeInterceptAttemptPlanner {
         ArrayList<RuntimeInterceptSpatialSequenceApplication.Attempt> attempts = new ArrayList<>();
         for (InterceptGeometryResolution.Candidate geometry : ordered) {
             InterceptCandidateDiscoveryResolution.Candidate candidate = candidateById.get(geometry.combatantId());
-            CombatantRuleContent ruleContent = content.getOrDefault(
-                    candidate.combatantId(),
-                    CombatantRuleContent.empty()
-            );
-            attempts.add(new RuntimeInterceptSpatialSequenceApplication.Attempt(candidate, ruleContent));
+            attempts.add(new RuntimeInterceptSpatialSequenceApplication.Attempt(
+                    candidate,
+                    content.require(candidate.combatantId())
+            ));
         }
         return new Result(discovery, cleanup, List.copyOf(attempts));
     }

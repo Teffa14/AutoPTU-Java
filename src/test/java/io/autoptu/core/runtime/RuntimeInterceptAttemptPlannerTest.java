@@ -33,9 +33,10 @@ class RuntimeInterceptAttemptPlannerTest {
                 "far", new CombatantRuleContent(List.of(), 5, "trainer-a"),
                 "close", new CombatantRuleContent(List.of(), 5, "trainer-a")
         );
+        CombatantRuleContentRegistry registry = new CombatantRuleContentRegistry(content);
 
         RuntimeInterceptAttemptPlanner.Result result = RuntimeInterceptAttemptPlanner.plan(
-                state, "attacker", "target", "ranged", content
+                state, "attacker", "target", "ranged", registry
         );
 
         assertEquals(2, result.discovery().candidates().size());
@@ -60,10 +61,10 @@ class RuntimeInterceptAttemptPlannerTest {
                 "attacker",
                 "target",
                 "melee",
-                Map.of(
+                new CombatantRuleContentRegistry(Map.of(
                         "target", new CombatantRuleContent(List.of(), 5, "trainer-a"),
                         "ally", new CombatantRuleContent(List.of(), 5, "trainer-a")
-                )
+                ))
         );
 
         assertTrue(result.discovery().suppressedByNoIntercept());
