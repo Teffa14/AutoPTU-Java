@@ -2,11 +2,13 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
+import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.hook.HookSource;
 import io.autoptu.core.hook.PreResolutionTargetHookRegistry;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.GridCoord;
+import io.autoptu.core.model.MoveSpec;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
 import io.autoptu.core.rules.ActionBudget;
@@ -20,17 +22,21 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class RuntimePreResolutionTargetApplicationTest {
     @Test
     void replacementUsesAuthoritativeCombatantAnchorAndPreservesDeclarationMetadata() {
         BattleRuntimeState state = state();
+        MoveOption move = tackle();
         PreResolutionTargetHookRegistry registry = PreResolutionTargetHookRegistry.builder()
-                .register("intercept", HookSource.REACTION, 10, (context, current) ->
-                        current.replaceTarget("interceptor", List.of(new RuleEffectEvent(
-                                "reaction", "Intercept", "attacker", "interceptor", "Tackle",
-                                "target_redirect", 0.0, 10
-                        ))))
+                .register("intercept", HookSource.REACTION, 10, (context, current) -> {
+                    assertEquals(move, context.requireMove());
+                    return current.replaceTarget("interceptor", List.of(new RuleEffectEvent(
+                            "reaction", "Intercept", "attacker", "interceptor", "Tackle",
+                            "target_redirect", 0.0, 10
+                    )));
+                })
                 .build();
 
         MoveChoice declared = new MoveChoice(
@@ -38,7 +44,7 @@ class RuntimePreResolutionTargetApplicationTest {
                 new GridCoord(5, 1), ActionType.STANDARD
         );
         RuntimePreResolutionTargetApplication.Result result =
-                RuntimePreResolutionTargetApplication.resolve(state, declared, registry);
+                RuntimePreResolutionTargetApplication.resolve(state, declared, move, registry);
 
         assertEquals("interceptor", result.effectiveChoice().targetId());
         assertEquals(new GridCoord(3, 1), result.effectiveChoice().targetAnchor());
@@ -58,7 +64,7 @@ class RuntimePreResolutionTargetApplicationTest {
         );
 
         RuntimePreResolutionTargetApplication.Result result = RuntimePreResolutionTargetApplication.resolve(
-                state, staleAnchor, PreResolutionTargetHookRegistry.builder().build()
+                state, staleAnchor, tackle(), PreResolutionTargetHookRegistry.builder().build()
         );
 
         assertEquals("target", result.effectiveChoice().targetId());
@@ -67,11 +73,34 @@ class RuntimePreResolutionTargetApplicationTest {
     }
 
     @Test
+    void mismatchedMoveMetadataCannotEnterPreTargetBoundary() {
+        BattleRuntimeState state = state();
+        MoveChoice declared = new MoveChoice(
+                "attacker", "Tackle", ChoiceTargetMode.COMBATANT, "target",
+                new GridCoord(5, 1), ActionType.STANDARD
+        );
+        MoveOption wrongMove = MoveOption.standard("Ember", new MoveSpec(
+                "ranged", "ranged", 6, 6, null, null, "Ranged 6"
+        ));
+
+        assertThrows(IllegalArgumentException.class, () -> RuntimePreResolutionTargetApplication.resolve(
+                state, declared, wrongMove, PreResolutionTargetHookRegistry.builder().build()
+        ));
+    }
+
+    @Test
     void adaptersCannotInvokeTargetApplicationBoundaryPublicly() throws Exception {
         Method method = RuntimePreResolutionTargetApplication.class.getDeclaredMethod(
-                "resolve", BattleRuntimeState.class, MoveChoice.class, PreResolutionTargetHookRegistry.class
+                "resolve", BattleRuntimeState.class, MoveChoice.class, MoveOption.class,
+                PreResolutionTargetHookRegistry.class
         );
         assertFalse(Modifier.isPublic(method.getModifiers()));
+    }
+
+    private static MoveOption tackle() {
+        return MoveOption.standard("Tackle", new MoveSpec(
+                "melee", "melee", 1, 1, null, null, "Melee"
+        ));
     }
 
     private static BattleRuntimeState state() {

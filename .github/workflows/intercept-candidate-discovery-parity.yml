@@ -3,6 +3,7 @@ name: Intercept Candidate Discovery Parity
 on:
   pull_request:
     paths:
+      - "src/main/java/io/autoptu/core/hook/PreResolutionTargetContext.java"
       - "src/main/java/io/autoptu/core/runtime/InterceptCandidateDiscoveryResolution.java"
       - "src/main/java/io/autoptu/core/runtime/InterceptKindResolution.java"
       - "src/main/java/io/autoptu/core/runtime/CombatantRuleContent.java"
@@ -10,6 +11,8 @@ on:
       - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptCandidateCleanupApplication.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptAttemptPlanner.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptPreResolutionTargetHook.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimePreResolutionTargetApplication.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimePreResolutionMovePreparation.java"
       - "src/test/java/io/autoptu/core/runtime/InterceptCandidateDiscoveryResolutionTest.java"
       - "src/test/java/io/autoptu/core/runtime/InterceptCandidateDiscoveryOracleParityTest.java"
       - "src/test/java/io/autoptu/core/runtime/InterceptKindResolutionTest.java"
@@ -17,6 +20,7 @@ on:
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptCandidateCleanupApplicationTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptAttemptPlannerTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptPreResolutionTargetHookTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimePreResolutionTargetApplicationTest.java"
       - "tools/python/export_intercept_candidate_discovery_contract.py"
       - ".github/workflows/intercept-candidate-discovery-parity.yml"
   push:
@@ -63,3 +67,4 @@ jobs:
           --tests io.autoptu.core.runtime.RuntimeInterceptCandidateCleanupApplicationTest
           --tests io.autoptu.core.runtime.RuntimeInterceptAttemptPlannerTest
           --tests io.autoptu.core.runtime.RuntimeInterceptPreResolutionTargetHookTest
+          --tests io.autoptu.core.runtime.RuntimePreResolutionTargetApplicationTest

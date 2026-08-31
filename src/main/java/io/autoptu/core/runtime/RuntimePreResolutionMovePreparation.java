@@ -37,7 +37,7 @@ final class RuntimePreResolutionMovePreparation {
         if (targetRegistry == null) throw new IllegalArgumentException("targetRegistry is required");
 
         RuntimePreResolutionTargetApplication.Result targetResult =
-                RuntimePreResolutionTargetApplication.resolve(state, declaredChoice, targetRegistry);
+                RuntimePreResolutionTargetApplication.resolve(state, declaredChoice, move, targetRegistry);
         MoveChoice effectiveChoice = targetResult.effectiveChoice();
         RuntimeAuthoritativeMovePreparation.Prepared prepared = RuntimeAuthoritativeMovePreparation.prepare(
                 state,
