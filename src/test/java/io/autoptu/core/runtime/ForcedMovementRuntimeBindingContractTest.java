@@ -13,21 +13,14 @@ import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Freezes the current negative runtime-binding contract for move-caused forced movement.
- *
- * <p>The pinned Python oracle exposes the deterministic forced_movement_instruction helper but
- * does not currently call it from production battle runtime. Java may keep the reusable
- * RuntimeForcedMovementMoveApplication boundary, but no production coordinator may invoke it
- * until Python exposes an ordering contract that can be ported explicitly.</p>
- */
+/** Freezes the current Python callsite inventory before Java binds forced movement into runtime order. */
 class ForcedMovementRuntimeBindingContractTest {
     private static final Pattern JAVA_RUNTIME_CALL = Pattern.compile(
             "\\bRuntimeForcedMovementMoveApplication\\s*\\.\\s*apply\\s*\\("
     );
 
     @Test
-    void pythonAndJavaProductionRemainUnboundUntilOracleDefinesOrdering() throws IOException {
+    void freezesPythonRuntimeAndToolingCallsitesWhileJavaOrderingRemainsUnbound() throws IOException {
         assertPinnedPythonFixtureIfAvailable();
 
         Path sourceRoot = Path.of("src", "main", "java");
@@ -43,8 +36,7 @@ class ForcedMovementRuntimeBindingContractTest {
         assertEquals(
                 List.of(),
                 callsites,
-                "forced movement is not runtime-bound in the pinned Python oracle; "
-                        + "inspect Python ordering before adding Java production callsites"
+                "Java forced movement ordering must remain unbound until the pinned battle_state callsite order is frozen"
         );
     }
 
@@ -53,10 +45,21 @@ class ForcedMovementRuntimeBindingContractTest {
         if (fixture == null || fixture.isBlank()) return;
 
         List<String> lines = Files.readAllLines(Path.of(fixture));
-        assertTrue(lines.size() >= 2, "forced movement runtime binding fixture is incomplete");
-        assertEquals("symbol\truntime_call_count", lines.get(0));
-        assertEquals("forced_movement_instruction\t0", lines.get(1));
-        assertEquals(2, lines.size(), "pinned oracle unexpectedly contains runtime callsites");
+        assertTrue(lines.size() >= 3, "forced movement callsite fixture is incomplete");
+        assertEquals("role\tpath\tline\tenclosing\tstatement", lines.get(0));
+
+        long runtime = lines.stream().skip(1).filter(line -> line.startsWith("runtime\t")).count();
+        long tooling = lines.stream().skip(1).filter(line -> line.startsWith("tooling\t")).count();
+        assertEquals(1, runtime, "pinned oracle runtime forced-movement callsite changed");
+        assertEquals(1, tooling, "pinned oracle tooling forced-movement callsite changed");
+        assertTrue(
+                lines.stream().anyMatch(line -> line.startsWith("runtime\tauto_ptu/rules/battle_state.py\t")),
+                "runtime callsite must remain in battle_state.py"
+        );
+        assertTrue(
+                lines.stream().anyMatch(line -> line.startsWith("tooling\tauto_ptu/tools/generate_attack_log.py\t")),
+                "tooling callsite must remain in generate_attack_log.py"
+        );
     }
 
     private static void collectCallsites(Path sourceRoot, Path path, List<String> callsites) {
