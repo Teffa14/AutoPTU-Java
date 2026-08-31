@@ -10,11 +10,11 @@ import java.util.Map;
 /**
  * Core-only PRE-target bridge for interception.
  *
- * <p>The planner is intentionally package-private. External orchestration may identify the
- * Python-normalized Intercept kind and provide canonical combatant rule content, but it cannot
- * materialize eligible candidates or spatial attempts. Discovery, expiry cleanup, candidate
- * ordering, line geometry, Shift legality, RNG/resource use and displacement remain authoritative
- * runtime decisions.</p>
+ * <p>The planner is intentionally package-private. External orchestration may provide the
+ * Python-normalized move target kind and canonical combatant rule content, but it cannot choose
+ * the Intercept reaction kind or materialize eligible candidates or spatial attempts. Intercept
+ * kind collapse, discovery, expiry cleanup, candidate ordering, line geometry, Shift legality,
+ * RNG/resource use and displacement remain authoritative runtime decisions.</p>
  */
 final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTargetHook {
     @FunctionalInterface
@@ -23,13 +23,14 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
     }
 
     record Plan(
-            String interceptKind,
+            String normalizedTargetKind,
             Map<String, CombatantRuleContent> contentByCombatant
     ) {
         Plan {
-            if (!"melee".equals(interceptKind) && !"ranged".equals(interceptKind)) {
-                throw new IllegalArgumentException("interceptKind must be melee or ranged");
+            if (normalizedTargetKind == null || normalizedTargetKind.isBlank()) {
+                throw new IllegalArgumentException("normalizedTargetKind is required");
             }
+            normalizedTargetKind = normalizedTargetKind.strip().toLowerCase(java.util.Locale.ROOT);
             contentByCombatant = contentByCombatant == null ? Map.of() : Map.copyOf(contentByCombatant);
             if (contentByCombatant.entrySet().stream()
                     .anyMatch(entry -> entry.getKey() == null || entry.getValue() == null)) {
@@ -37,8 +38,12 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
             }
         }
 
+        String interceptKind() {
+            return InterceptKindResolution.fromNormalizedTargetKind(normalizedTargetKind);
+        }
+
         boolean melee() {
-            return "melee".equals(interceptKind);
+            return InterceptKindResolution.isMelee(normalizedTargetKind);
         }
     }
 
