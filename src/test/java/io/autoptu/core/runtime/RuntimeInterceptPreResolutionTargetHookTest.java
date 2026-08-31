@@ -12,7 +12,6 @@ import io.autoptu.core.rules.ActionBudget;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Modifier;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,13 +32,9 @@ class RuntimeInterceptPreResolutionTargetHookTest {
         ));
         interceptor.temporaryEffects().add("coaching_intercept");
         BattleRuntimeState state = state(List.of(attacker, target, interceptor), 991L);
-        Map<String, CombatantRuleContent> content = alliedContent("target", "interceptor");
         MoveOption move = move("Ember", "ranged", "Ranged");
 
-        RuntimeInterceptPreResolutionTargetHook hook = new RuntimeInterceptPreResolutionTargetHook(
-                (context, currentTargetId) -> new RuntimeInterceptPreResolutionTargetHook.Plan(content)
-        );
-
+        RuntimeInterceptPreResolutionTargetHook hook = hook(alliedContent("target", "interceptor"));
         PreResolutionTargetResult result = hook.resolve(
                 new PreResolutionTargetContext(state, "attacker", "Ember", move, "target", target.position()),
                 PreResolutionTargetResult.initial("target")
@@ -70,12 +65,7 @@ class RuntimeInterceptPreResolutionTargetHookTest {
         BattleRuntimeState state = state(List.of(attacker, target, interceptor), 994L);
         MoveOption move = move("Tackle", null, "Melee");
 
-        RuntimeInterceptPreResolutionTargetHook hook = new RuntimeInterceptPreResolutionTargetHook(
-                (context, currentTargetId) -> new RuntimeInterceptPreResolutionTargetHook.Plan(
-                        alliedContent("target", "interceptor")
-                )
-        );
-
+        RuntimeInterceptPreResolutionTargetHook hook = hook(alliedContent("target", "interceptor"));
         PreResolutionTargetResult result = hook.resolve(
                 new PreResolutionTargetContext(state, "attacker", "Tackle", move, "target", target.position()),
                 PreResolutionTargetResult.initial("target")
@@ -94,13 +84,9 @@ class RuntimeInterceptPreResolutionTargetHookTest {
                 "ally", "target", "intercept_kind", "ranged", "source", "Intercept"
         ));
         BattleRuntimeState state = state(List.of(attacker, target, interceptor), 992L);
-        Map<String, CombatantRuleContent> content = alliedContent("target", "interceptor");
         MoveOption move = move("Ember", "ranged", "Ranged");
 
-        RuntimeInterceptPreResolutionTargetHook hook = new RuntimeInterceptPreResolutionTargetHook(
-                (context, currentTargetId) -> new RuntimeInterceptPreResolutionTargetHook.Plan(content)
-        );
-
+        RuntimeInterceptPreResolutionTargetHook hook = hook(alliedContent("target", "interceptor"));
         PreResolutionTargetResult result = hook.resolve(
                 new PreResolutionTargetContext(state, "attacker", "Ember", move, "target", target.position()),
                 PreResolutionTargetResult.initial("target")
@@ -124,12 +110,7 @@ class RuntimeInterceptPreResolutionTargetHookTest {
         BattleRuntimeState state = state(List.of(attacker, target, interceptor), 993L);
         MoveOption move = move("Tackle", "melee", "Melee");
 
-        RuntimeInterceptPreResolutionTargetHook hook = new RuntimeInterceptPreResolutionTargetHook(
-                (context, currentTargetId) -> new RuntimeInterceptPreResolutionTargetHook.Plan(
-                        alliedContent("target", "interceptor")
-                )
-        );
-
+        RuntimeInterceptPreResolutionTargetHook hook = hook(alliedContent("target", "interceptor"));
         PreResolutionTargetResult result = hook.resolve(
                 new PreResolutionTargetContext(state, "attacker", "Tackle", move, "target", target.position()),
                 PreResolutionTargetResult.initial("target")
@@ -141,16 +122,17 @@ class RuntimeInterceptPreResolutionTargetHookTest {
     }
 
     @Test
-    void adaptersCannotConstructHookOrInjectKindPreparedAttemptsOrAttackLinePublicly() {
+    void preTargetPlanCannotInjectRuleContentKindPreparedAttemptsOrAttackLine() {
         assertFalse(Modifier.isPublic(RuntimeInterceptPreResolutionTargetHook.class.getModifiers()));
         assertFalse(Modifier.isPublic(RuntimeInterceptPreResolutionTargetHook.AttemptPlanner.class.getModifiers()));
-        assertTrue(Arrays.stream(RuntimeInterceptPreResolutionTargetHook.Plan.class.getRecordComponents())
-                .noneMatch(component -> component.getType().equals(GridCoord.class)));
-        assertTrue(Arrays.stream(RuntimeInterceptPreResolutionTargetHook.Plan.class.getRecordComponents())
-                .noneMatch(component -> component.getType().equals(List.class)));
-        assertTrue(Arrays.stream(RuntimeInterceptPreResolutionTargetHook.Plan.class.getRecordComponents())
-                .noneMatch(component -> component.getType().equals(String.class)));
-        assertEquals(1, RuntimeInterceptPreResolutionTargetHook.Plan.class.getRecordComponents().length);
+        assertEquals(0, RuntimeInterceptPreResolutionTargetHook.Plan.class.getRecordComponents().length);
+    }
+
+    private static RuntimeInterceptPreResolutionTargetHook hook(Map<String, CombatantRuleContent> content) {
+        return new RuntimeInterceptPreResolutionTargetHook(
+                (context, currentTargetId) -> new RuntimeInterceptPreResolutionTargetHook.Plan(),
+                new CombatantRuleContentRegistry(content)
+        );
     }
 
     private static MoveOption move(String moveId, String targetKind, String rangeKind) {
