@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "src/main/java/io/autoptu/core/runtime/InterceptCandidateDiscoveryResolution.java"
+      - "src/main/java/io/autoptu/core/runtime/InterceptKindResolution.java"
       - "src/main/java/io/autoptu/core/runtime/CombatantRuleContent.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptCandidateDiscoveryFactory.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptCandidateCleanupApplication.java"
@@ -11,6 +12,7 @@ on:
       - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptPreResolutionTargetHook.java"
       - "src/test/java/io/autoptu/core/runtime/InterceptCandidateDiscoveryResolutionTest.java"
       - "src/test/java/io/autoptu/core/runtime/InterceptCandidateDiscoveryOracleParityTest.java"
+      - "src/test/java/io/autoptu/core/runtime/InterceptKindResolutionTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptCandidateDiscoveryFactoryTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptCandidateCleanupApplicationTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptAttemptPlannerTest.java"
@@ -56,6 +58,7 @@ jobs:
           -Dautoptu.intercept.candidate.discovery.oracle="$GITHUB_WORKSPACE/build/oracle/intercept-candidate-discovery.tsv"
           --tests io.autoptu.core.runtime.InterceptCandidateDiscoveryOracleParityTest
           --tests io.autoptu.core.runtime.InterceptCandidateDiscoveryResolutionTest
+          --tests io.autoptu.core.runtime.InterceptKindResolutionTest
           --tests io.autoptu.core.runtime.RuntimeInterceptCandidateDiscoveryFactoryTest
           --tests io.autoptu.core.runtime.RuntimeInterceptCandidateCleanupApplicationTest
           --tests io.autoptu.core.runtime.RuntimeInterceptAttemptPlannerTest
