@@ -10,6 +10,7 @@ on:
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementApplicationTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeForcedMovementMoveApplicationTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeForcedMovementAbilityModifierTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimePostHitForcedMovementApplicationTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementRuntimeBindingContractTest.java"
       - "tools/python/export_forced_movement_instruction_fixtures.py"
       - "tools/python/export_forced_movement_ability_modifier_fixtures.py"
@@ -74,4 +75,5 @@ jobs:
           --tests io.autoptu.core.runtime.ForcedMovementApplicationTest
           --tests io.autoptu.core.runtime.RuntimeForcedMovementMoveApplicationTest
           --tests io.autoptu.core.runtime.RuntimeForcedMovementAbilityModifierTest
+          --tests io.autoptu.core.runtime.RuntimePostHitForcedMovementApplicationTest
           --tests io.autoptu.core.runtime.ForcedMovementRuntimeBindingContractTest
