@@ -83,7 +83,7 @@ class ForcedMovementRuntimeBindingContractTest {
 
         List<String> lines = Files.readAllLines(Path.of(fixture));
         assertEquals(2, lines.size(), "pinned oracle forced-movement consumer inventory changed");
-        assertEquals("path\tline\tenclosing\tguard\tstatement\tblock\tprevious\tnext", lines.get(0));
+        assertEquals("path\tline\tenclosing\tguard\tstatement\tordering_block\tprevious\tnext", lines.get(0));
 
         String[] fields = lines.get(1).split("\\t", -1);
         assertEquals(8, fields.length, "forced-movement consumer fixture row shape changed");
@@ -93,7 +93,9 @@ class ForcedMovementRuntimeBindingContractTest {
         assertTrue(fields[3].contains("hit"), "forced movement must remain hit-gated");
         assertTrue(fields[4].contains("apply_forced_movement"), "runtime consumer must remain apply_forced_movement");
         assertTrue(fields[4].contains("instruction"), "runtime consumer must consume the resolved instruction");
-        assertFalse(fields[5].isBlank(), "consumer block identity must be frozen");
+        assertFalse(fields[5].isBlank(), "consumer ordering block identity must be frozen");
+        assertFalse(fields[6].isBlank(), "consumer preceding pipeline landmark must be frozen");
+        assertFalse(fields[7].isBlank(), "consumer following pipeline landmark must be frozen");
     }
 
     private static void collectCallsites(Path sourceRoot, Path path, List<String> callsites) {
