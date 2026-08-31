@@ -151,6 +151,8 @@ class RuntimeInterceptPreResolutionTargetHookTest {
                 Map.of(),
                 Map.of(),
                 affiliations,
+                Map.of(),
+                Map.of(),
                 seed
         );
     }
