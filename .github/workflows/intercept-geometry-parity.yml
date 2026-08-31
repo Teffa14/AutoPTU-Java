@@ -3,12 +3,19 @@ name: Intercept Geometry Parity
 on:
   pull_request:
     paths:
+      - "src/main/java/io/autoptu/core/rules/GridLineResolution.java"
       - "src/main/java/io/autoptu/core/runtime/InterceptGeometryResolution.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptPositionResolver.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptSpatialSequenceApplication.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeInterceptPreResolutionTargetHook.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeShiftDestinationResolver.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimePositionFitResolver.java"
+      - "src/test/java/io/autoptu/core/rules/GridLineResolutionParityTest.java"
       - "src/test/java/io/autoptu/core/runtime/InterceptGeometryResolutionTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptPositionResolverTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptSpatialSequenceApplicationTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeInterceptPreResolutionTargetHookTest.java"
+      - "tools/python/export_grid_line_contract.py"
       - "tools/python/export_intercept_geometry_contract.py"
       - ".github/workflows/intercept-geometry-parity.yml"
   push:
@@ -36,16 +43,23 @@ jobs:
           "$JAVA_HOME_21_X64/bin/java" -version
           gradle --version
 
-      - name: Export Python intercept geometry contract
+      - name: Export Python geometry contracts
         run: |
-          python3 -m py_compile tools/python/export_intercept_geometry_contract.py
+          python3 -m py_compile tools/python/export_intercept_geometry_contract.py tools/python/export_grid_line_contract.py
           python3 tools/python/export_intercept_geometry_contract.py \
             --source-root python-oracle \
             --output build/oracle/intercept-geometry.tsv
+          python3 tools/python/export_grid_line_contract.py \
+            --source-root python-oracle \
+            --output build/oracle/grid-line.tsv
 
       - name: Run intercept geometry parity tests
         run: >-
           gradle test --stacktrace
           -Dautoptu.intercept.geometry.oracle="$GITHUB_WORKSPACE/build/oracle/intercept-geometry.tsv"
+          -Dautoptu.grid.line.oracle="$GITHUB_WORKSPACE/build/oracle/grid-line.tsv"
+          --tests io.autoptu.core.rules.GridLineResolutionParityTest
           --tests io.autoptu.core.runtime.InterceptGeometryResolutionTest
           --tests io.autoptu.core.runtime.RuntimeInterceptPositionResolverTest
+          --tests io.autoptu.core.runtime.RuntimeInterceptSpatialSequenceApplicationTest
+          --tests io.autoptu.core.runtime.RuntimeInterceptPreResolutionTargetHookTest

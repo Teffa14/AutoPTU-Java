@@ -1,21 +1,22 @@
 package io.autoptu.core.runtime;
 
 import io.autoptu.core.model.GridCoord;
+import io.autoptu.core.rules.GridLineResolution;
 
-import java.util.Collection;
 import java.util.List;
 
 /**
  * Composes the authoritative interception attempt sequence with server-owned spatial resolution.
  *
- * <p>Callers provide candidate identity, canonical combatant rule content and the PTU attack-line
- * cells. The caller must preserve Python's candidate ordering; the runtime selects only the first
- * candidate, matching Python's {@code interceptors[0]} behavior. It then derives that candidate's
- * legal intercept position from authoritative Shift legality before materializing the check input.
- * If the selected candidate cannot reach an attack-line cell, interception ends before RNG or
- * resources are consumed; later candidates are not tried. Only a successful selected candidate
- * commits movement. Melee interceptions reuse {@link InterceptMovementApplication#applyMelee} so
- * Push 1, collisions and partial stops remain owned by the shared forced-movement engine.</p>
+ * <p>Callers provide the attacker, original target, candidate identity and canonical combatant rule
+ * content. The runtime derives the attack line from authoritative combatant positions, preserves
+ * Python's candidate ordering and selects only the first candidate, matching Python's
+ * {@code interceptors[0]} behavior. It then derives that candidate's legal intercept position from
+ * authoritative Shift legality before materializing the check input. If the selected candidate
+ * cannot reach an attack-line cell, interception ends before RNG or resources are consumed; later
+ * candidates are not tried. Only a successful selected candidate commits movement. Melee
+ * interceptions reuse {@link InterceptMovementApplication#applyMelee} so Push 1, collisions and
+ * partial stops remain owned by the shared forced-movement engine.</p>
  */
 public final class RuntimeInterceptSpatialSequenceApplication {
     private RuntimeInterceptSpatialSequenceApplication() {}
@@ -55,17 +56,23 @@ public final class RuntimeInterceptSpatialSequenceApplication {
 
     static Result apply(
             BattleRuntimeState state,
+            String attackerId,
             String originalTargetId,
             boolean melee,
-            Collection<GridCoord> attackLine,
             List<Attempt> attempts
     ) {
         if (state == null) throw new IllegalArgumentException("battle state is required");
+        if (attackerId == null || attackerId.isBlank()) {
+            throw new IllegalArgumentException("attackerId is required");
+        }
         if (originalTargetId == null || originalTargetId.isBlank()) {
             throw new IllegalArgumentException("originalTargetId is required");
         }
 
-        Collection<GridCoord> line = attackLine == null ? List.of() : List.copyOf(attackLine);
+        List<GridCoord> line = GridLineResolution.cells(
+                state.requireCombatant(attackerId).position(),
+                state.requireCombatant(originalTargetId).position()
+        );
         List<Attempt> requested = attempts == null ? List.of() : List.copyOf(attempts);
         if (requested.stream().anyMatch(java.util.Objects::isNull)) {
             throw new IllegalArgumentException("attempt entries are required");
