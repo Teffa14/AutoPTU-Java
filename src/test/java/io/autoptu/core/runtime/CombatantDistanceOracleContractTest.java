@@ -26,6 +26,7 @@ class CombatantDistanceOracleContractTest {
         boolean sawSignature = false;
         boolean sawImplementation = false;
         boolean sawReturn = false;
+        boolean sawFootprintCall = false;
         for (String line : lines.subList(1, lines.size())) {
             String[] fields = line.split("\\t", -1);
             assertEquals(5, fields.length, "combatant distance fixture row shape changed");
@@ -37,13 +38,24 @@ class CombatantDistanceOracleContractTest {
                     sawSignature = true;
                     assertTrue(fields[4].contains("position"), "candidate-position projection must remain explicit");
                 }
-                case "implementation" -> sawImplementation = true;
+                case "implementation" -> {
+                    sawImplementation = true;
+                    assertTrue(fields[4].contains("position if position is not None else actor.position"));
+                    assertTrue(fields[4].contains("targeting.footprint_distance"));
+                    assertTrue(fields[4].contains("getattr(actor.spec, 'size', '')"));
+                    assertTrue(fields[4].contains("coord, 'Medium', self.grid"));
+                }
                 case "return" -> sawReturn = true;
+                case "call:footprint_distance" -> {
+                    sawFootprintCall = true;
+                    assertTrue(fields[4].contains("coord, 'Medium', self.grid"));
+                }
                 default -> { }
             }
         }
         assertTrue(sawSignature);
         assertTrue(sawImplementation);
         assertTrue(sawReturn);
+        assertTrue(sawFootprintCall);
     }
 }
