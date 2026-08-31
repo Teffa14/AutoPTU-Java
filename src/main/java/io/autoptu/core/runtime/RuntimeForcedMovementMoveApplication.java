@@ -1,17 +1,21 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
+import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.rules.ForcedMovementInstruction;
 import io.autoptu.core.rules.ForcedMovementInstructionResolution;
 
 import java.util.Optional;
+import java.util.Set;
 
 /**
- * Server-owned bridge from a combatant's canonical move metadata to generic Push/Pull execution.
+ * Server-owned bridge from a currently legal combatant-target move to generic Push/Pull execution.
  *
- * <p>Callers identify the acting combatant, target and move. The core resolves the move from the
- * authoritative battle snapshot, derives Python-compatible forced-movement intent from that move,
- * then delegates collision and partial-stop behavior to the shared displacement primitive.</p>
+ * <p>The caller supplies the declared move choice, but the core resolves canonical move metadata
+ * and revalidates the complete actor/target/move choice against current battle state before any
+ * displacement can mutate position. This prevents adapters or stale controllers from using an
+ * owned Push/Pull move to displace an arbitrary combatant.</p>
  */
 public final class RuntimeForcedMovementMoveApplication {
     private RuntimeForcedMovementMoveApplication() {}
@@ -30,22 +34,25 @@ public final class RuntimeForcedMovementMoveApplication {
 
     public static Optional<Result> apply(
             BattleRuntimeState state,
-            String sourceCombatantId,
-            String targetCombatantId,
-            String moveId
+            MoveChoice choice,
+            String actorSize,
+            String targetSize,
+            Set<GridCoord> lineOfSightBlockers
     ) {
         if (state == null) throw new IllegalArgumentException("battle state is required");
-        if (sourceCombatantId == null || sourceCombatantId.isBlank()) {
-            throw new IllegalArgumentException("sourceCombatantId is required");
-        }
-        if (targetCombatantId == null || targetCombatantId.isBlank()) {
-            throw new IllegalArgumentException("targetCombatantId is required");
-        }
-        if (moveId == null || moveId.isBlank()) throw new IllegalArgumentException("moveId is required");
+        if (choice == null) throw new IllegalArgumentException("move choice is required");
+        if (lineOfSightBlockers == null) throw new IllegalArgumentException("lineOfSightBlockers is required");
 
-        state.requireCombatant(sourceCombatantId);
-        state.requireCombatant(targetCombatantId);
-        MoveOption move = requireCanonicalMove(state, sourceCombatantId, moveId);
+        MoveOption move = requireCanonicalMove(state, choice.actorId(), choice.moveId());
+        MoveChoiceRevalidation.requireLegalCombatantMove(
+                state,
+                choice,
+                move,
+                actorSize,
+                targetSize,
+                lineOfSightBlockers
+        );
+
         Optional<ForcedMovementInstruction> instruction = ForcedMovementInstructionResolution.resolve(
                 move.spec().keywords(),
                 move.spec().effectsText()
@@ -54,8 +61,8 @@ public final class RuntimeForcedMovementMoveApplication {
 
         ForcedDisplacementResolution.Result displacement = ForcedMovementApplication.apply(
                 state,
-                sourceCombatantId,
-                targetCombatantId,
+                choice.actorId(),
+                choice.targetId(),
                 instruction.orElseThrow()
         );
         return Optional.of(new Result(move.moveId(), instruction.orElseThrow(), displacement));
