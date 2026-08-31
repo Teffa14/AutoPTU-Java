@@ -56,8 +56,8 @@ class RuntimeForcedMovementAbilityModifierTest {
     @Test
     void thrustDoesNotChangePull() {
         RuntimeCombatantState source = combatant("source", 1, 1, List.of("Thrust"));
-        RuntimeCombatantState target = combatant("target", 3, 1, List.of());
-        MoveOption move = move("hook", "physical", List.of("pull"), "", 2);
+        RuntimeCombatantState target = combatant("target", 2, 1, List.of());
+        MoveOption move = move("hook", "physical", List.of("pull"), "");
         BattleRuntimeState state = state(source, target, move);
 
         RuntimeForcedMovementMoveApplication.Result result = RuntimeForcedMovementMoveApplication.apply(
@@ -66,6 +66,8 @@ class RuntimeForcedMovementAbilityModifierTest {
 
         assertEquals(ForcedMovementInstruction.Kind.PULL, result.instruction().kind());
         assertEquals(1, result.instruction().distance());
+        // Pull would enter the source footprint, so the shared collision resolver
+        // stops it in place; this fixture tests that Thrust does not turn Pull into Push.
         assertEquals(new GridCoord(2, 1), target.position());
     }
 
@@ -98,19 +100,9 @@ class RuntimeForcedMovementAbilityModifierTest {
     }
 
     private static MoveOption move(String id, String category, List<String> keywords, String effectsText) {
-        return move(id, category, keywords, effectsText, 1);
-    }
-
-    private static MoveOption move(
-            String id,
-            String category,
-            List<String> keywords,
-            String effectsText,
-            int targetRange
-    ) {
         return new MoveOption(
                 id,
-                new MoveSpec("Melee", "Melee", targetRange, targetRange, null, null, "Melee", keywords, effectsText),
+                new MoveSpec("Melee", "Melee", 1, 1, null, null, "Melee", keywords, effectsText),
                 ActionType.STANDARD,
                 true,
                 new MoveCombatProfile(2, 4, 20, category)
