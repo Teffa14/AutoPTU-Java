@@ -50,6 +50,33 @@ class RuntimePostHitForcedMovementApplicationTest {
     }
 
     @Test
+    void defenderAbilityCanPreventResolvedPush() {
+        RuntimeCombatantState source = combatant("source", 1, 1);
+        RuntimeCombatantState target = combatant("target", 2, 1, List.of("Suction Cups [Errata]"));
+        MoveOption move = move("ram", List.of("push 2"), "Push the target 2 meters.");
+        BattleRuntimeState state = state(source, target, move);
+
+        assertTrue(RuntimePostHitForcedMovementApplication.apply(
+                state, choice(source, target, move), true
+        ).isEmpty());
+        assertEquals(new GridCoord(2, 1), target.position());
+    }
+
+    @Test
+    void suppressedDefenderAbilityDoesNotPreventPush() {
+        RuntimeCombatantState source = combatant("source", 1, 1);
+        RuntimeCombatantState target = combatant("target", 2, 1, List.of("Suction Cups"));
+        target.setAbilitiesSuppressedFromRuntime(true);
+        MoveOption move = move("ram", List.of("push"), "");
+        BattleRuntimeState state = state(source, target, move);
+
+        assertTrue(RuntimePostHitForcedMovementApplication.apply(
+                state, choice(source, target, move), true
+        ).isPresent());
+        assertEquals(new GridCoord(3, 1), target.position());
+    }
+
+    @Test
     void stillRequiresServerOwnedCanonicalMove() {
         RuntimeCombatantState source = combatant("source", 1, 1);
         RuntimeCombatantState target = combatant("target", 2, 1);
@@ -99,12 +126,26 @@ class RuntimePostHitForcedMovementApplicationTest {
     }
 
     private static RuntimeCombatantState combatant(String id, int x, int y) {
+        return combatant(id, x, y, List.of());
+    }
+
+    private static RuntimeCombatantState combatant(String id, int x, int y, List<String> abilities) {
         return new RuntimeCombatantState(
                 id,
                 MovementProfile.walking(new GridCoord(x, y), 6),
                 20,
                 20,
-                new ActionBudget()
+                new ActionBudget(),
+                null,
+                null,
+                0,
+                false,
+                false,
+                false,
+                false,
+                List.of(),
+                List.of(),
+                abilities
         );
     }
 }
