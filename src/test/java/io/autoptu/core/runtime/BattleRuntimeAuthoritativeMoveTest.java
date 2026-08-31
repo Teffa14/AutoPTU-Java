@@ -93,6 +93,52 @@ class BattleRuntimeAuthoritativeMoveTest {
         assertTrue(event.damage() > 0);
     }
 
+    @Test
+    void hitAppliesCanonicalPushAfterResolvedOutcome() {
+        MoveOption move = pushMove("ram");
+        BattleRuntimeState state = stateWithEnemyAndMove(35, move);
+
+        AppliedActionResult result = BattleRuntime.applyAuthoritativeMove(
+                state,
+                choice("ram"),
+                move,
+                "Medium",
+                "Medium",
+                Set.of(),
+                "Player",
+                new PythonRandom(7),
+                input(5)
+        );
+
+        MoveResolvedEvent event = (MoveResolvedEvent) result.events().getFirst();
+        assertTrue(event.hit());
+        assertTrue(event.damage() > 0);
+        assertEquals(new GridCoord(4, 1), state.requireCombatant("enemy").position());
+        assertFalse(state.requireCombatant("actor").actionBudget().hasActionAvailable(ActionType.STANDARD));
+    }
+
+    @Test
+    void missDoesNotApplyCanonicalPush() {
+        MoveOption move = pushMove("ram");
+        BattleRuntimeState state = stateWithEnemyAndMove(35, move);
+
+        AppliedActionResult result = BattleRuntime.applyAuthoritativeMove(
+                state,
+                choice("ram"),
+                move,
+                "Medium",
+                "Medium",
+                Set.of(),
+                "Player",
+                new PythonRandom(19),
+                input(5)
+        );
+
+        MoveResolvedEvent event = (MoveResolvedEvent) result.events().getFirst();
+        assertFalse(event.hit());
+        assertEquals(new GridCoord(2, 1), state.requireCombatant("enemy").position());
+    }
+
     private static MoveResolutionInput input(int moveAc) {
         return new MoveResolutionInput(
                 moveAc,
@@ -127,24 +173,51 @@ class BattleRuntimeAuthoritativeMoveTest {
         return MoveOption.standard(moveId, spec);
     }
 
+    private static MoveOption pushMove(String moveId) {
+        MoveSpec spec = new MoveSpec(
+                "Melee", "Melee", 1, 1, null, null, "Melee",
+                List.of("push 2"), "Push the target 2 meters."
+        );
+        return new MoveOption(moveId, spec, ActionType.STANDARD, true);
+    }
+
     private static BattleRuntimeState stateWithEnemy(int enemyHp) {
-        RuntimeCombatantState actor = new RuntimeCombatantState(
+        RuntimeCombatantState actor = actor();
+        RuntimeCombatantState enemy = enemy(enemyHp);
+        return new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(actor, enemy)
+        );
+    }
+
+    private static BattleRuntimeState stateWithEnemyAndMove(int enemyHp, MoveOption move) {
+        RuntimeCombatantState actor = actor();
+        RuntimeCombatantState enemy = enemy(enemyHp);
+        return new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(actor, enemy),
+                Map.of(), Map.of(), Map.of(), Map.of(),
+                Map.of("actor", List.of(move))
+        );
+    }
+
+    private static RuntimeCombatantState actor() {
+        return new RuntimeCombatantState(
                 "actor",
                 MovementProfile.walking(new GridCoord(1, 1), 3),
                 50,
                 50,
                 new ActionBudget()
         );
-        RuntimeCombatantState enemy = new RuntimeCombatantState(
+    }
+
+    private static RuntimeCombatantState enemy(int enemyHp) {
+        return new RuntimeCombatantState(
                 "enemy",
                 MovementProfile.walking(new GridCoord(2, 1), 3),
                 enemyHp,
                 100,
                 new ActionBudget()
-        );
-        return new BattleRuntimeState(
-                new MovementGrid(6, 6, Set.of(), Map.of()),
-                List.of(actor, enemy)
         );
     }
 }
