@@ -6,9 +6,11 @@ on:
       - "src/main/java/io/autoptu/core/rules/ForcedMovementInstruction*.java"
       - "src/main/java/io/autoptu/core/runtime/ForcedDisplacementResolution.java"
       - "src/main/java/io/autoptu/core/runtime/ForcedMovementApplication.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeForcedMovementMoveApplication.java"
       - "src/test/java/io/autoptu/core/rules/ForcedMovementInstructionOracleParityTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedDisplacementResolutionTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementApplicationTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeForcedMovementMoveApplicationTest.java"
       - "tools/python/export_forced_movement_instruction_fixtures.py"
       - ".github/workflows/forced-movement-instruction-parity.yml"
   push:
@@ -51,3 +53,4 @@ jobs:
           --tests io.autoptu.core.rules.ForcedMovementInstructionOracleParityTest
           --tests io.autoptu.core.runtime.ForcedDisplacementResolutionTest
           --tests io.autoptu.core.runtime.ForcedMovementApplicationTest
+          --tests io.autoptu.core.runtime.RuntimeForcedMovementMoveApplicationTest
