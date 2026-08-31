@@ -6,6 +6,7 @@ on:
       - "src/main/java/**/*.java"
       - "src/test/java/io/autoptu/core/rules/ForcedMovementInstructionOracleParityTest.java"
       - "src/test/java/io/autoptu/core/rules/ForcedMovementAbilityModifierOracleParityTest.java"
+      - "src/test/java/io/autoptu/core/rules/ForcedMovementPreventionOracleParityTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedDisplacementResolutionTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementApplicationTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeForcedMovementMoveApplicationTest.java"
@@ -15,6 +16,7 @@ on:
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementRuntimeBindingContractTest.java"
       - "tools/python/export_forced_movement_instruction_fixtures.py"
       - "tools/python/export_forced_movement_ability_modifier_fixtures.py"
+      - "tools/python/export_forced_movement_prevention_fixtures.py"
       - "tools/python/export_forced_movement_runtime_binding_contract.py"
       - ".github/workflows/forced-movement-instruction-parity.yml"
   push:
@@ -46,6 +48,7 @@ jobs:
         run: |
           python3 -m py_compile tools/python/export_forced_movement_instruction_fixtures.py
           python3 -m py_compile tools/python/export_forced_movement_ability_modifier_fixtures.py
+          python3 -m py_compile tools/python/export_forced_movement_prevention_fixtures.py
           python3 -m py_compile tools/python/export_forced_movement_runtime_binding_contract.py
           python3 tools/python/export_forced_movement_instruction_fixtures.py \
             --source-root python-oracle \
@@ -53,11 +56,15 @@ jobs:
           python3 tools/python/export_forced_movement_ability_modifier_fixtures.py \
             --source-root python-oracle \
             --output build/oracle/forced-movement-ability-modifier.tsv
+          python3 tools/python/export_forced_movement_prevention_fixtures.py \
+            --source-root python-oracle \
+            --output build/oracle/forced-movement-prevention.tsv
           python3 tools/python/export_forced_movement_runtime_binding_contract.py \
             --source-root python-oracle \
             --output build/oracle/forced-movement-runtime-binding.tsv \
             --trace-output build/oracle/forced-movement-runtime-trace.tsv \
             --consumer-output build/oracle/forced-movement-runtime-consumer.tsv
+          cat build/oracle/forced-movement-prevention.tsv
           cat build/oracle/forced-movement-runtime-binding.tsv
           cat build/oracle/forced-movement-runtime-trace.tsv
           cat build/oracle/forced-movement-runtime-consumer.tsv
@@ -66,12 +73,14 @@ jobs:
         env:
           AUTOPTU_FORCED_MOVEMENT_INSTRUCTION_ORACLE: ${{ github.workspace }}/build/oracle/forced-movement-instruction.tsv
           AUTOPTU_FORCED_MOVEMENT_ABILITY_MODIFIER_ORACLE: ${{ github.workspace }}/build/oracle/forced-movement-ability-modifier.tsv
+          AUTOPTU_FORCED_MOVEMENT_PREVENTION_ORACLE: ${{ github.workspace }}/build/oracle/forced-movement-prevention.tsv
           AUTOPTU_FORCED_MOVEMENT_RUNTIME_BINDING_ORACLE: ${{ github.workspace }}/build/oracle/forced-movement-runtime-binding.tsv
           AUTOPTU_FORCED_MOVEMENT_RUNTIME_CONSUMER_ORACLE: ${{ github.workspace }}/build/oracle/forced-movement-runtime-consumer.tsv
         run: >-
           gradle test --stacktrace
           --tests io.autoptu.core.rules.ForcedMovementInstructionOracleParityTest
           --tests io.autoptu.core.rules.ForcedMovementAbilityModifierOracleParityTest
+          --tests io.autoptu.core.rules.ForcedMovementPreventionOracleParityTest
           --tests io.autoptu.core.runtime.ForcedDisplacementResolutionTest
           --tests io.autoptu.core.runtime.ForcedMovementApplicationTest
           --tests io.autoptu.core.runtime.RuntimeForcedMovementMoveApplicationTest
