@@ -3,6 +3,7 @@ package io.autoptu.core.runtime;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.model.GridCoord;
+import io.autoptu.core.rules.ForcedMovementAbilityModifierResolution;
 import io.autoptu.core.rules.ForcedMovementInstruction;
 import io.autoptu.core.rules.ForcedMovementInstructionResolution;
 
@@ -14,8 +15,8 @@ import java.util.Set;
  *
  * <p>The caller supplies the declared move choice, but the core resolves canonical move metadata
  * and revalidates the complete actor/target/move choice against current battle state before any
- * displacement can mutate position. This prevents adapters or stale controllers from using an
- * owned Push/Pull move to displace an arbitrary combatant.</p>
+ * displacement can mutate position. Move- and ability-caused forced movement are then composed
+ * from the same authoritative combatant snapshot.</p>
  */
 public final class RuntimeForcedMovementMoveApplication {
     private RuntimeForcedMovementMoveApplication() {}
@@ -56,6 +57,16 @@ public final class RuntimeForcedMovementMoveApplication {
         Optional<ForcedMovementInstruction> instruction = ForcedMovementInstructionResolution.resolve(
                 move.spec().keywords(),
                 move.spec().effectsText()
+        );
+        RuntimeCombatantState source = state.requireCombatant(choice.actorId());
+        String damageCategory = move.combatProfile() == null
+                ? ""
+                : move.combatProfile().damageCategory();
+        instruction = ForcedMovementAbilityModifierResolution.resolve(
+                instruction,
+                damageCategory,
+                source.abilities(),
+                source.abilitiesSuppressed()
         );
         if (instruction.isEmpty()) return Optional.empty();
 
