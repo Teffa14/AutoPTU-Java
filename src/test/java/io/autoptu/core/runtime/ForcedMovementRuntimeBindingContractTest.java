@@ -14,14 +14,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Freezes Python forced-movement runtime placement before Java binds that ordering. */
+/** Freezes Python forced-movement runtime placement and the single Java runtime binding. */
 class ForcedMovementRuntimeBindingContractTest {
     private static final Pattern JAVA_RUNTIME_CALL = Pattern.compile(
-            "\\bRuntimeForcedMovementMoveApplication\\s*\\.\\s*apply\\s*\\("
+            "\\bRuntimePostHitForcedMovementApplication\\s*\\.\\s*apply\\s*\\("
     );
 
     @Test
-    void freezesPythonRuntimeAndToolingCallsitesWhileJavaOrderingRemainsUnbound() throws IOException {
+    void freezesPythonRuntimeAndSingleJavaBattleRuntimeBinding() throws IOException {
         assertPinnedPythonFixtureIfAvailable();
         assertPinnedPythonConsumerFixtureIfAvailable();
 
@@ -31,14 +31,14 @@ class ForcedMovementRuntimeBindingContractTest {
         List<String> callsites = new ArrayList<>();
         try (var paths = Files.walk(sourceRoot)) {
             paths.filter(path -> path.toString().endsWith(".java"))
-                    .filter(path -> !path.getFileName().toString().equals("RuntimeForcedMovementMoveApplication.java"))
+                    .filter(path -> !path.getFileName().toString().equals("RuntimePostHitForcedMovementApplication.java"))
                     .forEach(path -> collectCallsites(sourceRoot, path, callsites));
         }
 
-        assertEquals(
-                List.of(),
-                callsites,
-                "Java forced movement ordering must remain unbound until the pinned battle_state order is frozen"
+        assertEquals(1, callsites.size(), "Java forced movement must have exactly one production binding");
+        assertTrue(
+                callsites.getFirst().startsWith("io/autoptu/core/runtime/BattleRuntime.java:"),
+                "forced movement must remain bound inside BattleRuntime: " + callsites
         );
     }
 

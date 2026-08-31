@@ -485,6 +485,9 @@ public final class BattleRuntime {
                     result
             ).actionResult();
         }
+        if (accuracy.hit() && state.hasCanonicalMoves(choice.actorId())) {
+            RuntimePostHitForcedMovementApplication.apply(state, choice, true);
+        }
         if (accuracy.hit()) {
             result = prependEvents(resolvedPostDamageHooks.events(), result);
         }
