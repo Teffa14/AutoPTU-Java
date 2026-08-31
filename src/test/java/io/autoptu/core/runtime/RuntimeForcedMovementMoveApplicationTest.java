@@ -1,5 +1,7 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.action.ChoiceTargetMode;
+import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.GridCoord;
@@ -24,7 +26,7 @@ class RuntimeForcedMovementMoveApplicationTest {
     void derivesPushFromAuthoritativeMoveEffectsAndUsesSharedPartialStop() {
         RuntimeCombatantState source = combatant("source", 1, 1);
         RuntimeCombatantState target = combatant("target", 2, 1);
-        MoveOption move = move("ram", List.of(), "Push the target 5 meters.");
+        MoveOption move = move("ram", "Melee", 1, List.of(), "Push the target 5 meters.");
         BattleRuntimeState state = state(
                 source,
                 target,
@@ -33,7 +35,11 @@ class RuntimeForcedMovementMoveApplicationTest {
         );
 
         RuntimeForcedMovementMoveApplication.Result result = RuntimeForcedMovementMoveApplication.apply(
-                state, "source", "target", "ram"
+                state,
+                choice(source, target, move),
+                "Medium",
+                "Medium",
+                Set.of()
         ).orElseThrow();
 
         assertEquals(ForcedMovementInstruction.Kind.PUSH, result.instruction().kind());
@@ -47,14 +53,18 @@ class RuntimeForcedMovementMoveApplicationTest {
     }
 
     @Test
-    void derivesPullFromAuthoritativeKeywordAndStopsBeforeSourceFootprint() {
+    void derivesPullFromAuthoritativeKeywordAfterCurrentChoiceRevalidation() {
         RuntimeCombatantState source = combatant("source", 1, 1);
         RuntimeCombatantState target = combatant("target", 4, 1);
-        MoveOption move = move("hook", List.of("pull"), "");
+        MoveOption move = move("hook", "Ranged", 6, List.of("pull"), "");
         BattleRuntimeState state = state(source, target, Set.of(), Map.of("source", List.of(move)));
 
         RuntimeForcedMovementMoveApplication.Result result = RuntimeForcedMovementMoveApplication.apply(
-                state, "source", "target", "hook"
+                state,
+                choice(source, target, move),
+                "Medium",
+                "Medium",
+                Set.of()
         ).orElseThrow();
 
         assertEquals(ForcedMovementInstruction.Kind.PULL, result.instruction().kind());
@@ -64,49 +74,136 @@ class RuntimeForcedMovementMoveApplicationTest {
     }
 
     @Test
-    void canonicalMoveWithoutForcedMovementLeavesPositionUntouched() {
+    void rejectsOutOfRangeTargetBeforeForcedMovementMutatesPosition() {
         RuntimeCombatantState source = combatant("source", 1, 1);
-        RuntimeCombatantState target = combatant("target", 3, 1);
-        MoveOption move = move("plain", List.of("contact"), "Deal damage.");
+        RuntimeCombatantState target = combatant("target", 4, 1);
+        MoveOption move = move("ram", "Melee", 1, List.of("push"), "");
         BattleRuntimeState state = state(source, target, Set.of(), Map.of("source", List.of(move)));
 
-        assertTrue(RuntimeForcedMovementMoveApplication.apply(state, "source", "target", "plain").isEmpty());
-        assertEquals(new GridCoord(3, 1), target.position());
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> RuntimeForcedMovementMoveApplication.apply(
+                        state,
+                        choice(source, target, move),
+                        "Medium",
+                        "Medium",
+                        Set.of()
+                )
+        );
+
+        assertTrue(error.getMessage().contains("no longer legal"));
+        assertEquals(new GridCoord(4, 1), target.position());
+    }
+
+    @Test
+    void rejectsStaleTargetAnchorBeforeForcedMovementMutatesPosition() {
+        RuntimeCombatantState source = combatant("source", 1, 1);
+        RuntimeCombatantState target = combatant("target", 2, 1);
+        MoveOption move = move("ram", "Melee", 1, List.of("push"), "");
+        BattleRuntimeState state = state(source, target, Set.of(), Map.of("source", List.of(move)));
+        MoveChoice stale = new MoveChoice(
+                "source",
+                "ram",
+                ChoiceTargetMode.COMBATANT,
+                "target",
+                new GridCoord(3, 1),
+                ActionType.STANDARD
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> RuntimeForcedMovementMoveApplication.apply(
+                        state,
+                        stale,
+                        "Medium",
+                        "Medium",
+                        Set.of()
+                )
+        );
+        assertEquals(new GridCoord(2, 1), target.position());
+    }
+
+    @Test
+    void canonicalMoveWithoutForcedMovementLeavesPositionUntouched() {
+        RuntimeCombatantState source = combatant("source", 1, 1);
+        RuntimeCombatantState target = combatant("target", 2, 1);
+        MoveOption move = move("plain", "Melee", 1, List.of("contact"), "Deal damage.");
+        BattleRuntimeState state = state(source, target, Set.of(), Map.of("source", List.of(move)));
+
+        assertTrue(RuntimeForcedMovementMoveApplication.apply(
+                state,
+                choice(source, target, move),
+                "Medium",
+                "Medium",
+                Set.of()
+        ).isEmpty());
+        assertEquals(new GridCoord(2, 1), target.position());
     }
 
     @Test
     void rejectsMoveThatIsNotOwnedBySourceCombatant() {
         RuntimeCombatantState source = combatant("source", 1, 1);
-        RuntimeCombatantState target = combatant("target", 3, 1);
-        MoveOption move = move("ram", List.of("push"), "");
-        BattleRuntimeState state = state(source, target, Set.of(), Map.of("source", List.of(move)));
+        RuntimeCombatantState target = combatant("target", 2, 1);
+        MoveOption owned = move("ram", "Melee", 1, List.of("push"), "");
+        MoveOption forged = move("forged", "Melee", 1, List.of("push"), "");
+        BattleRuntimeState state = state(source, target, Set.of(), Map.of("source", List.of(owned)));
 
         IllegalArgumentException error = assertThrows(
                 IllegalArgumentException.class,
-                () -> RuntimeForcedMovementMoveApplication.apply(state, "source", "target", "forged")
+                () -> RuntimeForcedMovementMoveApplication.apply(
+                        state,
+                        choice(source, target, forged),
+                        "Medium",
+                        "Medium",
+                        Set.of()
+                )
         );
         assertTrue(error.getMessage().contains("authoritative combatant moveset"));
-        assertEquals(new GridCoord(3, 1), target.position());
+        assertEquals(new GridCoord(2, 1), target.position());
     }
 
     @Test
     void requiresServerOwnedMovesetInsteadOfAdapterSuppliedMetadata() {
         RuntimeCombatantState source = combatant("source", 1, 1);
-        RuntimeCombatantState target = combatant("target", 3, 1);
+        RuntimeCombatantState target = combatant("target", 2, 1);
+        MoveOption move = move("ram", "Melee", 1, List.of("push"), "");
         BattleRuntimeState state = state(source, target, Set.of(), Map.of());
 
         IllegalStateException error = assertThrows(
                 IllegalStateException.class,
-                () -> RuntimeForcedMovementMoveApplication.apply(state, "source", "target", "ram")
+                () -> RuntimeForcedMovementMoveApplication.apply(
+                        state,
+                        choice(source, target, move),
+                        "Medium",
+                        "Medium",
+                        Set.of()
+                )
         );
         assertTrue(error.getMessage().contains("no canonical moveset"));
         assertFalse(state.hasCanonicalMoves("source"));
     }
 
-    private static MoveOption move(String moveId, List<String> keywords, String effectsText) {
+    private static MoveChoice choice(RuntimeCombatantState source, RuntimeCombatantState target, MoveOption move) {
+        return new MoveChoice(
+                source.combatantId(),
+                move.moveId(),
+                ChoiceTargetMode.COMBATANT,
+                target.combatantId(),
+                target.position(),
+                move.actionType()
+        );
+    }
+
+    private static MoveOption move(
+            String moveId,
+            String targetKind,
+            int range,
+            List<String> keywords,
+            String effectsText
+    ) {
         return new MoveOption(
                 moveId,
-                new MoveSpec("Melee", "Melee, 1 Target", 1, 1, null, null, "Melee, 1 Target", keywords, effectsText),
+                new MoveSpec(targetKind, targetKind, range, range, null, null, targetKind, keywords, effectsText),
                 ActionType.STANDARD,
                 true
         );

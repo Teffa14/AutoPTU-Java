@@ -7,6 +7,7 @@ on:
       - "src/main/java/io/autoptu/core/runtime/ForcedDisplacementResolution.java"
       - "src/main/java/io/autoptu/core/runtime/ForcedMovementApplication.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeForcedMovementMoveApplication.java"
+      - "src/main/java/io/autoptu/core/runtime/MoveChoiceRevalidation.java"
       - "src/test/java/io/autoptu/core/rules/ForcedMovementInstructionOracleParityTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedDisplacementResolutionTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementApplicationTest.java"
