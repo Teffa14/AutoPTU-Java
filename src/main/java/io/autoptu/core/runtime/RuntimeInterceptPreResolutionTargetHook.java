@@ -5,16 +5,16 @@ import io.autoptu.core.hook.PreResolutionTargetContext;
 import io.autoptu.core.hook.PreResolutionTargetHook;
 import io.autoptu.core.hook.PreResolutionTargetResult;
 
-import java.util.List;
+import java.util.Map;
 
 /**
  * Core-only PRE-target bridge for interception.
  *
- * <p>The planner is intentionally package-private: only authoritative runtime orchestration may
- * materialize interception attempts. The hook executes the existing RNG/resource/spatial sequence
- * and exposes only the resulting replacement target plus semantic playback event to the generic
- * PRE-target registry. Attack-line geometry is derived inside the runtime from authoritative
- * attacker and target positions.</p>
+ * <p>The planner is intentionally package-private. External orchestration may identify the
+ * Python-normalized Intercept kind and provide canonical combatant rule content, but it cannot
+ * materialize eligible candidates or spatial attempts. Discovery, expiry cleanup, candidate
+ * ordering, line geometry, Shift legality, RNG/resource use and displacement remain authoritative
+ * runtime decisions.</p>
  */
 final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTargetHook {
     @FunctionalInterface
@@ -23,14 +23,22 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
     }
 
     record Plan(
-            boolean melee,
-            List<RuntimeInterceptSpatialSequenceApplication.Attempt> attempts
+            String interceptKind,
+            Map<String, CombatantRuleContent> contentByCombatant
     ) {
         Plan {
-            attempts = attempts == null ? List.of() : List.copyOf(attempts);
-            if (attempts.stream().anyMatch(java.util.Objects::isNull)) {
-                throw new IllegalArgumentException("attempts cannot contain null");
+            if (!"melee".equals(interceptKind) && !"ranged".equals(interceptKind)) {
+                throw new IllegalArgumentException("interceptKind must be melee or ranged");
             }
+            contentByCombatant = contentByCombatant == null ? Map.of() : Map.copyOf(contentByCombatant);
+            if (contentByCombatant.entrySet().stream()
+                    .anyMatch(entry -> entry.getKey() == null || entry.getValue() == null)) {
+                throw new IllegalArgumentException("contentByCombatant cannot contain null keys or values");
+            }
+        }
+
+        boolean melee() {
+            return "melee".equals(interceptKind);
         }
     }
 
@@ -50,7 +58,16 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
         if (current == null) throw new IllegalArgumentException("current result is required");
 
         Plan plan = planner.plan(context, current.targetId());
-        if (plan == null || plan.attempts().isEmpty()) return current;
+        if (plan == null) return current;
+
+        RuntimeInterceptAttemptPlanner.Result attemptPlan = RuntimeInterceptAttemptPlanner.plan(
+                context.state(),
+                context.attackerId(),
+                current.targetId(),
+                plan.interceptKind(),
+                plan.contentByCombatant()
+        );
+        if (attemptPlan.attempts().isEmpty()) return current;
 
         RuntimeInterceptSpatialSequenceApplication.Result resolution =
                 RuntimeInterceptSpatialSequenceApplication.apply(
@@ -58,7 +75,7 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
                         context.attackerId(),
                         current.targetId(),
                         plan.melee(),
-                        plan.attempts()
+                        attemptPlan.attempts()
                 );
         if (!resolution.intercepted()) return current;
 
@@ -74,6 +91,6 @@ final class RuntimeInterceptPreResolutionTargetHook implements PreResolutionTarg
                 0.0,
                 interceptor.hp()
         );
-        return current.replaceTarget(replacement, List.of(event));
+        return current.replaceTarget(replacement, java.util.List.of(event));
     }
 }
