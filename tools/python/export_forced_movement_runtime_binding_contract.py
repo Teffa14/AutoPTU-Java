@@ -2,7 +2,7 @@
 """Freeze whether the pinned Python oracle binds forced movement into runtime code.
 
 This scans production Python under auto_ptu/ for executable calls to
-forced_movement_instruction.  The Java port must not silently auto-bind the helper
+forced_movement_instruction. The Java port must not silently auto-bind the helper
 into an attack phase until the authoritative oracle exposes such a binding.
 """
 
@@ -31,7 +31,10 @@ def production_calls(source_root: Path) -> list[tuple[str, int]]:
 
     calls: list[tuple[str, int]] = []
     for path in sorted(package_root.rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        # The pinned oracle contains a small number of UTF-8 BOM files. Python
+        # accepts those as source files, so the freezer must decode them with
+        # utf-8-sig before parsing rather than failing on U+FEFF.
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and call_symbol(node) == SYMBOL:
                 calls.append((path.relative_to(source_root).as_posix(), node.lineno))
