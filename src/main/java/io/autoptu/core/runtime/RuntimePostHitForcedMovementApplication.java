@@ -2,10 +2,10 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
-import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.rules.ForcedMovementAbilityModifierResolution;
 import io.autoptu.core.rules.ForcedMovementInstruction;
 import io.autoptu.core.rules.ForcedMovementInstructionResolution;
+import io.autoptu.core.rules.ForcedMovementPreventionResolution;
 
 import java.util.Optional;
 
@@ -16,8 +16,9 @@ import java.util.Optional;
  * Python consumes forced movement, damage outcome bookkeeping has already occurred, so re-running
  * ordinary action-economy validation would reject the same move after its action was spent. This
  * package-private seam therefore accepts only the already-authoritative runtime choice, resolves
- * move metadata again from the server-owned moveset, preserves the Python hit gate, and delegates
- * spatial mutation to the shared forced-displacement engine.</p>
+ * move metadata again from the server-owned moveset, preserves the Python hit gate, composes
+ * source modifiers and defender prevention, and delegates spatial mutation to the shared
+ * forced-displacement engine.</p>
  */
 final class RuntimePostHitForcedMovementApplication {
     private RuntimePostHitForcedMovementApplication() {}
@@ -32,14 +33,13 @@ final class RuntimePostHitForcedMovementApplication {
         if (!hit) return Optional.empty();
 
         MoveOption move = requireCanonicalMove(state, choice.actorId(), choice.moveId());
-        state.requireCombatant(choice.actorId());
-        state.requireCombatant(choice.targetId());
+        RuntimeCombatantState source = state.requireCombatant(choice.actorId());
+        RuntimeCombatantState target = state.requireCombatant(choice.targetId());
 
         Optional<ForcedMovementInstruction> instruction = ForcedMovementInstructionResolution.resolve(
                 move.spec().keywords(),
                 move.spec().effectsText()
         );
-        RuntimeCombatantState source = state.requireCombatant(choice.actorId());
         String damageCategory = move.combatProfile() == null
                 ? ""
                 : move.combatProfile().damageCategory();
@@ -50,15 +50,21 @@ final class RuntimePostHitForcedMovementApplication {
                 source.abilitiesSuppressed()
         );
         if (instruction.isEmpty()) return Optional.empty();
+        ForcedMovementInstruction resolved = instruction.orElseThrow();
+        if (ForcedMovementPreventionResolution.prevented(
+                resolved,
+                target.abilities(),
+                target.abilitiesSuppressed()
+        )) return Optional.empty();
 
         ForcedDisplacementResolution.Result displacement = ForcedMovementApplication.apply(
                 state,
                 choice.actorId(),
                 choice.targetId(),
-                instruction.orElseThrow()
+                resolved
         );
         return Optional.of(new RuntimeForcedMovementMoveApplication.Result(
-                move.moveId(), instruction.orElseThrow(), displacement
+                move.moveId(), resolved, displacement
         ));
     }
 
