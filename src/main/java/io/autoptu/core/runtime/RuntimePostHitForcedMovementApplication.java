@@ -7,6 +7,8 @@ import io.autoptu.core.rules.ForcedMovementInstruction;
 import io.autoptu.core.rules.ForcedMovementInstructionResolution;
 import io.autoptu.core.rules.ForcedMovementPreventionResolution;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -51,10 +53,16 @@ final class RuntimePostHitForcedMovementApplication {
         );
         if (instruction.isEmpty()) return Optional.empty();
         ForcedMovementInstruction resolved = instruction.orElseThrow();
-        if (ForcedMovementPreventionResolution.prevented(
+        if (ForcedMovementPreventionResolution.preventedByAbility(
                 resolved,
                 target.abilities(),
                 target.abilitiesSuppressed()
+        )) return Optional.empty();
+        if (ForcedMovementPreventionResolution.preventedByState(
+                resolved,
+                state.statuses(choice.targetId()),
+                activePushImmunities(target, state.currentRound()),
+                state.currentRound()
         )) return Optional.empty();
 
         ForcedDisplacementResolution.Result displacement = ForcedMovementApplication.apply(
@@ -66,6 +74,37 @@ final class RuntimePostHitForcedMovementApplication {
         return Optional.of(new RuntimeForcedMovementMoveApplication.Result(
                 move.moveId(), resolved, displacement
         ));
+    }
+
+    private static List<ForcedMovementPreventionResolution.TemporaryEffect> activePushImmunities(
+            RuntimeCombatantState target,
+            int currentRound
+    ) {
+        ArrayList<ForcedMovementPreventionResolution.TemporaryEffect> active = new ArrayList<>();
+        for (TemporaryEffectEntry entry : target.temporaryEffects().getAll("push_immunity")) {
+            Integer expiresRound = integerPayload(entry, "expires_round");
+            if (expiresRound != null && currentRound > expiresRound) {
+                target.temporaryEffects().removeEntry(entry);
+                continue;
+            }
+            Object sourceValue = entry.payload().get("source");
+            String source = sourceValue == null ? "Push Immunity" : String.valueOf(sourceValue);
+            active.add(new ForcedMovementPreventionResolution.TemporaryEffect(
+                    entry.name(), expiresRound, source
+            ));
+        }
+        return List.copyOf(active);
+    }
+
+    private static Integer integerPayload(TemporaryEffectEntry entry, String key) {
+        Object value = entry.payload().get(key);
+        if (value == null) return null;
+        if (value instanceof Number number) return number.intValue();
+        try {
+            return Integer.valueOf(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private static MoveOption requireCanonicalMove(
