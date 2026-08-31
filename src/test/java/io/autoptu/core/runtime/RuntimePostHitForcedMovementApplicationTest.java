@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RuntimePostHitForcedMovementApplicationTest {
@@ -74,6 +75,58 @@ class RuntimePostHitForcedMovementApplicationTest {
                 state, choice(source, target, move), true
         ).isPresent());
         assertEquals(new GridCoord(3, 1), target.position());
+    }
+
+    @Test
+    void ingrainStatusPreventsResolvedForcedMovement() {
+        RuntimeCombatantState source = combatant("source", 1, 1);
+        RuntimeCombatantState target = combatant("target", 2, 1);
+        MoveOption move = move("ram", List.of("push 2"), "Push the target 2 meters.");
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(8, 4, Set.of(), Map.of()),
+                List.of(source, target),
+                Map.of("target", Set.of("Ingrain")), Map.of(), Map.of(), Map.of(), Map.of("source", List.of(move))
+        );
+
+        assertTrue(RuntimePostHitForcedMovementApplication.apply(
+                state, choice(source, target, move), true
+        ).isEmpty());
+        assertEquals(new GridCoord(2, 1), target.position());
+    }
+
+    @Test
+    void activePushImmunityPreventsPushAtExpiryRound() {
+        RuntimeCombatantState source = combatant("source", 1, 1);
+        RuntimeCombatantState target = combatant("target", 2, 1);
+        target.temporaryEffects().add("push_immunity", Map.of(
+                "expires_round", 4,
+                "source", "Anchor Rule"
+        ));
+        MoveOption move = move("ram", List.of("push"), "");
+        BattleRuntimeState state = state(source, target, move);
+        state.syncCurrentRoundFromLifecycle(4);
+
+        assertTrue(RuntimePostHitForcedMovementApplication.apply(
+                state, choice(source, target, move), true
+        ).isEmpty());
+        assertEquals(new GridCoord(2, 1), target.position());
+        assertEquals(1, target.temporaryEffects().count("push_immunity"));
+    }
+
+    @Test
+    void expiredPushImmunityIsPrunedAndDoesNotPreventPush() {
+        RuntimeCombatantState source = combatant("source", 1, 1);
+        RuntimeCombatantState target = combatant("target", 2, 1);
+        target.temporaryEffects().add("push_immunity", Map.of("expires_round", 3));
+        MoveOption move = move("ram", List.of("push"), "");
+        BattleRuntimeState state = state(source, target, move);
+        state.syncCurrentRoundFromLifecycle(4);
+
+        assertTrue(RuntimePostHitForcedMovementApplication.apply(
+                state, choice(source, target, move), true
+        ).isPresent());
+        assertEquals(new GridCoord(3, 1), target.position());
+        assertFalse(target.temporaryEffects().has("push_immunity"));
     }
 
     @Test
