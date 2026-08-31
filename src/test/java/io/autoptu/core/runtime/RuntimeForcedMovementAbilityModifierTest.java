@@ -57,7 +57,7 @@ class RuntimeForcedMovementAbilityModifierTest {
     void thrustDoesNotChangePull() {
         RuntimeCombatantState source = combatant("source", 1, 1, List.of("Thrust"));
         RuntimeCombatantState target = combatant("target", 3, 1, List.of());
-        MoveOption move = move("hook", "physical", List.of("pull"), "");
+        MoveOption move = move("hook", "physical", List.of("pull"), "", 2);
         BattleRuntimeState state = state(source, target, move);
 
         RuntimeForcedMovementMoveApplication.Result result = RuntimeForcedMovementMoveApplication.apply(
@@ -98,9 +98,19 @@ class RuntimeForcedMovementAbilityModifierTest {
     }
 
     private static MoveOption move(String id, String category, List<String> keywords, String effectsText) {
+        return move(id, category, keywords, effectsText, 1);
+    }
+
+    private static MoveOption move(
+            String id,
+            String category,
+            List<String> keywords,
+            String effectsText,
+            int targetRange
+    ) {
         return new MoveOption(
                 id,
-                new MoveSpec("Melee", "Melee", 1, 1, null, null, "Melee", keywords, effectsText),
+                new MoveSpec("Melee", "Melee", targetRange, targetRange, null, null, "Melee", keywords, effectsText),
                 ActionType.STANDARD,
                 true,
                 new MoveCombatProfile(2, 4, 20, category)
