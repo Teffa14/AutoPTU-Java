@@ -46,7 +46,7 @@ final class RuntimePostHitForcedMovementApplication {
     ) {
         if (ruleContentRegistry == null) throw new IllegalArgumentException("rule content registry is required");
         if (choice == null) throw new IllegalArgumentException("move choice is required");
-        return apply(state, choice, hit, ruleContentRegistry.contentOrEmpty(choice.targetId()));
+        return apply(state, choice, hit, ruleContentRegistry.require(choice.targetId()));
     }
 
     /**
