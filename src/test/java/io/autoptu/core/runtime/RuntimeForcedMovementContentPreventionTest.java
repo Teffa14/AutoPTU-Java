@@ -39,8 +39,9 @@ class RuntimeForcedMovementContentPreventionTest {
         RuntimeCombatantState target = combatant("target", 2, 1);
         MoveOption move = move("ram", List.of("push 2"));
         BattleRuntimeState state = state(source, target, move);
-        CombatantRuleContentRegistry registry = new CombatantRuleContentRegistry();
-        registry.register(target.combatantId(), insectoidWallclimberContent());
+        CombatantRuleContentRegistry registry = new CombatantRuleContentRegistry(Map.of(
+                target.combatantId(), insectoidWallclimberContent()
+        ));
 
         assertTrue(RuntimePostHitForcedMovementApplication.apply(
                 state, choice(source, target, move), true, registry
@@ -54,8 +55,9 @@ class RuntimeForcedMovementContentPreventionTest {
         RuntimeCombatantState target = combatant("target", 2, 1);
         MoveOption move = move("ram", List.of("push"));
         BattleRuntimeState state = state(source, target, move);
-        CombatantRuleContentRegistry registry = new CombatantRuleContentRegistry();
-        registry.register(source.combatantId(), insectoidWallclimberContent());
+        CombatantRuleContentRegistry registry = new CombatantRuleContentRegistry(Map.of(
+                source.combatantId(), insectoidWallclimberContent()
+        ));
 
         assertTrue(RuntimePostHitForcedMovementApplication.apply(
                 state, choice(source, target, move), true, registry
