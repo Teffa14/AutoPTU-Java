@@ -10,6 +10,7 @@ on:
       - "src/test/java/io/autoptu/core/rules/ForcedMovementStatePreventionOracleParityTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedDisplacementResolutionTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementApplicationTest.java"
+      - "src/test/java/io/autoptu/core/runtime/ForcedMovementShadowAnchorExecutionOracleParityTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeForcedMovementMoveApplicationTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeForcedMovementAbilityModifierTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimePostHitForcedMovementApplicationTest.java"
@@ -26,6 +27,7 @@ on:
       - "tools/python/export_forced_movement_runtime_binding_contract.py"
       - "tools/python/export_forced_movement_observable_contract.py"
       - "tools/python/export_forced_movement_shadow_anchor_contract.py"
+      - "tools/python/export_forced_movement_shadow_anchor_execution_fixtures.py"
       - "tools/python/export_combatant_distance_contract.py"
       - "tools/python/export_footprint_distance_contract.py"
       - ".github/workflows/forced-movement-instruction-parity.yml"
@@ -63,6 +65,7 @@ jobs:
           python3 -m py_compile tools/python/export_forced_movement_runtime_binding_contract.py
           python3 -m py_compile tools/python/export_forced_movement_observable_contract.py
           python3 -m py_compile tools/python/export_forced_movement_shadow_anchor_contract.py
+          python3 -m py_compile tools/python/export_forced_movement_shadow_anchor_execution_fixtures.py
           python3 -m py_compile tools/python/export_combatant_distance_contract.py
           python3 -m py_compile tools/python/export_footprint_distance_contract.py
           python3 tools/python/export_forced_movement_instruction_fixtures.py \
@@ -88,6 +91,9 @@ jobs:
           python3 tools/python/export_forced_movement_shadow_anchor_contract.py \
             --source-root python-oracle \
             --output build/oracle/forced-movement-shadow-anchor.tsv
+          python3 tools/python/export_forced_movement_shadow_anchor_execution_fixtures.py \
+            --source-root python-oracle \
+            --output build/oracle/forced-movement-shadow-anchor-execution.tsv
           python3 tools/python/export_combatant_distance_contract.py \
             --source-root python-oracle \
             --output build/oracle/combatant-distance.tsv
@@ -101,6 +107,7 @@ jobs:
           cat build/oracle/forced-movement-runtime-consumer.tsv
           cat build/oracle/forced-movement-observable.tsv
           cat build/oracle/forced-movement-shadow-anchor.tsv
+          cat build/oracle/forced-movement-shadow-anchor-execution.tsv
           cat build/oracle/combatant-distance.tsv
           cat build/oracle/footprint-distance.tsv
 
@@ -114,6 +121,7 @@ jobs:
           AUTOPTU_FORCED_MOVEMENT_RUNTIME_CONSUMER_ORACLE: ${{ github.workspace }}/build/oracle/forced-movement-runtime-consumer.tsv
           AUTOPTU_FORCED_MOVEMENT_OBSERVABLE_ORACLE: ${{ github.workspace }}/build/oracle/forced-movement-observable.tsv
           AUTOPTU_FORCED_MOVEMENT_SHADOW_ANCHOR_ORACLE: ${{ github.workspace }}/build/oracle/forced-movement-shadow-anchor.tsv
+          AUTOPTU_FORCED_MOVEMENT_SHADOW_ANCHOR_EXECUTION_ORACLE: ${{ github.workspace }}/build/oracle/forced-movement-shadow-anchor-execution.tsv
           AUTOPTU_COMBATANT_DISTANCE_ORACLE: ${{ github.workspace }}/build/oracle/combatant-distance.tsv
           AUTOPTU_FOOTPRINT_DISTANCE_ORACLE: ${{ github.workspace }}/build/oracle/footprint-distance.tsv
         run: >-
@@ -124,6 +132,7 @@ jobs:
           --tests io.autoptu.core.rules.ForcedMovementStatePreventionOracleParityTest
           --tests io.autoptu.core.runtime.ForcedDisplacementResolutionTest
           --tests io.autoptu.core.runtime.ForcedMovementApplicationTest
+          --tests io.autoptu.core.runtime.ForcedMovementShadowAnchorExecutionOracleParityTest
           --tests io.autoptu.core.runtime.RuntimeForcedMovementMoveApplicationTest
           --tests io.autoptu.core.runtime.RuntimeForcedMovementAbilityModifierTest
           --tests io.autoptu.core.runtime.RuntimePostHitForcedMovementApplicationTest
