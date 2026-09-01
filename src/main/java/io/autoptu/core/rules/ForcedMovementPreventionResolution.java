@@ -9,6 +9,11 @@ public final class ForcedMovementPreventionResolution {
     private record AbilityRule(String abilityName, Set<ForcedMovementInstruction.Kind> blockedKinds) {}
     private record StatusRule(String statusName, Set<ForcedMovementInstruction.Kind> blockedKinds) {}
     private record TemporaryRule(String effectName, Set<ForcedMovementInstruction.Kind> blockedKinds) {}
+    private record ContentRule(
+            Set<String> requiredTrainerFeatures,
+            Set<String> requiredCapabilities,
+            Set<ForcedMovementInstruction.Kind> blockedKinds
+    ) {}
 
     /** Language-neutral temporary-effect projection used by runtime state adapters inside the core. */
     public record TemporaryEffect(String name, Integer expiresRound, String source) {
@@ -34,6 +39,13 @@ public final class ForcedMovementPreventionResolution {
     );
     private static final List<TemporaryRule> TEMPORARY_RULES = List.of(
             new TemporaryRule("push_immunity", Set.of(ForcedMovementInstruction.Kind.PUSH))
+    );
+    private static final List<ContentRule> CONTENT_RULES = List.of(
+            new ContentRule(
+                    Set.of("Insectoid Utility"),
+                    Set.of("Wallclimber"),
+                    Set.of(ForcedMovementInstruction.Kind.PUSH)
+            )
     );
 
     private ForcedMovementPreventionResolution() {}
@@ -81,6 +93,43 @@ public final class ForcedMovementPreventionResolution {
             }
         }
         return false;
+    }
+
+    /**
+     * Declarative composite-content prevention family. A rule applies only when every required
+     * Trainer Feature and capability is present, preserving Python guards without placing
+     * content-specific branches in the runtime orchestrator.
+     */
+    public static boolean preventedByContent(
+            ForcedMovementInstruction instruction,
+            List<String> defenderTrainerFeatures,
+            List<String> defenderCapabilities
+    ) {
+        if (instruction == null) return false;
+        List<String> features = defenderTrainerFeatures == null ? List.of() : defenderTrainerFeatures;
+        List<String> capabilities = defenderCapabilities == null ? List.of() : defenderCapabilities;
+        for (ContentRule rule : CONTENT_RULES) {
+            if (!rule.blockedKinds().contains(instruction.kind())) continue;
+            if (!containsAllNormalized(features, rule.requiredTrainerFeatures())) continue;
+            if (!containsAllNormalized(capabilities, rule.requiredCapabilities())) continue;
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean containsAllNormalized(List<String> values, Set<String> required) {
+        for (String expected : required) {
+            boolean found = false;
+            String wanted = normalize(expected);
+            for (String value : values) {
+                if (value != null && normalize(value).equals(wanted)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) return false;
+        }
+        return true;
     }
 
     private static boolean containsNormalized(Set<String> values, String expected) {
