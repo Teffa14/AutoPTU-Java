@@ -27,6 +27,13 @@ def call_name(call: ast.Call) -> str:
     return ""
 
 
+def contains_distance_call(node: ast.AST) -> bool:
+    return any(
+        isinstance(child, ast.Call) and call_name(child) == "_combatant_distance_to_coord"
+        for child in ast.walk(node)
+    )
+
+
 def shadow_limit(source: Path) -> int:
     tree = ast.parse(source.read_text(encoding="utf-8-sig"), filename=str(source))
     functions = [
@@ -37,16 +44,20 @@ def shadow_limit(source: Path) -> int:
         raise SystemExit(f"expected one apply_forced_movement, found {len(functions)}")
     guards = []
     for node in ast.walk(functions[0]):
-        if not isinstance(node, ast.If):
-            continue
-        calls = [child for child in ast.walk(node.test) if isinstance(child, ast.Call)]
-        if any(call_name(call) == "_combatant_distance_to_coord" for call in calls):
+        if isinstance(node, ast.If) and contains_distance_call(node.test):
             guards.append(node.test)
     if len(guards) != 1:
         raise SystemExit(f"expected one Shadow Tag distance guard, found {len(guards)}")
-    compare = next((child for child in ast.walk(guards[0]) if isinstance(child, ast.Compare)), None)
-    if compare is None or len(compare.ops) != 1 or not isinstance(compare.ops[0], ast.Gt):
-        raise SystemExit("Shadow Tag guard is no longer a single > comparison")
+
+    comparisons = [
+        child for child in ast.walk(guards[0])
+        if isinstance(child, ast.Compare) and contains_distance_call(child)
+    ]
+    if len(comparisons) != 1:
+        raise SystemExit(f"expected one Shadow Tag distance comparison, found {len(comparisons)}")
+    compare = comparisons[0]
+    if len(compare.ops) != 1 or not isinstance(compare.ops[0], ast.Gt):
+        raise SystemExit("Shadow Tag distance comparison is no longer >")
     if len(compare.comparators) != 1 or not isinstance(compare.comparators[0], ast.Constant):
         raise SystemExit("Shadow Tag guard limit is no longer a literal")
     value = compare.comparators[0].value
