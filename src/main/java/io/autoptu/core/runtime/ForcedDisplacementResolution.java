@@ -2,6 +2,7 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
+import io.autoptu.core.rules.ForcedMovementStepConstraintResolution;
 import io.autoptu.core.rules.Targeting;
 
 import java.util.List;
@@ -12,8 +13,8 @@ import java.util.Set;
  *
  * <p>This primitive is intentionally independent from Shift/action economy. A caller supplies a
  * one-cell direction and requested distance; the resolver advances one anchor at a time and stops
- * at the last legal position when bounds, blockers, or another living combatant footprint prevent
- * the next step.</p>
+ * at the last legal position when bounds, blockers, another living combatant footprint, or an
+ * active rule constraint prevents the next step.</p>
  */
 public final class ForcedDisplacementResolution {
     private ForcedDisplacementResolution() {}
@@ -22,7 +23,8 @@ public final class ForcedDisplacementResolution {
         NONE,
         OUT_OF_BOUNDS,
         BLOCKER,
-        OCCUPIED
+        OCCUPIED,
+        STEP_CONSTRAINT
     }
 
     public record Stop(
@@ -79,6 +81,9 @@ public final class ForcedDisplacementResolution {
         RuntimeCombatantState combatant = state.requireCombatant(combatantId);
         GridCoord origin = combatant.position();
         GridCoord current = origin;
+        String movingSize = state.geometry(combatantId).sizeLabel();
+        List<ForcedMovementStepConstraintResolution.Constraint> constraints =
+                RuntimeForcedMovementStepConstraintProjection.constraints(state, combatantId);
         java.util.ArrayList<GridCoord> traversed = new java.util.ArrayList<>();
         Stop stop = Stop.none();
 
@@ -87,6 +92,12 @@ public final class ForcedDisplacementResolution {
             Stop candidateStop = stopFor(state, combatantId, candidate);
             if (candidateStop.reason() != StopReason.NONE) {
                 stop = candidateStop;
+                break;
+            }
+            ForcedMovementStepConstraintResolution.Decision constraintDecision =
+                    ForcedMovementStepConstraintResolution.evaluate(constraints, candidate, movingSize);
+            if (!constraintDecision.allowed()) {
+                stop = new Stop(StopReason.STEP_CONSTRAINT, candidate, null, null);
                 break;
             }
             current = candidate;
