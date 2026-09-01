@@ -34,7 +34,56 @@ class RuntimeForcedMovementContentPreventionTest {
     }
 
     @Test
-    void registryBackedSeamUsesTargetRuleContent() {
+    void runtimeDependenciesUseTargetRuleContent() {
+        RuntimeCombatantState source = combatant("source", 1, 1);
+        RuntimeCombatantState target = combatant("target", 2, 1);
+        MoveOption move = move("ram", List.of("push 2"));
+        BattleRuntimeState state = state(source, target, move);
+        BattleRuntimeDependencies dependencies = new BattleRuntimeDependencies(
+                new CombatantRuleContentRegistry(Map.of(
+                        target.combatantId(), insectoidWallclimberContent()
+                ))
+        );
+
+        assertTrue(RuntimePostHitForcedMovementApplication.apply(
+                state, choice(source, target, move), true, dependencies
+        ).isEmpty());
+        assertEquals(new GridCoord(2, 1), target.position());
+    }
+
+    @Test
+    void runtimeDependenciesDoNotUseSourceRuleContentForDefenderPrevention() {
+        RuntimeCombatantState source = combatant("source", 1, 1);
+        RuntimeCombatantState target = combatant("target", 2, 1);
+        MoveOption move = move("ram", List.of("push"));
+        BattleRuntimeState state = state(source, target, move);
+        BattleRuntimeDependencies dependencies = new BattleRuntimeDependencies(
+                new CombatantRuleContentRegistry(Map.of(
+                        source.combatantId(), insectoidWallclimberContent()
+                ))
+        );
+
+        assertTrue(RuntimePostHitForcedMovementApplication.apply(
+                state, choice(source, target, move), true, dependencies
+        ).isPresent());
+        assertEquals(new GridCoord(3, 1), target.position());
+    }
+
+    @Test
+    void emptyRuntimeDependenciesPreserveLegacyForcedMovement() {
+        RuntimeCombatantState source = combatant("source", 1, 1);
+        RuntimeCombatantState target = combatant("target", 2, 1);
+        MoveOption move = move("ram", List.of("push"));
+        BattleRuntimeState state = state(source, target, move);
+
+        assertTrue(RuntimePostHitForcedMovementApplication.apply(
+                state, choice(source, target, move), true, BattleRuntimeDependencies.empty()
+        ).isPresent());
+        assertEquals(new GridCoord(3, 1), target.position());
+    }
+
+    @Test
+    void registryCompatibilityBoundaryStillUsesTargetRuleContent() {
         RuntimeCombatantState source = combatant("source", 1, 1);
         RuntimeCombatantState target = combatant("target", 2, 1);
         MoveOption move = move("ram", List.of("push 2"));
@@ -47,22 +96,6 @@ class RuntimeForcedMovementContentPreventionTest {
                 state, choice(source, target, move), true, registry
         ).isEmpty());
         assertEquals(new GridCoord(2, 1), target.position());
-    }
-
-    @Test
-    void registryBackedSeamDoesNotUseSourceRuleContentForDefenderPrevention() {
-        RuntimeCombatantState source = combatant("source", 1, 1);
-        RuntimeCombatantState target = combatant("target", 2, 1);
-        MoveOption move = move("ram", List.of("push"));
-        BattleRuntimeState state = state(source, target, move);
-        CombatantRuleContentRegistry registry = new CombatantRuleContentRegistry(Map.of(
-                source.combatantId(), insectoidWallclimberContent()
-        ));
-
-        assertTrue(RuntimePostHitForcedMovementApplication.apply(
-                state, choice(source, target, move), true, registry
-        ).isPresent());
-        assertEquals(new GridCoord(3, 1), target.position());
     }
 
     @Test
