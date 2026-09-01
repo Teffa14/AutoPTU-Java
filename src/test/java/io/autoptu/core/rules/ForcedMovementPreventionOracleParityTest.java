@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -25,6 +26,7 @@ class ForcedMovementPreventionOracleParityTest {
         assertTrue(all.contains("Wallclimber"), "pinned oracle must expose Wallclimber capability guard");
         assertTrue(all.contains("has_trainer_feature"), "composite guard must consult Trainer Feature state");
         assertTrue(all.contains("has_capability"), "composite guard must consult capability state");
+        assertTrue(all.contains("trainer_feature"), "composite prevention must preserve Trainer Feature event provenance");
 
         ForcedMovementInstruction push = new ForcedMovementInstruction(ForcedMovementInstruction.Kind.PUSH, 1);
         ForcedMovementInstruction pull = new ForcedMovementInstruction(ForcedMovementInstruction.Kind.PULL, 1);
@@ -34,6 +36,13 @@ class ForcedMovementPreventionOracleParityTest {
         assertTrue(ForcedMovementPreventionResolution.prevented(push, List.of("Sumo Stance"), false));
         assertFalse(ForcedMovementPreventionResolution.prevented(push, List.of("Suction Cups"), true));
         assertFalse(ForcedMovementPreventionResolution.prevented(pull, List.of("Suction Cups"), false));
+
+        ForcedMovementPreventionResolution.Prevention ability = ForcedMovementPreventionResolution.resolveByAbility(
+                push, List.of("Suction Cups [Errata]"), false
+        );
+        assertTrue(ability.prevented());
+        assertEquals(ForcedMovementPreventionResolution.SourceKind.ABILITY, ability.sourceKind());
+        assertEquals("Suction Cups", ability.sourceName());
 
         assertTrue(ForcedMovementPreventionResolution.preventedByContent(
                 push, List.of("Insectoid Utility"), List.of("Wallclimber")
@@ -50,5 +59,19 @@ class ForcedMovementPreventionOracleParityTest {
         assertFalse(ForcedMovementPreventionResolution.preventedByContent(
                 pull, List.of("Insectoid Utility"), List.of("Wallclimber")
         ));
+
+        ForcedMovementPreventionResolution.Prevention content = ForcedMovementPreventionResolution.resolveByContent(
+                push, List.of(" insectoid utility "), List.of("WALLCLIMBER")
+        );
+        assertTrue(content.prevented());
+        assertEquals(ForcedMovementPreventionResolution.SourceKind.TRAINER_FEATURE, content.sourceKind());
+        assertEquals("Insectoid Utility", content.sourceName());
+
+        ForcedMovementPreventionResolution.Prevention allowedPull = ForcedMovementPreventionResolution.resolveByContent(
+                pull, List.of("Insectoid Utility"), List.of("Wallclimber")
+        );
+        assertFalse(allowedPull.prevented());
+        assertEquals(null, allowedPull.sourceKind());
+        assertEquals("", allowedPull.sourceName());
     }
 }
