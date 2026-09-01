@@ -193,14 +193,34 @@ public final class BattleRuntime {
             PostDamageHookRegistry postDamageHookRegistry,
             MoveCombatProfile effectiveMetadata
     ) {
+        return applyAuthoritativeMove(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
+                rng, input, preResolutionEvents, moveSpecialHookRegistry, preDamageHookRegistry,
+                postDamageHookRegistry, effectiveMetadata, BattleRuntimeDependencies.empty()
+        );
+    }
+
+    /** Dependency-aware runtime composition seam for the production move resolver. */
+    static AppliedActionResult applyAuthoritativeMove(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            PythonRandom rng, MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            MoveSpecialHookRegistry moveSpecialHookRegistry,
+            PreDamageReactionHookRegistry preDamageHookRegistry,
+            PostDamageHookRegistry postDamageHookRegistry,
+            MoveCombatProfile effectiveMetadata,
+            BattleRuntimeDependencies dependencies
+    ) {
         if (moveSpecialHookRegistry == null) throw new IllegalArgumentException("moveSpecialHookRegistry is required");
         if (preDamageHookRegistry == null) throw new IllegalArgumentException("preDamageHookRegistry is required");
         if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHookRegistry is required");
         if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
+        if (dependencies == null) throw new IllegalArgumentException("runtime dependencies are required");
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
                 rng, input, preResolutionEvents, moveSpecialHookRegistry, preDamageHookRegistry,
-                null, postDamageHookRegistry, effectiveMetadata, null, true, true
+                null, postDamageHookRegistry, effectiveMetadata, null, true, true, false, dependencies
         );
     }
 
@@ -287,15 +307,38 @@ public final class BattleRuntime {
             PostDamageHookRegistry postDamageHookRegistry,
             MoveCombatProfile effectiveMetadata
     ) {
+        return applyAuthoritativeAreaMoveTarget(
+                state, choice, move, areaAnchor, source, rng, input, preResolutionEvents,
+                preDamageHookRegistry, postDamageHookRegistry, effectiveMetadata,
+                BattleRuntimeDependencies.empty()
+        );
+    }
+
+    /** Dependency-aware AoE target seam used by the authoritative production resolver. */
+    static AppliedActionResult applyAuthoritativeAreaMoveTarget(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            MoveOption move,
+            GridCoord areaAnchor,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            PreDamageReactionHookRegistry preDamageHookRegistry,
+            PostDamageHookRegistry postDamageHookRegistry,
+            MoveCombatProfile effectiveMetadata,
+            BattleRuntimeDependencies dependencies
+    ) {
         if (areaAnchor == null) throw new IllegalArgumentException("areaAnchor is required");
         if (preDamageHookRegistry == null) throw new IllegalArgumentException("preDamageHookRegistry is required");
         if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHookRegistry is required");
         if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
+        if (dependencies == null) throw new IllegalArgumentException("runtime dependencies are required");
         requireAreaResolvedCombatantChoice(state, choice, move);
         return applyAuthoritativeMoveInternal(
                 state, choice, move, "", "", Set.of(), source,
                 rng, input, preResolutionEvents, RuntimeMoveSpecialHooks.standardRegistry(move, effectiveMetadata), preDamageHookRegistry,
-                null, postDamageHookRegistry, effectiveMetadata, areaAnchor, false, true
+                null, postDamageHookRegistry, effectiveMetadata, areaAnchor, false, true, false, dependencies
         );
     }
 
@@ -315,9 +358,28 @@ public final class BattleRuntime {
             PostDamageHookRegistry postDamageHookRegistry,
             MoveCombatProfile effectiveMetadata
     ) {
+        return applyDelayedAuthoritativeMove(
+                state, binding, source, rng, input, preResolutionEvents,
+                postDamageHookRegistry, effectiveMetadata, BattleRuntimeDependencies.empty()
+        );
+    }
+
+    /** Dependency-aware delayed-hit seam used by the authoritative production resolver. */
+    public static AppliedActionResult applyDelayedAuthoritativeMove(
+            BattleRuntimeState state,
+            DelayedHitBinding binding,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            PostDamageHookRegistry postDamageHookRegistry,
+            MoveCombatProfile effectiveMetadata,
+            BattleRuntimeDependencies dependencies
+    ) {
         if (binding == null) throw new IllegalArgumentException("binding is required");
         if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHookRegistry is required");
         if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
+        if (dependencies == null) throw new IllegalArgumentException("runtime dependencies are required");
         requireDelayedCombatantBinding(state, binding);
         return applyAuthoritativeMoveInternal(
                 state,
@@ -337,7 +399,9 @@ public final class BattleRuntime {
                 effectiveMetadata,
                 null,
                 false,
-                false
+                false,
+                false,
+                dependencies
         );
     }
 
