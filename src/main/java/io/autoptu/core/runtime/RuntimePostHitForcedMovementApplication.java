@@ -34,6 +34,22 @@ final class RuntimePostHitForcedMovementApplication {
     }
 
     /**
+     * Registry-backed composition seam. The registry stores canonical rule-bearing data keyed by
+     * combatant identity; this resolver selects the defender snapshot and keeps all PTU conclusions
+     * inside the forced-movement prevention family.
+     */
+    static Optional<RuntimeForcedMovementMoveApplication.Result> apply(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            boolean hit,
+            CombatantRuleContentRegistry ruleContentRegistry
+    ) {
+        if (ruleContentRegistry == null) throw new IllegalArgumentException("rule content registry is required");
+        if (choice == null) throw new IllegalArgumentException("move choice is required");
+        return apply(state, choice, hit, ruleContentRegistry.contentOrEmpty(choice.targetId()));
+    }
+
+    /**
      * Content-aware core seam used when canonical rule content has already been materialized.
      * The content snapshot is data, not a pre-resolved PTU conclusion; the prevention resolver
      * remains the single authority for composite Feature/capability rules.
