@@ -32,7 +32,7 @@ class FootprintDistanceOracleContractTest {
         assertTrue(joined.contains("footprint_distance\timplementation"));
         assertTrue(joined.contains("footprint_tiles(a_anchor, a_size, grid)"));
         assertTrue(joined.contains("footprint_tiles(b_anchor, b_size, grid)"));
-        assertTrue(joined.contains("min(chebyshev_distance(a_tile, b_tile)"));
+        assertTrue(joined.contains("chebyshev_distance(a_tile, b_tile) for a_tile in a_tiles for b_tile in b_tiles"));
         assertTrue(joined.contains("chebyshev_distance\timplementation"));
         assertTrue(joined.contains("max(abs(a[0] - b[0]), abs(a[1] - b[1]))"));
     }
