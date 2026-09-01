@@ -118,6 +118,79 @@ class BattleRuntimeAuthoritativeMoveTest {
     }
 
     @Test
+    void defenderRuleContentPreventsCanonicalPushThroughAuthoritativeMove() {
+        MoveOption move = pushMove("ram");
+        BattleRuntimeState state = stateWithEnemyAndMove(35, move);
+        BattleRuntimeDependencies dependencies = dependenciesFor(
+                "enemy", insectoidWallclimberContent()
+        );
+
+        AppliedActionResult result = BattleRuntime.applyAuthoritativeMove(
+                state,
+                choice("ram"),
+                move,
+                "Medium",
+                "Medium",
+                Set.of(),
+                "Player",
+                new PythonRandom(7),
+                input(5),
+                dependencies
+        );
+
+        MoveResolvedEvent event = (MoveResolvedEvent) result.events().getFirst();
+        assertTrue(event.hit());
+        assertTrue(event.damage() > 0);
+        assertEquals(new GridCoord(2, 1), state.requireCombatant("enemy").position());
+        assertFalse(state.requireCombatant("actor").actionBudget().hasActionAvailable(ActionType.STANDARD));
+    }
+
+    @Test
+    void attackerRuleContentDoesNotPreventDefenderCanonicalPush() {
+        MoveOption move = pushMove("ram");
+        BattleRuntimeState state = stateWithEnemyAndMove(35, move);
+        BattleRuntimeDependencies dependencies = dependenciesFor(
+                "actor", insectoidWallclimberContent()
+        );
+
+        BattleRuntime.applyAuthoritativeMove(
+                state,
+                choice("ram"),
+                move,
+                "Medium",
+                "Medium",
+                Set.of(),
+                "Player",
+                new PythonRandom(7),
+                input(5),
+                dependencies
+        );
+
+        assertEquals(new GridCoord(4, 1), state.requireCombatant("enemy").position());
+    }
+
+    @Test
+    void emptyDependenciesPreserveCanonicalPushThroughAuthoritativeMove() {
+        MoveOption move = pushMove("ram");
+        BattleRuntimeState state = stateWithEnemyAndMove(35, move);
+
+        BattleRuntime.applyAuthoritativeMove(
+                state,
+                choice("ram"),
+                move,
+                "Medium",
+                "Medium",
+                Set.of(),
+                "Player",
+                new PythonRandom(7),
+                input(5),
+                BattleRuntimeDependencies.empty()
+        );
+
+        assertEquals(new GridCoord(4, 1), state.requireCombatant("enemy").position());
+    }
+
+    @Test
     void missDoesNotApplyCanonicalPush() {
         MoveOption move = pushMove("ram");
         BattleRuntimeState state = stateWithEnemyAndMove(35, move);
@@ -179,6 +252,19 @@ class BattleRuntimeAuthoritativeMoveTest {
                 List.of("push 2"), "Push the target 2 meters."
         );
         return new MoveOption(moveId, spec, ActionType.STANDARD, true);
+    }
+
+    private static BattleRuntimeDependencies dependenciesFor(String combatantId, CombatantRuleContent content) {
+        return new BattleRuntimeDependencies(
+                new CombatantRuleContentRegistry(Map.of(combatantId, content))
+        );
+    }
+
+    private static CombatantRuleContent insectoidWallclimberContent() {
+        return new CombatantRuleContent(
+                List.of("Wallclimber"), null, "trainer", Map.of(),
+                List.of("Insectoid Utility"), List.of()
+        );
     }
 
     private static BattleRuntimeState stateWithEnemy(int enemyHp) {
