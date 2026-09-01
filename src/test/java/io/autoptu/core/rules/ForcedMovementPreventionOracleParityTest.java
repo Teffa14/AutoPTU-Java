@@ -17,10 +17,14 @@ class ForcedMovementPreventionOracleParityTest {
         if (fixture == null || fixture.isBlank()) return;
 
         List<String> lines = Files.readAllLines(Path.of(fixture));
-        assertTrue(lines.size() >= 3, "forced movement prevention fixture is incomplete");
+        assertTrue(lines.size() >= 4, "forced movement prevention fixture is incomplete");
         String all = String.join("\n", lines);
         assertTrue(all.contains("Suction Cups"), "pinned oracle must expose Suction Cups prevention");
         assertTrue(all.contains("Sumo Stance"), "pinned oracle must expose Sumo Stance prevention");
+        assertTrue(all.contains("Insectoid Utility"), "pinned oracle must expose Insectoid Utility prevention");
+        assertTrue(all.contains("Wallclimber"), "pinned oracle must expose Wallclimber capability guard");
+        assertTrue(all.contains("has_trainer_feature"), "composite guard must consult Trainer Feature state");
+        assertTrue(all.contains("has_capability"), "composite guard must consult capability state");
 
         ForcedMovementInstruction push = new ForcedMovementInstruction(ForcedMovementInstruction.Kind.PUSH, 1);
         ForcedMovementInstruction pull = new ForcedMovementInstruction(ForcedMovementInstruction.Kind.PULL, 1);
