@@ -30,14 +30,30 @@ final class RuntimePostHitForcedMovementApplication {
             MoveChoice choice,
             boolean hit
     ) {
-        return apply(state, choice, hit, CombatantRuleContent.empty());
+        return apply(state, choice, hit, BattleRuntimeDependencies.empty());
     }
 
     /**
-     * Registry-backed composition seam. The registry stores canonical rule-bearing data keyed by
-     * combatant identity; this resolver selects the defender snapshot and keeps all PTU conclusions
-     * inside the forced-movement prevention family.
+     * Shared composition boundary for runtime rule dependencies. The dependency snapshot selects
+     * canonical defender data; dedicated resolvers remain authoritative for PTU conclusions.
      */
+    static Optional<RuntimeForcedMovementMoveApplication.Result> apply(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            boolean hit,
+            BattleRuntimeDependencies dependencies
+    ) {
+        if (dependencies == null) throw new IllegalArgumentException("runtime dependencies are required");
+        if (choice == null) throw new IllegalArgumentException("move choice is required");
+        return apply(
+                state,
+                choice,
+                hit,
+                dependencies.combatantRuleContent().require(choice.targetId())
+        );
+    }
+
+    /** Compatibility boundary for callers that already own the canonical content registry. */
     static Optional<RuntimeForcedMovementMoveApplication.Result> apply(
             BattleRuntimeState state,
             MoveChoice choice,
@@ -45,8 +61,7 @@ final class RuntimePostHitForcedMovementApplication {
             CombatantRuleContentRegistry ruleContentRegistry
     ) {
         if (ruleContentRegistry == null) throw new IllegalArgumentException("rule content registry is required");
-        if (choice == null) throw new IllegalArgumentException("move choice is required");
-        return apply(state, choice, hit, ruleContentRegistry.require(choice.targetId()));
+        return apply(state, choice, hit, new BattleRuntimeDependencies(ruleContentRegistry));
     }
 
     /**
