@@ -15,6 +15,7 @@ on:
       - "src/test/java/io/autoptu/core/runtime/RuntimeForcedMovementAbilityModifierTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimePostHitForcedMovementApplicationTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeForcedMovementContentPreventionTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeForcedMovementPreventionPrecedenceTest.java"
       - "src/test/java/io/autoptu/core/runtime/BattleRuntimeAuthoritativeMoveTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementRuntimeBindingContractTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementObservableOracleContractTest.java"
@@ -138,6 +139,7 @@ jobs:
           --tests io.autoptu.core.runtime.RuntimeForcedMovementAbilityModifierTest
           --tests io.autoptu.core.runtime.RuntimePostHitForcedMovementApplicationTest
           --tests io.autoptu.core.runtime.RuntimeForcedMovementContentPreventionTest
+          --tests io.autoptu.core.runtime.RuntimeForcedMovementPreventionPrecedenceTest
           --tests io.autoptu.core.runtime.BattleRuntimeAuthoritativeMoveTest
           --tests io.autoptu.core.runtime.ForcedMovementRuntimeBindingContractTest
           --tests io.autoptu.core.runtime.ForcedMovementObservableOracleContractTest

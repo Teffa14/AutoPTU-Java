@@ -23,6 +23,32 @@ import java.util.Optional;
  * forced-displacement engine.</p>
  */
 final class RuntimePostHitForcedMovementApplication {
+    /**
+     * Language-neutral runtime outcome. Prevention provenance survives orchestration so later
+     * semantic-event adapters never have to re-evaluate the PTU rule that stopped displacement.
+     */
+    record Resolution(
+            Optional<RuntimeForcedMovementMoveApplication.Result> movement,
+            ForcedMovementPreventionResolution.Prevention prevention
+    ) {
+        Resolution {
+            movement = movement == null ? Optional.empty() : movement;
+            prevention = prevention == null
+                    ? ForcedMovementPreventionResolution.Prevention.none()
+                    : prevention;
+            if (movement.isPresent() && prevention.prevented()) {
+                throw new IllegalArgumentException("forced movement cannot both move and be prevented");
+            }
+        }
+
+        static Resolution none() {
+            return new Resolution(
+                    Optional.empty(),
+                    ForcedMovementPreventionResolution.Prevention.none()
+            );
+        }
+    }
+
     private RuntimePostHitForcedMovementApplication() {}
 
     static Optional<RuntimeForcedMovementMoveApplication.Result> apply(
@@ -30,7 +56,7 @@ final class RuntimePostHitForcedMovementApplication {
             MoveChoice choice,
             boolean hit
     ) {
-        return apply(state, choice, hit, BattleRuntimeDependencies.empty());
+        return resolve(state, choice, hit, BattleRuntimeDependencies.empty()).movement();
     }
 
     /**
@@ -43,9 +69,18 @@ final class RuntimePostHitForcedMovementApplication {
             boolean hit,
             BattleRuntimeDependencies dependencies
     ) {
+        return resolve(state, choice, hit, dependencies).movement();
+    }
+
+    static Resolution resolve(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            boolean hit,
+            BattleRuntimeDependencies dependencies
+    ) {
         if (dependencies == null) throw new IllegalArgumentException("runtime dependencies are required");
         if (choice == null) throw new IllegalArgumentException("move choice is required");
-        return apply(
+        return resolve(
                 state,
                 choice,
                 hit,
@@ -61,7 +96,7 @@ final class RuntimePostHitForcedMovementApplication {
             CombatantRuleContentRegistry ruleContentRegistry
     ) {
         if (ruleContentRegistry == null) throw new IllegalArgumentException("rule content registry is required");
-        return apply(state, choice, hit, new BattleRuntimeDependencies(ruleContentRegistry));
+        return resolve(state, choice, hit, new BattleRuntimeDependencies(ruleContentRegistry)).movement();
     }
 
     /**
@@ -75,10 +110,23 @@ final class RuntimePostHitForcedMovementApplication {
             boolean hit,
             CombatantRuleContent targetRuleContent
     ) {
+        return resolve(state, choice, hit, targetRuleContent).movement();
+    }
+
+    /**
+     * Resolve one post-hit forced movement attempt while preserving the exact first blocker.
+     * Python precedence is Feature/capability, temporary push immunity, Ability, then Ingrain.
+     */
+    static Resolution resolve(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            boolean hit,
+            CombatantRuleContent targetRuleContent
+    ) {
         if (state == null) throw new IllegalArgumentException("battle state is required");
         if (choice == null) throw new IllegalArgumentException("move choice is required");
         if (targetRuleContent == null) throw new IllegalArgumentException("target rule content is required");
-        if (!hit) return Optional.empty();
+        if (!hit) return Resolution.none();
 
         MoveOption move = requireCanonicalMove(state, choice.actorId(), choice.moveId());
         RuntimeCombatantState source = state.requireCombatant(choice.actorId());
@@ -97,24 +145,36 @@ final class RuntimePostHitForcedMovementApplication {
                 source.abilities(),
                 source.abilitiesSuppressed()
         );
-        if (instruction.isEmpty()) return Optional.empty();
+        if (instruction.isEmpty()) return Resolution.none();
         ForcedMovementInstruction resolved = instruction.orElseThrow();
-        if (ForcedMovementPreventionResolution.preventedByAbility(
+
+        ForcedMovementPreventionResolution.Prevention prevention =
+                ForcedMovementPreventionResolution.resolveByContent(
+                        resolved,
+                        targetRuleContent.trainerFeatures(),
+                        targetRuleContent.capabilities()
+                );
+        if (prevention.prevented()) return prevented(prevention);
+
+        prevention = ForcedMovementPreventionResolution.resolveByTemporaryEffects(
+                resolved,
+                activePushImmunities(target, state.currentRound()),
+                state.currentRound()
+        );
+        if (prevention.prevented()) return prevented(prevention);
+
+        prevention = ForcedMovementPreventionResolution.resolveByAbility(
                 resolved,
                 target.abilities(),
                 target.abilitiesSuppressed()
-        )) return Optional.empty();
-        if (ForcedMovementPreventionResolution.preventedByState(
+        );
+        if (prevention.prevented()) return prevented(prevention);
+
+        prevention = ForcedMovementPreventionResolution.resolveByStatus(
                 resolved,
-                state.statuses(choice.targetId()),
-                activePushImmunities(target, state.currentRound()),
-                state.currentRound()
-        )) return Optional.empty();
-        if (ForcedMovementPreventionResolution.preventedByContent(
-                resolved,
-                targetRuleContent.trainerFeatures(),
-                targetRuleContent.capabilities()
-        )) return Optional.empty();
+                state.statuses(choice.targetId())
+        );
+        if (prevention.prevented()) return prevented(prevention);
 
         ForcedDisplacementResolution.Result displacement = ForcedMovementApplication.apply(
                 state,
@@ -122,9 +182,16 @@ final class RuntimePostHitForcedMovementApplication {
                 choice.targetId(),
                 resolved
         );
-        return Optional.of(new RuntimeForcedMovementMoveApplication.Result(
-                move.moveId(), resolved, displacement
-        ));
+        return new Resolution(
+                Optional.of(new RuntimeForcedMovementMoveApplication.Result(
+                        move.moveId(), resolved, displacement
+                )),
+                ForcedMovementPreventionResolution.Prevention.none()
+        );
+    }
+
+    private static Resolution prevented(ForcedMovementPreventionResolution.Prevention prevention) {
+        return new Resolution(Optional.empty(), prevention);
     }
 
     private static List<ForcedMovementPreventionResolution.TemporaryEffect> activePushImmunities(
