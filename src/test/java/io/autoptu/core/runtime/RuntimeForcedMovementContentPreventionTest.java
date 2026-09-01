@@ -25,15 +25,42 @@ class RuntimeForcedMovementContentPreventionTest {
         RuntimeCombatantState target = combatant("target", 2, 1);
         MoveOption move = move("ram", List.of("push 2"));
         BattleRuntimeState state = state(source, target, move);
-        CombatantRuleContent content = new CombatantRuleContent(
-                List.of("Wallclimber"), null, "trainer", Map.of(),
-                List.of("Insectoid Utility"), List.of()
-        );
+        CombatantRuleContent content = insectoidWallclimberContent();
 
         assertTrue(RuntimePostHitForcedMovementApplication.apply(
                 state, choice(source, target, move), true, content
         ).isEmpty());
         assertEquals(new GridCoord(2, 1), target.position());
+    }
+
+    @Test
+    void registryBackedSeamUsesTargetRuleContent() {
+        RuntimeCombatantState source = combatant("source", 1, 1);
+        RuntimeCombatantState target = combatant("target", 2, 1);
+        MoveOption move = move("ram", List.of("push 2"));
+        BattleRuntimeState state = state(source, target, move);
+        CombatantRuleContentRegistry registry = new CombatantRuleContentRegistry();
+        registry.register(target.combatantId(), insectoidWallclimberContent());
+
+        assertTrue(RuntimePostHitForcedMovementApplication.apply(
+                state, choice(source, target, move), true, registry
+        ).isEmpty());
+        assertEquals(new GridCoord(2, 1), target.position());
+    }
+
+    @Test
+    void registryBackedSeamDoesNotUseSourceRuleContentForDefenderPrevention() {
+        RuntimeCombatantState source = combatant("source", 1, 1);
+        RuntimeCombatantState target = combatant("target", 2, 1);
+        MoveOption move = move("ram", List.of("push"));
+        BattleRuntimeState state = state(source, target, move);
+        CombatantRuleContentRegistry registry = new CombatantRuleContentRegistry();
+        registry.register(source.combatantId(), insectoidWallclimberContent());
+
+        assertTrue(RuntimePostHitForcedMovementApplication.apply(
+                state, choice(source, target, move), true, registry
+        ).isPresent());
+        assertEquals(new GridCoord(3, 1), target.position());
     }
 
     @Test
@@ -51,6 +78,13 @@ class RuntimeForcedMovementContentPreventionTest {
                 state, choice(source, target, move), true, content
         ).isPresent());
         assertEquals(new GridCoord(3, 1), target.position());
+    }
+
+    private static CombatantRuleContent insectoidWallclimberContent() {
+        return new CombatantRuleContent(
+                List.of("Wallclimber"), null, "trainer", Map.of(),
+                List.of("Insectoid Utility"), List.of()
+        );
     }
 
     private static BattleRuntimeState state(
