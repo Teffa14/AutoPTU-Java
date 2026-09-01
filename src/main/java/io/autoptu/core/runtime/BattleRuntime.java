@@ -97,6 +97,24 @@ public final class BattleRuntime {
         );
     }
 
+    /**
+     * Public authoritative composition boundary for server-owned rule dependencies.
+     * Existing callers remain source-compatible and receive an empty dependency snapshot.
+     */
+    public static AppliedActionResult applyAuthoritativeMove(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            PythonRandom rng, MoveResolutionInput input,
+            BattleRuntimeDependencies dependencies
+    ) {
+        if (dependencies == null) throw new IllegalArgumentException("runtime dependencies are required");
+        return applyAuthoritativeMoveInternal(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
+                rng, input, List.of(), NO_MOVE_SPECIALS, PRE_DAMAGE_REACTIONS,
+                PostDamageHookResult.empty(), null, null, null, true, true, false, dependencies
+        );
+    }
+
     public static AppliedActionResult applyAuthoritativeMove(
             BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
@@ -360,10 +378,36 @@ public final class BattleRuntime {
             boolean runPreDamageReactions,
             boolean declaredChoiceAlreadyValidated
     ) {
+        return applyAuthoritativeMoveInternal(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
+                rng, input, preResolutionEvents, moveSpecialHookRegistry, preDamageReactionHooks,
+                precomputedPostDamageHooks, deferredPostDamageHooks, effectiveMetadata, reactionAnchor,
+                spendOrdinaryMoveResources, runPreDamageReactions, declaredChoiceAlreadyValidated,
+                BattleRuntimeDependencies.empty()
+        );
+    }
+
+    private static AppliedActionResult applyAuthoritativeMoveInternal(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
+            PythonRandom rng, MoveResolutionInput input,
+            List<? extends BattleEvent> preResolutionEvents,
+            MoveSpecialHookRegistry moveSpecialHookRegistry,
+            PreDamageReactionHookRegistry preDamageReactionHooks,
+            PostDamageHookResult precomputedPostDamageHooks,
+            PostDamageHookRegistry deferredPostDamageHooks,
+            MoveCombatProfile effectiveMetadata,
+            GridCoord reactionAnchor,
+            boolean spendOrdinaryMoveResources,
+            boolean runPreDamageReactions,
+            boolean declaredChoiceAlreadyValidated,
+            BattleRuntimeDependencies dependencies
+    ) {
         if (rng == null) throw new IllegalArgumentException("rng is required");
         if (input == null) throw new IllegalArgumentException("input is required");
         if (moveSpecialHookRegistry == null) throw new IllegalArgumentException("moveSpecialHookRegistry is required");
         if (preDamageReactionHooks == null) throw new IllegalArgumentException("preDamageReactionHooks is required");
+        if (dependencies == null) throw new IllegalArgumentException("runtime dependencies are required");
 
         if (spendOrdinaryMoveResources) {
             if (!declaredChoiceAlreadyValidated) {
@@ -486,7 +530,7 @@ public final class BattleRuntime {
             ).actionResult();
         }
         if (accuracy.hit() && state.hasCanonicalMoves(choice.actorId())) {
-            RuntimePostHitForcedMovementApplication.apply(state, choice, true);
+            RuntimePostHitForcedMovementApplication.apply(state, choice, true, dependencies);
         }
         if (accuracy.hit()) {
             result = prependEvents(resolvedPostDamageHooks.events(), result);
