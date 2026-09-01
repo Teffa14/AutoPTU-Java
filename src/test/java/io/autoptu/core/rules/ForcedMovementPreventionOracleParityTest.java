@@ -34,5 +34,21 @@ class ForcedMovementPreventionOracleParityTest {
         assertTrue(ForcedMovementPreventionResolution.prevented(push, List.of("Sumo Stance"), false));
         assertFalse(ForcedMovementPreventionResolution.prevented(push, List.of("Suction Cups"), true));
         assertFalse(ForcedMovementPreventionResolution.prevented(pull, List.of("Suction Cups"), false));
+
+        assertTrue(ForcedMovementPreventionResolution.preventedByContent(
+                push, List.of("Insectoid Utility"), List.of("Wallclimber")
+        ));
+        assertTrue(ForcedMovementPreventionResolution.preventedByContent(
+                push, List.of(" insectoid utility "), List.of("WALLCLIMBER")
+        ));
+        assertFalse(ForcedMovementPreventionResolution.preventedByContent(
+                push, List.of("Insectoid Utility"), List.of()
+        ));
+        assertFalse(ForcedMovementPreventionResolution.preventedByContent(
+                push, List.of(), List.of("Wallclimber")
+        ));
+        assertFalse(ForcedMovementPreventionResolution.preventedByContent(
+                pull, List.of("Insectoid Utility"), List.of("Wallclimber")
+        ));
     }
 }
