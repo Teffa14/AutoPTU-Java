@@ -30,8 +30,23 @@ final class RuntimePostHitForcedMovementApplication {
             MoveChoice choice,
             boolean hit
     ) {
+        return apply(state, choice, hit, CombatantRuleContent.empty());
+    }
+
+    /**
+     * Content-aware core seam used when canonical rule content has already been materialized.
+     * The content snapshot is data, not a pre-resolved PTU conclusion; the prevention resolver
+     * remains the single authority for composite Feature/capability rules.
+     */
+    static Optional<RuntimeForcedMovementMoveApplication.Result> apply(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            boolean hit,
+            CombatantRuleContent targetRuleContent
+    ) {
         if (state == null) throw new IllegalArgumentException("battle state is required");
         if (choice == null) throw new IllegalArgumentException("move choice is required");
+        if (targetRuleContent == null) throw new IllegalArgumentException("target rule content is required");
         if (!hit) return Optional.empty();
 
         MoveOption move = requireCanonicalMove(state, choice.actorId(), choice.moveId());
@@ -63,6 +78,11 @@ final class RuntimePostHitForcedMovementApplication {
                 state.statuses(choice.targetId()),
                 activePushImmunities(target, state.currentRound()),
                 state.currentRound()
+        )) return Optional.empty();
+        if (ForcedMovementPreventionResolution.preventedByContent(
+                resolved,
+                targetRuleContent.trainerFeatures(),
+                targetRuleContent.capabilities()
         )) return Optional.empty();
 
         ForcedDisplacementResolution.Result displacement = ForcedMovementApplication.apply(
