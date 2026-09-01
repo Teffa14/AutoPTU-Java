@@ -130,10 +130,25 @@ public final class RuntimeMoveResolution {
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source, PythonRandom rng,
             MoveResolutionInput input, boolean ignorePositiveAttackStage, boolean ignorePositiveDefenseStage
     ) {
+        return applyUsingAuthoritativeCombatState(
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source, rng,
+                input, ignorePositiveAttackStage, ignorePositiveDefenseStage,
+                BattleRuntimeDependencies.empty()
+        );
+    }
+
+    /** Dependency-aware authoritative boundary for production direct moves. */
+    public static AppliedActionResult applyUsingAuthoritativeCombatState(
+            BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
+            String targetSize, Set<GridCoord> lineOfSightBlockers, String source, PythonRandom rng,
+            MoveResolutionInput input, boolean ignorePositiveAttackStage, boolean ignorePositiveDefenseStage,
+            BattleRuntimeDependencies dependencies
+    ) {
         if (state == null) throw new IllegalArgumentException("state is required");
         if (choice == null) throw new IllegalArgumentException("choice is required");
         if (move == null) throw new IllegalArgumentException("move is required");
         if (input == null) throw new IllegalArgumentException("input is required");
+        if (dependencies == null) throw new IllegalArgumentException("runtime dependencies are required");
         MoveCombatProfile metadata = move.requireCombatProfile();
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
@@ -160,7 +175,7 @@ public final class RuntimeMoveResolution {
         return BattleRuntime.applyAuthoritativeMove(state, choice, move, actorSize, targetSize,
                 lineOfSightBlockers, source, rng, stateBoundInput,
                 combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
-                moveSpecialHooks, PRE_DAMAGE_HOOKS, POST_DAMAGE_HOOKS, effectiveMetadata);
+                moveSpecialHooks, PRE_DAMAGE_HOOKS, POST_DAMAGE_HOOKS, effectiveMetadata, dependencies);
     }
 
     /**
@@ -177,10 +192,29 @@ public final class RuntimeMoveResolution {
             boolean ignorePositiveAttackStage,
             boolean ignorePositiveDefenseStage
     ) {
+        return applyAreaUsingAuthoritativeCombatState(
+                state, tileChoice, source, rng, legacyInput,
+                ignorePositiveAttackStage, ignorePositiveDefenseStage,
+                BattleRuntimeDependencies.empty()
+        );
+    }
+
+    /** Dependency-aware authoritative boundary for production area moves. */
+    public static MultiTargetAppliedActionResult applyAreaUsingAuthoritativeCombatState(
+            BattleRuntimeState state,
+            MoveChoice tileChoice,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput legacyInput,
+            boolean ignorePositiveAttackStage,
+            boolean ignorePositiveDefenseStage,
+            BattleRuntimeDependencies dependencies
+    ) {
         if (state == null) throw new IllegalArgumentException("state is required");
         if (tileChoice == null) throw new IllegalArgumentException("tileChoice is required");
         if (rng == null) throw new IllegalArgumentException("rng is required");
         if (legacyInput == null) throw new IllegalArgumentException("legacyInput is required");
+        if (dependencies == null) throw new IllegalArgumentException("runtime dependencies are required");
         if (tileChoice.targetMode() != ChoiceTargetMode.TILE || !tileChoice.targetId().isBlank()) {
             throw new IllegalArgumentException("multi-target move execution requires a TILE move choice");
         }
@@ -213,7 +247,8 @@ public final class RuntimeMoveResolution {
                     rng,
                     legacyInput,
                     ignorePositiveAttackStage,
-                    ignorePositiveDefenseStage
+                    ignorePositiveDefenseStage,
+                    dependencies
             );
             resolvedTargetIds.add(targetId);
             events.addAll(targetResult.events());
@@ -241,9 +276,28 @@ public final class RuntimeMoveResolution {
             boolean ignorePositiveAttackStage,
             boolean ignorePositiveDefenseStage
     ) {
+        return applyDelayedUsingAuthoritativeCombatState(
+                state, binding, source, rng, legacyInput,
+                ignorePositiveAttackStage, ignorePositiveDefenseStage,
+                BattleRuntimeDependencies.empty()
+        );
+    }
+
+    /** Dependency-aware authoritative boundary for matured delayed hits. */
+    public static AppliedActionResult applyDelayedUsingAuthoritativeCombatState(
+            BattleRuntimeState state,
+            DelayedHitBinding binding,
+            String source,
+            PythonRandom rng,
+            MoveResolutionInput legacyInput,
+            boolean ignorePositiveAttackStage,
+            boolean ignorePositiveDefenseStage,
+            BattleRuntimeDependencies dependencies
+    ) {
         if (state == null) throw new IllegalArgumentException("state is required");
         if (binding == null) throw new IllegalArgumentException("binding is required");
         if (legacyInput == null) throw new IllegalArgumentException("legacyInput is required");
+        if (dependencies == null) throw new IllegalArgumentException("runtime dependencies are required");
         MoveChoice choice = binding.choice();
         MoveOption move = binding.move();
         MoveCombatProfile metadata = move.requireCombatProfile();
@@ -276,7 +330,8 @@ public final class RuntimeMoveResolution {
                 stateBoundInput,
                 combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
                 POST_DAMAGE_HOOKS,
-                effectiveMetadata
+                effectiveMetadata,
+                dependencies
         );
     }
 
@@ -289,7 +344,8 @@ public final class RuntimeMoveResolution {
             PythonRandom rng,
             MoveResolutionInput legacyInput,
             boolean ignorePositiveAttackStage,
-            boolean ignorePositiveDefenseStage
+            boolean ignorePositiveDefenseStage,
+            BattleRuntimeDependencies dependencies
     ) {
         MoveCombatProfile metadata = move.requireCombatProfile();
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
@@ -322,7 +378,8 @@ public final class RuntimeMoveResolution {
                 combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
                 PRE_DAMAGE_HOOKS,
                 POST_DAMAGE_HOOKS,
-                effectiveMetadata
+                effectiveMetadata,
+                dependencies
         );
     }
 
