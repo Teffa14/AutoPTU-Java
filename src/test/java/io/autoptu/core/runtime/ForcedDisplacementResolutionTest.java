@@ -137,6 +137,103 @@ class ForcedDisplacementResolutionTest {
         assertEquals(new GridCoord(-1, 1), result.stop().blockingTile());
     }
 
+    @Test
+    void shadowTagAnchorAllowsDistanceFiveAndPartiallyStopsBeforeSix() {
+        RuntimeCombatantState target = combatant("target", 4, 1);
+        target.temporaryEffects().add("shadow_tag_anchor", Map.of(
+                "anchor_x", 0,
+                "anchor_y", 1,
+                "expires_round", 2
+        ));
+        BattleRuntimeState state = state(
+                new MovementGrid(12, 4, Set.of(), Map.of()),
+                target,
+                Map.of()
+        );
+        state.syncCurrentRoundFromLifecycle(2);
+
+        ForcedDisplacementResolution.Result result = ForcedDisplacementResolution.resolve(
+                state, "target", new GridCoord(1, 0), 4
+        );
+
+        assertEquals(new GridCoord(5, 1), result.destination());
+        assertEquals(1, result.movedDistance());
+        assertTrue(result.stoppedEarly());
+        assertEquals(ForcedDisplacementResolution.StopReason.STEP_CONSTRAINT, result.stop().reason());
+        assertEquals(new GridCoord(6, 1), result.stop().attemptedAnchor());
+        assertEquals(1, target.temporaryEffects().count("shadow_tag_anchor"));
+    }
+
+    @Test
+    void shadowTagUsesMovingFootprintRatherThanAnchorDistance() {
+        RuntimeCombatantState target = combatant("target", 5, 1);
+        target.temporaryEffects().add("shadow_tag_anchor", Map.of("anchor_x", 0, "anchor_y", 1));
+        BattleRuntimeState state = state(
+                new MovementGrid(14, 5, Set.of(), Map.of()),
+                target,
+                Map.of("target", new CombatantGeometryState("Huge"))
+        );
+
+        ForcedDisplacementResolution.Result result = ForcedDisplacementResolution.resolve(
+                state, "target", new GridCoord(1, 0), 3
+        );
+
+        assertEquals(new GridCoord(6, 1), result.destination());
+        assertEquals(1, result.movedDistance(), "Huge footprint at anchor 6 remains exactly five tiles from the anchor");
+        assertEquals(ForcedDisplacementResolution.StopReason.STEP_CONSTRAINT, result.stop().reason());
+        assertEquals(new GridCoord(7, 1), result.stop().attemptedAnchor());
+    }
+
+    @Test
+    void shadowTagExpiresOnlyAfterItsExpirationRoundAndIsThenRemoved() {
+        RuntimeCombatantState target = combatant("target", 5, 1);
+        target.temporaryEffects().add("shadow_tag_anchor", Map.of(
+                "anchor_x", 0,
+                "anchor_y", 1,
+                "expires_round", 3
+        ));
+        BattleRuntimeState state = state(
+                new MovementGrid(14, 4, Set.of(), Map.of()),
+                target,
+                Map.of()
+        );
+        state.syncCurrentRoundFromLifecycle(3);
+        ForcedDisplacementResolution.Result active = ForcedDisplacementResolution.resolve(
+                state, "target", new GridCoord(1, 0), 2
+        );
+        assertEquals(new GridCoord(5, 1), active.destination());
+        assertEquals(ForcedDisplacementResolution.StopReason.STEP_CONSTRAINT, active.stop().reason());
+        assertEquals(1, target.temporaryEffects().count("shadow_tag_anchor"));
+
+        state.syncCurrentRoundFromLifecycle(4);
+        ForcedDisplacementResolution.Result expired = ForcedDisplacementResolution.resolve(
+                state, "target", new GridCoord(1, 0), 2
+        );
+        assertEquals(new GridCoord(7, 1), expired.destination());
+        assertEquals(2, expired.movedDistance());
+        assertEquals(ForcedDisplacementResolution.StopReason.NONE, expired.stop().reason());
+        assertEquals(0, target.temporaryEffects().count("shadow_tag_anchor"));
+    }
+
+    @Test
+    void malformedShadowTagAnchorDoesNotCreateAConstraint() {
+        RuntimeCombatantState target = combatant("target", 5, 1);
+        target.temporaryEffects().add("shadow_tag_anchor", Map.of("anchor_x", 0));
+        BattleRuntimeState state = state(
+                new MovementGrid(14, 4, Set.of(), Map.of()),
+                target,
+                Map.of()
+        );
+
+        ForcedDisplacementResolution.Result result = ForcedDisplacementResolution.resolve(
+                state, "target", new GridCoord(1, 0), 2
+        );
+
+        assertEquals(new GridCoord(7, 1), result.destination());
+        assertEquals(2, result.movedDistance());
+        assertEquals(ForcedDisplacementResolution.StopReason.NONE, result.stop().reason());
+    }
+
     private static RuntimeCombatantState combatant(String id, int x, int y) {
         return new RuntimeCombatantState(
                 id,
