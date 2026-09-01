@@ -112,11 +112,10 @@ public final class ForcedMovementPreventionResolution {
         return resolveByAbility(instruction, defenderAbilities, abilitiesSuppressed).prevented();
     }
 
-    public static Prevention resolveByState(
+    /** Resolve status-only prevention without folding in temporary-effect precedence. */
+    public static Prevention resolveByStatus(
             ForcedMovementInstruction instruction,
-            Set<String> defenderStatuses,
-            List<TemporaryEffect> temporaryEffects,
-            int currentRound
+            Set<String> defenderStatuses
     ) {
         if (instruction == null) return Prevention.none();
         Set<String> statuses = defenderStatuses == null ? Set.of() : defenderStatuses;
@@ -126,6 +125,16 @@ public final class ForcedMovementPreventionResolution {
                 return new Prevention(SourceKind.STATUS, rule.statusName());
             }
         }
+        return Prevention.none();
+    }
+
+    /** Resolve temporary-effect-only prevention so runtime orchestration can preserve Python order. */
+    public static Prevention resolveByTemporaryEffects(
+            ForcedMovementInstruction instruction,
+            List<TemporaryEffect> temporaryEffects,
+            int currentRound
+    ) {
+        if (instruction == null) return Prevention.none();
         List<TemporaryEffect> effects = temporaryEffects == null ? List.of() : temporaryEffects;
         for (TemporaryRule rule : TEMPORARY_RULES) {
             if (!rule.blockedKinds().contains(instruction.kind())) continue;
@@ -137,6 +146,22 @@ public final class ForcedMovementPreventionResolution {
             }
         }
         return Prevention.none();
+    }
+
+    /**
+     * Compatibility state-family resolver. Historical callers keep status-before-temporary
+     * semantics; authoritative forced-movement orchestration calls the split resolvers in the
+     * exact order frozen from Python.
+     */
+    public static Prevention resolveByState(
+            ForcedMovementInstruction instruction,
+            Set<String> defenderStatuses,
+            List<TemporaryEffect> temporaryEffects,
+            int currentRound
+    ) {
+        Prevention status = resolveByStatus(instruction, defenderStatuses);
+        if (status.prevented()) return status;
+        return resolveByTemporaryEffects(instruction, temporaryEffects, currentRound);
     }
 
     public static boolean preventedByState(
