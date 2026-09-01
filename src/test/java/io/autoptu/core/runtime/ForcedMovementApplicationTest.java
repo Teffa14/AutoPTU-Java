@@ -77,6 +77,35 @@ class ForcedMovementApplicationTest {
         assertTrue(target.actionBudget().hasActionAvailable(ActionType.SHIFT));
     }
 
+    @Test
+    void shadowTagConstraintMutatesTargetOnlyThroughLastLegalCandidate() {
+        RuntimeCombatantState source = combatant("source", 3, 1);
+        RuntimeCombatantState target = combatant("target", 4, 1);
+        target.temporaryEffects().add("shadow_tag_anchor", Map.of(
+                "anchor_x", 0,
+                "anchor_y", 1,
+                "expires_round", 1
+        ));
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(12, 4, Set.of(), Map.of()),
+                List.of(source, target)
+        );
+        state.syncCurrentRoundFromLifecycle(1);
+
+        ForcedDisplacementResolution.Result result = ForcedMovementApplication.apply(
+                state,
+                "source",
+                "target",
+                new ForcedMovementInstruction(ForcedMovementInstruction.Kind.PUSH, 4)
+        );
+
+        assertEquals(new GridCoord(5, 1), result.destination());
+        assertEquals(new GridCoord(5, 1), target.position());
+        assertEquals(1, result.movedDistance());
+        assertEquals(ForcedDisplacementResolution.StopReason.STEP_CONSTRAINT, result.stop().reason());
+        assertTrue(target.actionBudget().hasActionAvailable(ActionType.SHIFT));
+    }
+
     private static RuntimeCombatantState combatant(String id, int x, int y) {
         return new RuntimeCombatantState(
                 id,
