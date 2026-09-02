@@ -102,6 +102,31 @@ def require_insectoid_feature_event_contract(fn: ast.AST) -> None:
         )
 
 
+def require_ability_prevention_event_contract(fn: ast.AST) -> None:
+    """Freeze Ability-family prevention branches and their observable semantic event."""
+    function_text = compact(fn)
+    missing_rule_fragments = [
+        fragment for fragment in ("push_immunity", "Suction Cups", "Sumo Stance")
+        if fragment not in function_text
+    ]
+    if missing_rule_fragments:
+        raise SystemExit(
+            "apply_forced_movement lost pinned Ability-family prevention branches: "
+            + ", ".join(missing_rule_fragments)
+        )
+
+    semantic_event_calls = [
+        call for call in ast.walk(fn)
+        if isinstance(call, ast.Call)
+        and not call_symbol(call).endswith("has_ability")
+        and call_contains_string_literal(call, "ability")
+    ]
+    if not semantic_event_calls:
+        raise SystemExit(
+            "apply_forced_movement lost the pinned ability semantic-event discriminator"
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
@@ -122,6 +147,7 @@ def main() -> None:
     if not any(kind in {"write", "position_write"} for _, kind, _, _ in rows):
         raise SystemExit("apply_forced_movement no longer contains state writes")
     require_insectoid_feature_event_contract(fn)
+    require_ability_prevention_event_contract(fn)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     lines = ["path\tfunction\tline\tkind\tsymbol\tstatement"]
