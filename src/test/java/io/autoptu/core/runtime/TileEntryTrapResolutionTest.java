@@ -20,6 +20,7 @@ class TileEntryTrapResolutionTest {
                         "abrasion_trap", 3, "source", "red", Set.of("mountain", "cave"), "Abrasion Trap")
         ));
 
+        assertTrue(result.blocks().isEmpty());
         assertEquals(1, result.triggers().size());
         var trigger = result.triggers().getFirst();
         assertEquals("target", trigger.actorId());
@@ -33,31 +34,41 @@ class TileEntryTrapResolutionTest {
     }
 
     @Test
-    void sameTeamSourceDoesNotTriggerOrConsume() {
+    void sameTeamSourceDoesNotTriggerBlockOrConsume() {
         var result = TileEntryTrapResolution.resolve(ENTRY, List.of(
                 new TileEntryTrapResolution.TrapLayer("dust_trap", 1, "ally", "blue", Set.of("desert"), "Dust Trap")
         ));
         assertTrue(result.triggers().isEmpty());
+        assertTrue(result.blocks().isEmpty());
         assertTrue(result.consumedTrapKeys().isEmpty());
     }
 
     @Test
-    void matchingNaturewalkDoesNotTriggerOrConsume() {
+    void matchingNaturewalkEmitsBlockWithoutConsumption() {
         var context = new TileEntryTrapResolution.EntryContext(
                 "target", "blue", 37, new GridCoord(4, 3), Set.of("forest"));
         var result = TileEntryTrapResolution.resolve(context, List.of(
                 new TileEntryTrapResolution.TrapLayer("tangle_trap", 1, "source", "red", Set.of("forest", "wetlands"), "Tangle Trap")
         ));
+
         assertTrue(result.triggers().isEmpty());
+        assertEquals(1, result.blocks().size());
+        var block = result.blocks().getFirst();
+        assertEquals("target", block.actorId());
+        assertEquals("tangle_trap", block.trapKey());
+        assertEquals("Naturewalk ignores the trap's terrain-linked effects.", block.description());
+        assertEquals(37, block.targetHp());
         assertTrue(result.consumedTrapKeys().isEmpty());
     }
 
     @Test
-    void zeroLayerTrapIsIgnored() {
+    void nonpositiveLayerTrapsAreIgnored() {
         var result = TileEntryTrapResolution.resolve(ENTRY, List.of(
-                new TileEntryTrapResolution.TrapLayer("slick_trap", 0, "source", "red", Set.of("ocean"), "Slick Trap")
+                new TileEntryTrapResolution.TrapLayer("zero_trap", 0, "source", "red", Set.of("ocean"), "Zero Trap"),
+                new TileEntryTrapResolution.TrapLayer("stale_trap", -2, "source", "red", Set.of("ocean"), "Stale Trap")
         ));
         assertTrue(result.triggers().isEmpty());
+        assertTrue(result.blocks().isEmpty());
         assertTrue(result.consumedTrapKeys().isEmpty());
     }
 }
