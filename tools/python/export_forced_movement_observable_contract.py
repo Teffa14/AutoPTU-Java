@@ -65,21 +65,40 @@ def observable_rows(fn: ast.AST) -> list[tuple[int, str, str, str]]:
     return sorted(rows, key=lambda row: (row[0], row[1], row[2], row[3]))
 
 
-def require_insectoid_feature_event_contract(rows: list[tuple[int, str, str, str]]) -> None:
+def call_contains_string_literal(call: ast.Call, value: str) -> bool:
+    return any(
+        isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value == value
+        for node in ast.walk(call)
+    )
+
+
+def require_insectoid_feature_event_contract(fn: ast.AST) -> None:
     """Freeze the Python semantic-event obligation for Insectoid Utility push prevention.
 
-    Java can preserve prevention provenance internally without yet exposing the Python event. This
-    guard makes that gap explicit: if the pinned oracle stops mentioning the Feature, Wallclimber,
-    or trainer_feature inside apply_forced_movement, the parity fixture must be reviewed instead of
-    silently accepting a changed observable contract.
+    The guard deliberately distinguishes the semantic event discriminator from the
+    has_trainer_feature predicate. A predicate containing the text ``trainer_feature`` must not be
+    enough to satisfy the observable event contract.
     """
-    statements = "\n".join(statement for _, _, _, statement in rows)
-    required_fragments = ("Insectoid Utility", "Wallclimber", "trainer_feature")
-    missing = [fragment for fragment in required_fragments if fragment not in statements]
-    if missing:
+    function_text = compact(fn)
+    missing_rule_fragments = [
+        fragment for fragment in ("Insectoid Utility", "Wallclimber")
+        if fragment not in function_text
+    ]
+    if missing_rule_fragments:
         raise SystemExit(
-            "apply_forced_movement lost the pinned Insectoid Utility semantic-event contract: "
-            + ", ".join(missing)
+            "apply_forced_movement lost the pinned Insectoid Utility prevention contract: "
+            + ", ".join(missing_rule_fragments)
+        )
+
+    semantic_event_calls = [
+        call for call in ast.walk(fn)
+        if isinstance(call, ast.Call)
+        and not call_symbol(call).endswith("has_trainer_feature")
+        and call_contains_string_literal(call, "trainer_feature")
+    ]
+    if not semantic_event_calls:
+        raise SystemExit(
+            "apply_forced_movement lost the pinned trainer_feature semantic-event discriminator"
         )
 
 
@@ -102,7 +121,7 @@ def main() -> None:
         raise SystemExit("apply_forced_movement no longer contains observable calls")
     if not any(kind in {"write", "position_write"} for _, kind, _, _ in rows):
         raise SystemExit("apply_forced_movement no longer contains state writes")
-    require_insectoid_feature_event_contract(rows)
+    require_insectoid_feature_event_contract(fn)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     lines = ["path\tfunction\tline\tkind\tsymbol\tstatement"]
