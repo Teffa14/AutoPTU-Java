@@ -97,8 +97,11 @@ public final class ForcedMovementPreventionResolution {
         if (instruction == null || abilitiesSuppressed) return Prevention.none();
         for (AbilityRule rule : ABILITY_RULES) {
             if (!rule.blockedKinds().contains(instruction.kind())) continue;
-            if (AbilityIdentityResolution.matchesRegistration(defenderAbilities, rule.abilityName())) {
-                return new Prevention(SourceKind.ABILITY, rule.abilityName());
+            String matched = AbilityIdentityResolution.matchingRegistrationName(
+                    defenderAbilities, rule.abilityName()
+            );
+            if (matched != null) {
+                return new Prevention(SourceKind.ABILITY, matched);
             }
         }
         return Prevention.none();
