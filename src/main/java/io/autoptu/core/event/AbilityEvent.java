@@ -21,7 +21,9 @@ public record AbilityEvent(
         if (actorId.isBlank()) throw new IllegalArgumentException("actorId is required");
         if (ability.isBlank()) throw new IllegalArgumentException("ability is required");
         if (effect.isBlank()) throw new IllegalArgumentException("effect is required");
-        if (targetHp() < 0) throw new IllegalArgumentException("targetHp cannot be negative");
+        if (intDetail(details, "targetHp", 0) < 0) {
+            throw new IllegalArgumentException("targetHp cannot be negative");
+        }
     }
 
     @Override
