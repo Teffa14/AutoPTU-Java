@@ -6,6 +6,7 @@ public enum BattleEventKind {
     SHIFT_RESOLVED("shift_resolved"),
     STATUS_SKIP("status_skip"),
     TRAINER_FEATURE("trainer_feature"),
+    ABILITY("ability"),
     RULE_EFFECT("rule_effect"),
     FIELD_EFFECT("field_effect"),
     PHASE_CHANGE("phase"),
