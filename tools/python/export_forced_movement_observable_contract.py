@@ -65,6 +65,24 @@ def observable_rows(fn: ast.AST) -> list[tuple[int, str, str, str]]:
     return sorted(rows, key=lambda row: (row[0], row[1], row[2], row[3]))
 
 
+def require_insectoid_feature_event_contract(rows: list[tuple[int, str, str, str]]) -> None:
+    """Freeze the Python semantic-event obligation for Insectoid Utility push prevention.
+
+    Java can preserve prevention provenance internally without yet exposing the Python event. This
+    guard makes that gap explicit: if the pinned oracle stops mentioning the Feature, Wallclimber,
+    or trainer_feature inside apply_forced_movement, the parity fixture must be reviewed instead of
+    silently accepting a changed observable contract.
+    """
+    statements = "\n".join(statement for _, _, _, statement in rows)
+    required_fragments = ("Insectoid Utility", "Wallclimber", "trainer_feature")
+    missing = [fragment for fragment in required_fragments if fragment not in statements]
+    if missing:
+        raise SystemExit(
+            "apply_forced_movement lost the pinned Insectoid Utility semantic-event contract: "
+            + ", ".join(missing)
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
@@ -84,6 +102,7 @@ def main() -> None:
         raise SystemExit("apply_forced_movement no longer contains observable calls")
     if not any(kind in {"write", "position_write"} for _, kind, _, _ in rows):
         raise SystemExit("apply_forced_movement no longer contains state writes")
+    require_insectoid_feature_event_contract(rows)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     lines = ["path\tfunction\tline\tkind\tsymbol\tstatement"]
