@@ -2,6 +2,7 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.event.MoveResolvedEvent;
+import io.autoptu.core.event.TrainerFeatureEvent;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.AttackModifier;
 import io.autoptu.core.model.CombatStat;
@@ -22,6 +23,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RuntimeAuthoritativeDelayedHitTest {
@@ -69,6 +71,51 @@ class RuntimeAuthoritativeDelayedHitTest {
                 100 - first.requireCombatant("target").hp(),
                 first.damageHistory().damageReceivedThisRound().get("target")
         );
+    }
+
+    @Test
+    void maturedDelayedHitPreservesForcedMovementPreventionTraceFromCurrentDependencies() {
+        MoveOption move = pushMove();
+        BattleRuntimeState state = state(move);
+        RuntimeCombatantState actor = state.requireCombatant("actor");
+        RuntimeCombatantState target = state.requireCombatant("target");
+        spendSchedulingResources(actor, move);
+        GridCoord targetOrigin = target.position();
+
+        DelayedHitEntry entry = new DelayedHitEntry(
+                "actor", move.moveId(), "target", null, 3, "future_sight"
+        );
+        DelayedHitBinding binding = DelayedHitBindingResolver.bind(state, entry);
+        MoveResolutionInput legacyInput = new MoveResolutionInput(
+                2, 0, 0, 20, false, false, false,
+                8, 30, 12, false, 1.0, List.of()
+        );
+
+        AppliedActionResult result = RuntimeMoveResolution.applyDelayedUsingAuthoritativeCombatState(
+                state,
+                binding,
+                "Delayed",
+                new PythonRandom(7),
+                legacyInput,
+                false,
+                false,
+                dependenciesFor("target", insectoidWallclimberContent())
+        );
+
+        assertEquals(2, result.events().size());
+        MoveResolvedEvent moveEvent = assertInstanceOf(MoveResolvedEvent.class, result.events().get(0));
+        TrainerFeatureEvent prevention = assertInstanceOf(TrainerFeatureEvent.class, result.events().get(1));
+        assertTrue(moveEvent.hit());
+        assertTrue(moveEvent.damage() > 0);
+        assertEquals("target", prevention.actorId());
+        assertEquals("Insectoid Utility", prevention.feature());
+        assertEquals("forced_movement_block", prevention.effect());
+        assertEquals("trainer", prevention.trainer());
+        assertEquals(moveEvent.targetHp(), prevention.targetHp());
+        assertEquals(moveEvent.targetHp(), target.hp());
+        assertEquals(targetOrigin, target.position());
+        assertFalse(actor.actionBudget().hasActionAvailable(ActionType.STANDARD));
+        assertEquals(1, actor.moveFrequencyUsage().battleUses(move.moveId()));
     }
 
     private static void spendSchedulingResources(RuntimeCombatantState actor, MoveOption move) {
@@ -134,6 +181,33 @@ class RuntimeAuthoritativeDelayedHitTest {
                 true,
                 new MoveCombatProfile(2, 8, 20, "physical"),
                 "Scene x1"
+        );
+    }
+
+    private static MoveOption pushMove() {
+        return new MoveOption(
+                "future-sight-push",
+                new MoveSpec(
+                        "Ranged", "Ranged", 20, 20, null, null, "Ranged",
+                        List.of("push 2"), "Push the target 2 meters."
+                ),
+                ActionType.STANDARD,
+                true,
+                new MoveCombatProfile(2, 8, 20, "physical"),
+                "Scene x1"
+        );
+    }
+
+    private static BattleRuntimeDependencies dependenciesFor(String combatantId, CombatantRuleContent content) {
+        return new BattleRuntimeDependencies(
+                new CombatantRuleContentRegistry(Map.of(combatantId, content))
+        );
+    }
+
+    private static CombatantRuleContent insectoidWallclimberContent() {
+        return new CombatantRuleContent(
+                List.of("Wallclimber"), null, "trainer", Map.of(),
+                List.of("Insectoid Utility"), List.of()
         );
     }
 }

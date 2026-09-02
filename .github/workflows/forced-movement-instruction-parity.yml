@@ -17,6 +17,8 @@ on:
       - "src/test/java/io/autoptu/core/runtime/RuntimeForcedMovementContentPreventionTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeForcedMovementPreventionPrecedenceTest.java"
       - "src/test/java/io/autoptu/core/runtime/BattleRuntimeAuthoritativeMoveTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeAuthoritativeMultiTargetMoveExecutionTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeAuthoritativeDelayedHitTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementRuntimeBindingContractTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementObservableOracleContractTest.java"
       - "src/test/java/io/autoptu/core/runtime/ForcedMovementShadowAnchorOracleContractTest.java"
@@ -141,6 +143,8 @@ jobs:
           --tests io.autoptu.core.runtime.RuntimeForcedMovementContentPreventionTest
           --tests io.autoptu.core.runtime.RuntimeForcedMovementPreventionPrecedenceTest
           --tests io.autoptu.core.runtime.BattleRuntimeAuthoritativeMoveTest
+          --tests io.autoptu.core.runtime.RuntimeAuthoritativeMultiTargetMoveExecutionTest
+          --tests io.autoptu.core.runtime.RuntimeAuthoritativeDelayedHitTest
           --tests io.autoptu.core.runtime.ForcedMovementRuntimeBindingContractTest
           --tests io.autoptu.core.runtime.ForcedMovementObservableOracleContractTest
           --tests io.autoptu.core.runtime.ForcedMovementShadowAnchorOracleContractTest
