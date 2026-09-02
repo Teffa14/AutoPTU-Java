@@ -2,6 +2,7 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
+import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.rules.ForcedMovementAbilityModifierResolution;
 import io.autoptu.core.rules.ForcedMovementInstruction;
 import io.autoptu.core.rules.ForcedMovementInstructionResolution;
@@ -49,6 +50,18 @@ final class RuntimePostHitForcedMovementApplication {
         }
     }
 
+    /**
+     * Runtime composition result for the post-hit boundary. The PTU decision and its observable
+     * semantic events travel together so downstream orchestration cannot lose prevention provenance
+     * or re-run Feature/capability/Ability/status rules merely to explain the outcome.
+     */
+    record SemanticResolution(Resolution resolution, List<BattleEvent> events) {
+        SemanticResolution {
+            if (resolution == null) throw new IllegalArgumentException("resolution is required");
+            events = events == null ? List.of() : List.copyOf(events);
+        }
+    }
+
     private RuntimePostHitForcedMovementApplication() {}
 
     static Optional<RuntimeForcedMovementMoveApplication.Result> apply(
@@ -70,6 +83,32 @@ final class RuntimePostHitForcedMovementApplication {
             BattleRuntimeDependencies dependencies
     ) {
         return resolve(state, choice, hit, dependencies).movement();
+    }
+
+    /**
+     * Resolve the PTU outcome and translate already-resolved prevention provenance into semantic
+     * events using the same immutable defender-content snapshot. This method never performs a
+     * second prevention decision and is the preferred boundary for result-producing runtimes.
+     */
+    static SemanticResolution resolveWithSemanticEvents(
+            BattleRuntimeState state,
+            MoveChoice choice,
+            boolean hit,
+            BattleRuntimeDependencies dependencies
+    ) {
+        if (state == null) throw new IllegalArgumentException("battle state is required");
+        if (choice == null) throw new IllegalArgumentException("move choice is required");
+        if (dependencies == null) throw new IllegalArgumentException("runtime dependencies are required");
+
+        CombatantRuleContent targetRuleContent = dependencies.combatantRuleContent().require(choice.targetId());
+        Resolution resolution = resolve(state, choice, hit, targetRuleContent);
+        List<BattleEvent> events = RuntimeForcedMovementPreventionSemanticEvents.resolve(
+                choice,
+                state.requireCombatant(choice.targetId()),
+                targetRuleContent,
+                resolution.prevention()
+        );
+        return new SemanticResolution(resolution, events);
     }
 
     static Resolution resolve(

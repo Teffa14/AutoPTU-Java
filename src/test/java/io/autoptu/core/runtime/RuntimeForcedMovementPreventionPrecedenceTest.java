@@ -41,18 +41,24 @@ class RuntimeForcedMovementPreventionPrecedenceTest {
     }
 
     @Test
-    void winningTrainerFeatureProvenanceMapsToPinnedPythonSemanticEvent() {
+    void composedWinningTrainerFeatureProvenanceMapsToPinnedPythonSemanticEvent() {
         Fixture fixture = fixture(true, true, true);
         CombatantRuleContent content = insectoidWallclimberContent();
-        RuntimePostHitForcedMovementApplication.Resolution resolution =
-                RuntimePostHitForcedMovementApplication.resolve(
-                        fixture.state(), fixture.choice(), true, content
-                );
-
-        List<BattleEvent> events = RuntimeForcedMovementPreventionSemanticEvents.resolve(
-                fixture.choice(), fixture.target(), content, resolution.prevention()
+        BattleRuntimeDependencies dependencies = new BattleRuntimeDependencies(
+                new CombatantRuleContentRegistry(Map.of("target", content))
         );
 
+        RuntimePostHitForcedMovementApplication.SemanticResolution semantic =
+                RuntimePostHitForcedMovementApplication.resolveWithSemanticEvents(
+                        fixture.state(), fixture.choice(), true, dependencies
+                );
+
+        assertPreventedBy(
+                semantic.resolution(),
+                ForcedMovementPreventionResolution.SourceKind.TRAINER_FEATURE,
+                "Insectoid Utility"
+        );
+        List<BattleEvent> events = semantic.events();
         assertEquals(1, events.size());
         TrainerFeatureEvent event = (TrainerFeatureEvent) events.getFirst();
         assertEquals("target", event.actorId());
@@ -62,6 +68,7 @@ class RuntimeForcedMovementPreventionPrecedenceTest {
         assertEquals("trainer", event.trainer());
         assertEquals("Insectoid Utility's Wallclimber upgrade prevents push effects.", event.description());
         assertEquals(20, event.targetHp());
+        assertEquals(new GridCoord(2, 1), fixture.target().position());
     }
 
     @Test
