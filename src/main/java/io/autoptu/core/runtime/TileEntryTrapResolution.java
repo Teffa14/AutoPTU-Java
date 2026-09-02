@@ -57,6 +57,7 @@ public final class TileEntryTrapResolution {
             String sourceId,
             Set<String> terrains,
             GridCoord coordinate,
+            String description,
             int targetHp
     ) {}
 
@@ -104,6 +105,7 @@ public final class TileEntryTrapResolution {
                     trap.sourceId(),
                     trap.terrains(),
                     context.coordinate(),
+                    "A terrain trap is triggered on entry.",
                     context.actorHp()
             ));
             // Python _consume_trap removes the whole key after one entry trigger.
