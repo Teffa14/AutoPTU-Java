@@ -594,7 +594,15 @@ public final class BattleRuntime {
             ).actionResult();
         }
         if (accuracy.hit() && state.hasCanonicalMoves(choice.actorId())) {
-            RuntimePostHitForcedMovementApplication.apply(state, choice, true, dependencies);
+            RuntimePostHitForcedMovementApplication.SemanticResolution forcedMovement =
+                    RuntimePostHitForcedMovementApplication.resolveWithSemanticEvents(
+                            state, choice, true, dependencies);
+            if (!forcedMovement.events().isEmpty()) {
+                ArrayList<BattleEvent> events = new ArrayList<>(result.events().size() + forcedMovement.events().size());
+                events.addAll(result.events());
+                events.addAll(forcedMovement.events());
+                result = new AppliedActionResult(events);
+            }
         }
         if (accuracy.hit()) {
             result = prependEvents(resolvedPostDamageHooks.events(), result);
