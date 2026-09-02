@@ -73,12 +73,7 @@ def call_contains_string_literal(call: ast.Call, value: str) -> bool:
 
 
 def require_insectoid_feature_event_contract(fn: ast.AST) -> None:
-    """Freeze the Python semantic-event obligation for Insectoid Utility push prevention.
-
-    The guard deliberately distinguishes the semantic event discriminator from the
-    has_trainer_feature predicate. A predicate containing the text ``trainer_feature`` must not be
-    enough to satisfy the observable event contract.
-    """
+    """Freeze the Python semantic-event obligation for Insectoid Utility push prevention."""
     function_text = compact(fn)
     missing_rule_fragments = [
         fragment for fragment in ("Insectoid Utility", "Wallclimber")
@@ -103,7 +98,7 @@ def require_insectoid_feature_event_contract(fn: ast.AST) -> None:
 
 
 def require_ability_prevention_event_contract(fn: ast.AST) -> None:
-    """Freeze Ability-family prevention branches and their observable semantic event."""
+    """Freeze Ability-family prevention branches and exact observable semantic payloads."""
     function_text = compact(fn)
     missing_rule_fragments = [
         fragment for fragment in ("push_immunity", "Suction Cups", "Sumo Stance")
@@ -124,6 +119,27 @@ def require_ability_prevention_event_contract(fn: ast.AST) -> None:
     if not semantic_event_calls:
         raise SystemExit(
             "apply_forced_movement lost the pinned ability semantic-event discriminator"
+        )
+
+    semantic_text = " ".join(compact(call) for call in semantic_event_calls)
+    required_payload_fragments = (
+        "'actor': target_id",
+        "'target': attacker_id",
+        "'effect': 'forced_movement_block'",
+        "'target_hp': target.hp",
+        "'ability': source",
+        "f'{source} prevents push effects.'",
+        "'Suction Cups [Errata]'",
+        "'ability': ability_name",
+        "'Suction Cups prevents forced movement.'",
+        "'Sumo Stance [Errata]'",
+        "'Sumo Stance prevents push effects.'",
+    )
+    missing_payload = [fragment for fragment in required_payload_fragments if fragment not in semantic_text]
+    if missing_payload:
+        raise SystemExit(
+            "apply_forced_movement ability semantic payload drifted from the pinned oracle: "
+            + ", ".join(missing_payload)
         )
 
 
