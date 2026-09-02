@@ -3,6 +3,8 @@ package io.autoptu.core.runtime;
 import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
+import io.autoptu.core.event.BattleEvent;
+import io.autoptu.core.event.TrainerFeatureEvent;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveSpec;
@@ -36,6 +38,30 @@ class RuntimeForcedMovementPreventionPrecedenceTest {
                 "Insectoid Utility"
         );
         assertEquals(new GridCoord(2, 1), fixture.target().position());
+    }
+
+    @Test
+    void winningTrainerFeatureProvenanceMapsToPinnedPythonSemanticEvent() {
+        Fixture fixture = fixture(true, true, true);
+        CombatantRuleContent content = insectoidWallclimberContent();
+        RuntimePostHitForcedMovementApplication.Resolution resolution =
+                RuntimePostHitForcedMovementApplication.resolve(
+                        fixture.state(), fixture.choice(), true, content
+                );
+
+        List<BattleEvent> events = RuntimeForcedMovementPreventionSemanticEvents.resolve(
+                fixture.choice(), fixture.target(), content, resolution.prevention()
+        );
+
+        assertEquals(1, events.size());
+        TrainerFeatureEvent event = (TrainerFeatureEvent) events.getFirst();
+        assertEquals("target", event.actorId());
+        assertEquals("Insectoid Utility", event.feature());
+        assertEquals("forced_movement_block", event.effect());
+        assertEquals("source", event.details().get("target"));
+        assertEquals("trainer", event.trainer());
+        assertEquals("Insectoid Utility's Wallclimber upgrade prevents push effects.", event.description());
+        assertEquals(20, event.targetHp());
     }
 
     @Test
