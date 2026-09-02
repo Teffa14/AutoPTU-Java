@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import ast
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -20,13 +21,19 @@ def find_function(tree: ast.AST) -> ast.FunctionDef:
 
 
 def normalize_terrain_name(value: object) -> str:
-    # Scenario labels are canonical terrain names; this shim only provides the global
-    # required by the extracted oracle method without importing the complete battle engine.
     return re.sub(r"[^a-z0-9]+", " ", str(value or "").strip().lower()).strip()
+
+
+@dataclass
+class FakeMoveSpec:
+    name: str
+    type: str
+    category: str
 
 
 class FakeActor:
     def __init__(self, naturewalk: list[str]) -> None:
+        self.name = "target"
         self.position = (4, 3)
         self.hp = 37
         self.fainted = False
@@ -40,8 +47,6 @@ class FakeState:
     def __init__(self, layers: int, source_team: str, terrains: list[str], naturewalk: list[str]) -> None:
         self.actor = FakeActor(naturewalk)
         self.pokemon = {"target": self.actor}
-        # The oracle trigger stamps round-scoped trap effects. Keep this explicit so
-        # the executable fixture fails if additional battle-state dependencies appear.
         self.round = 7
         self.grid = SimpleNamespace(
             tiles={
@@ -58,6 +63,8 @@ class FakeState:
             }
         )
         self.events: list[dict] = []
+        self.status_applications: list[dict] = []
+        self.trace: list[str] = []
         self.teams = {"target": "blue", "source": source_team}
 
     def _team_for(self, actor_id: str) -> str:
@@ -65,8 +72,34 @@ class FakeState:
 
     def log_event(self, event: dict) -> None:
         self.events.append(dict(event))
+        self.trace.append("EMIT_TRAP_EVENT")
+
+    def _apply_status(
+        self,
+        actor: FakeActor,
+        target: FakeActor,
+        status: str,
+        *,
+        move: FakeMoveSpec,
+        effect: str,
+        description: str,
+        remaining: int,
+    ) -> None:
+        self.status_applications.append({
+            "actor": actor.name,
+            "target": target.name,
+            "status": status,
+            "move_name": move.name,
+            "move_type": move.type,
+            "move_category": move.category,
+            "effect": effect,
+            "description": description,
+            "remaining": remaining,
+        })
+        self.trace.append("APPLY_STATUS")
 
     def _consume_trap(self, coord: tuple[int, int], trap_key: str) -> None:
+        self.trace.append("CONSUME_TRAP")
         tile = self.grid.tiles.get(coord, {})
         traps = dict(tile.get("traps") or {})
         traps.pop(trap_key, None)
@@ -84,7 +117,10 @@ def load_oracle_method(source: Path):
     tree = ast.parse(source.read_text(encoding="utf-8-sig"), filename=str(source))
     fn = find_function(tree)
     module = ast.fix_missing_locations(ast.Module(body=[fn], type_ignores=[]))
-    namespace = {"_normalize_terrain_name": normalize_terrain_name}
+    namespace = {
+        "_normalize_terrain_name": normalize_terrain_name,
+        "MoveSpec": FakeMoveSpec,
+    }
     exec(compile(module, str(source), "exec"), namespace)
     return namespace[FUNCTION]
 
@@ -97,6 +133,7 @@ def observed_row(method, scenario: str, layers: int, source_team: str, terrains:
     state = FakeState(layers, source_team, terrains, naturewalk)
     method(state, "target")
     event = state.events[0] if state.events else {}
+    status = state.status_applications[0] if state.status_applications else {}
     remaining = state.grid.tiles[state.actor.position].get("traps") or {}
     consumed = "1" if "abrasion_trap" not in remaining else "0"
     coord = event.get("coord") or []
@@ -114,6 +151,16 @@ def observed_row(method, scenario: str, layers: int, source_team: str, terrains:
         str(event.get("target_hp") if event.get("target_hp") is not None else ""),
         str(event.get("trap_name") or ""),
         str(event.get("description") or ""),
+        str(status.get("status") or ""),
+        str(status.get("actor") or ""),
+        str(status.get("target") or ""),
+        str(status.get("move_name") or ""),
+        str(status.get("move_type") or ""),
+        str(status.get("move_category") or ""),
+        str(status.get("effect") or ""),
+        str(status.get("description") or ""),
+        str(status.get("remaining") if status.get("remaining") is not None else ""),
+        encode(state.trace),
     ]
 
 
@@ -136,6 +183,8 @@ def main() -> None:
     header = [
         "scenario", "layers", "source_team", "terrains", "naturewalk", "effect", "consumed",
         "source_id", "event_terrains", "coord", "target_hp", "trap_name", "description",
+        "status", "status_actor", "status_target", "status_move_name", "status_move_type",
+        "status_move_category", "status_effect", "status_description", "status_remaining", "trace",
     ]
     text = "\t".join(header) + "\n" + "\n".join("\t".join(row) for row in rows) + "\n"
     args.output.write_text(text, encoding="utf-8")
