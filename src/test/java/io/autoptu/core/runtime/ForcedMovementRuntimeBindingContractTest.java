@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Freezes Python forced-movement runtime placement and the single Java runtime binding. */
 class ForcedMovementRuntimeBindingContractTest {
     private static final Pattern JAVA_RUNTIME_CALL = Pattern.compile(
-            "\\bRuntimePostHitForcedMovementApplication\\s*\\.\\s*apply\\s*\\("
+            "\\bRuntimePostHitForcedMovementApplication\\s*\\.\\s*(?:apply|resolveWithSemanticEvents)\\s*\\("
     );
 
     @Test
