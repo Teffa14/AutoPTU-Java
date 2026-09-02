@@ -40,6 +40,9 @@ class FakeState:
     def __init__(self, layers: int, source_team: str, terrains: list[str], naturewalk: list[str]) -> None:
         self.actor = FakeActor(naturewalk)
         self.pokemon = {"target": self.actor}
+        # The oracle trigger stamps round-scoped trap effects. Keep this explicit so
+        # the executable fixture fails if additional battle-state dependencies appear.
+        self.round = 7
         self.grid = SimpleNamespace(
             tiles={
                 self.actor.position: {
