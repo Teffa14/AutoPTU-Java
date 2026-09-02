@@ -3,6 +3,7 @@ package io.autoptu.core.runtime;
 import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
+import io.autoptu.core.event.AbilityEvent;
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.event.TrainerFeatureEvent;
 import io.autoptu.core.model.ActionType;
@@ -25,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 class RuntimeForcedMovementPreventionPrecedenceTest {
     @Test
     void trainerFeatureWinsWhenEveryPythonPushBlockerIsPresent() {
-        Fixture fixture = fixture(true, true, true);
+        Fixture fixture = fixture(List.of("Suction Cups"), true, true);
 
         RuntimePostHitForcedMovementApplication.Resolution resolution =
                 RuntimePostHitForcedMovementApplication.resolve(
@@ -42,7 +43,7 @@ class RuntimeForcedMovementPreventionPrecedenceTest {
 
     @Test
     void composedWinningTrainerFeatureProvenanceMapsToPinnedPythonSemanticEvent() {
-        Fixture fixture = fixture(true, true, true);
+        Fixture fixture = fixture(List.of("Suction Cups"), true, true);
         CombatantRuleContent content = insectoidWallclimberContent();
         BattleRuntimeDependencies dependencies = new BattleRuntimeDependencies(
                 new CombatantRuleContentRegistry(Map.of("target", content))
@@ -73,50 +74,93 @@ class RuntimeForcedMovementPreventionPrecedenceTest {
 
     @Test
     void temporaryPushImmunityWinsBeforeAbilityAndIngrain() {
-        Fixture fixture = fixture(true, true, true);
+        Fixture fixture = fixture(List.of("Suction Cups"), true, true);
 
-        RuntimePostHitForcedMovementApplication.Resolution resolution =
-                RuntimePostHitForcedMovementApplication.resolve(
-                        fixture.state(), fixture.choice(), true, CombatantRuleContent.empty()
+        RuntimePostHitForcedMovementApplication.SemanticResolution semantic =
+                RuntimePostHitForcedMovementApplication.resolveWithSemanticEvents(
+                        fixture.state(), fixture.choice(), true, BattleRuntimeDependencies.empty()
                 );
 
         assertPreventedBy(
-                resolution,
+                semantic.resolution(),
                 ForcedMovementPreventionResolution.SourceKind.TEMPORARY_EFFECT,
                 "Anchor Field"
         );
+        AbilityEvent event = singleAbilityEvent(semantic.events());
+        assertEquals("target", event.actorId());
+        assertEquals("Anchor Field", event.ability());
+        assertEquals("forced_movement_block", event.effect());
+        assertEquals("source", event.target());
+        assertEquals("Anchor Field prevents push effects.", event.description());
+        assertEquals(20, event.targetHp());
     }
 
     @Test
-    void abilityWinsBeforeIngrainWhenNoEarlierPushBlockerExists() {
-        Fixture fixture = fixture(true, false, true);
+    void suctionCupsErrataPreservesPythonAbilityIdentityAndPayload() {
+        Fixture fixture = fixture(List.of("Suction Cups [Errata]"), false, true);
 
-        RuntimePostHitForcedMovementApplication.Resolution resolution =
-                RuntimePostHitForcedMovementApplication.resolve(
-                        fixture.state(), fixture.choice(), true, CombatantRuleContent.empty()
+        RuntimePostHitForcedMovementApplication.SemanticResolution semantic =
+                RuntimePostHitForcedMovementApplication.resolveWithSemanticEvents(
+                        fixture.state(), fixture.choice(), true, BattleRuntimeDependencies.empty()
                 );
 
         assertPreventedBy(
-                resolution,
+                semantic.resolution(),
                 ForcedMovementPreventionResolution.SourceKind.ABILITY,
-                "Suction Cups"
+                "Suction Cups [Errata]"
         );
+        AbilityEvent event = singleAbilityEvent(semantic.events());
+        assertEquals("target", event.actorId());
+        assertEquals("Suction Cups [Errata]", event.ability());
+        assertEquals("forced_movement_block", event.effect());
+        assertEquals("source", event.target());
+        assertEquals("Suction Cups prevents forced movement.", event.description());
+        assertEquals(20, event.targetHp());
     }
 
     @Test
-    void ingrainRemainsTheFinalDefenderPreventionFamily() {
-        Fixture fixture = fixture(false, false, true);
+    void sumoStanceErrataPreservesPythonAbilityIdentityAndPayload() {
+        Fixture fixture = fixture(List.of("Sumo Stance [Errata]"), false, true);
 
-        RuntimePostHitForcedMovementApplication.Resolution resolution =
-                RuntimePostHitForcedMovementApplication.resolve(
-                        fixture.state(), fixture.choice(), true, CombatantRuleContent.empty()
+        RuntimePostHitForcedMovementApplication.SemanticResolution semantic =
+                RuntimePostHitForcedMovementApplication.resolveWithSemanticEvents(
+                        fixture.state(), fixture.choice(), true, BattleRuntimeDependencies.empty()
                 );
 
         assertPreventedBy(
-                resolution,
+                semantic.resolution(),
+                ForcedMovementPreventionResolution.SourceKind.ABILITY,
+                "Sumo Stance [Errata]"
+        );
+        AbilityEvent event = singleAbilityEvent(semantic.events());
+        assertEquals("target", event.actorId());
+        assertEquals("Sumo Stance [Errata]", event.ability());
+        assertEquals("forced_movement_block", event.effect());
+        assertEquals("source", event.target());
+        assertEquals("Sumo Stance prevents push effects.", event.description());
+        assertEquals(20, event.targetHp());
+    }
+
+    @Test
+    void ingrainRemainsTheFinalDefenderPreventionFamilyAndEmitsNoAbilityEvent() {
+        Fixture fixture = fixture(List.of(), false, true);
+
+        RuntimePostHitForcedMovementApplication.SemanticResolution semantic =
+                RuntimePostHitForcedMovementApplication.resolveWithSemanticEvents(
+                        fixture.state(), fixture.choice(), true, BattleRuntimeDependencies.empty()
+                );
+
+        assertPreventedBy(
+                semantic.resolution(),
                 ForcedMovementPreventionResolution.SourceKind.STATUS,
                 "Ingrain"
         );
+        assertEquals(List.of(), semantic.events());
+    }
+
+    private static AbilityEvent singleAbilityEvent(List<BattleEvent> events) {
+        assertEquals(1, events.size());
+        return (AbilityEvent) events.getFirst();
     }
 
     private static void assertPreventedBy(
@@ -129,11 +173,9 @@ class RuntimeForcedMovementPreventionPrecedenceTest {
         assertEquals(sourceName, resolution.prevention().sourceName());
     }
 
-    private static Fixture fixture(boolean suctionCups, boolean pushImmunity, boolean ingrain) {
+    private static Fixture fixture(List<String> abilities, boolean pushImmunity, boolean ingrain) {
         RuntimeCombatantState source = combatant("source", 1, 1, List.of());
-        RuntimeCombatantState target = combatant(
-                "target", 2, 1, suctionCups ? List.of("Suction Cups") : List.of()
-        );
+        RuntimeCombatantState target = combatant("target", 2, 1, abilities);
         if (pushImmunity) {
             target.temporaryEffects().add("push_immunity", Map.of("source", "Anchor Field"));
         }
