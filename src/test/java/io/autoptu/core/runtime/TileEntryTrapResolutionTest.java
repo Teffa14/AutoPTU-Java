@@ -11,10 +11,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TileEntryTrapResolutionTest {
     private static final TileEntryTrapResolution.EntryContext ENTRY =
-            new TileEntryTrapResolution.EntryContext("target", "blue", 37, new GridCoord(4, 3), Set.of());
+            new TileEntryTrapResolution.EntryContext("target", "target", "blue", 37, new GridCoord(4, 3), Set.of());
 
     @Test
-    void enemyTrapTriggersWithProvenanceAndConsumesWholeTrapKey() {
+    void enemyTrapTriggersStatusWithProvenanceAndConsumesWholeTrapKey() {
         var result = TileEntryTrapResolution.resolve(ENTRY, List.of(
                 new TileEntryTrapResolution.TrapLayer(
                         "abrasion_trap", 3, "source", "red", Set.of("mountain", "cave"), "Abrasion Trap")
@@ -30,6 +30,24 @@ class TileEntryTrapResolutionTest {
         assertEquals(Set.of("mountain", "cave"), trigger.terrains());
         assertEquals(new GridCoord(4, 3), trigger.coordinate());
         assertEquals(37, trigger.targetHp());
+
+        var status = trigger.statusApplication();
+        assertEquals("target", status.actorId());
+        assertEquals("target", status.targetId());
+        assertEquals("Slowed", status.status());
+        assertEquals("source", status.moveName());
+        assertEquals("Normal", status.moveType());
+        assertEquals("Status", status.moveCategory());
+        assertEquals(
+                "Upon entering the Abrasion Trap, target becomes Slowed until the end of their next turn.",
+                status.effect());
+        assertEquals("Abrasion Trap slows creatures that enter it.", status.description());
+        assertEquals(1, status.remaining());
+        assertEquals(List.of(
+                TileEntryTrapResolution.EffectStep.APPLY_STATUS,
+                TileEntryTrapResolution.EffectStep.EMIT_TRAP_EVENT,
+                TileEntryTrapResolution.EffectStep.CONSUME_TRAP
+        ), trigger.effectOrder());
         assertEquals(Set.of("abrasion_trap"), result.consumedTrapKeys());
     }
 
@@ -46,7 +64,7 @@ class TileEntryTrapResolutionTest {
     @Test
     void matchingNaturewalkEmitsBlockWithoutConsumption() {
         var context = new TileEntryTrapResolution.EntryContext(
-                "target", "blue", 37, new GridCoord(4, 3), Set.of("forest"));
+                "target", "target", "blue", 37, new GridCoord(4, 3), Set.of("forest"));
         var result = TileEntryTrapResolution.resolve(context, List.of(
                 new TileEntryTrapResolution.TrapLayer("tangle_trap", 1, "source", "red", Set.of("forest", "wetlands"), "Tangle Trap")
         ));
