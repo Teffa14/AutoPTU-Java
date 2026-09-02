@@ -30,7 +30,6 @@ public final class TileEntryTrapResolution {
             trapName = safe(trapName);
             terrains = normalizeSet(terrains);
             if (trapKey.isBlank()) throw new IllegalArgumentException("trapKey is required");
-            if (layers < 0) throw new IllegalArgumentException("layers cannot be negative");
         }
     }
 
@@ -61,9 +60,17 @@ public final class TileEntryTrapResolution {
             int targetHp
     ) {}
 
-    public record Result(List<Trigger> triggers, Set<String> consumedTrapKeys) {
+    public record Block(
+            String actorId,
+            String trapKey,
+            String description,
+            int targetHp
+    ) {}
+
+    public record Result(List<Trigger> triggers, List<Block> blocks, Set<String> consumedTrapKeys) {
         public Result {
             triggers = List.copyOf(triggers == null ? List.of() : triggers);
+            blocks = List.copyOf(blocks == null ? List.of() : blocks);
             consumedTrapKeys = Set.copyOf(consumedTrapKeys == null ? Set.of() : consumedTrapKeys);
         }
     }
@@ -71,6 +78,7 @@ public final class TileEntryTrapResolution {
     public static Result resolve(EntryContext context, List<TrapLayer> traps) {
         if (context == null) throw new IllegalArgumentException("entry context is required");
         List<Trigger> triggers = new ArrayList<>();
+        List<Block> blocks = new ArrayList<>();
         LinkedHashSet<String> consumed = new LinkedHashSet<>();
 
         for (TrapLayer trap : traps == null ? List.<TrapLayer>of() : traps) {
@@ -81,6 +89,12 @@ public final class TileEntryTrapResolution {
                 continue;
             }
             if (!trap.terrains().isEmpty() && overlaps(trap.terrains(), context.naturewalkTerrains())) {
+                blocks.add(new Block(
+                        context.actorId(),
+                        trap.trapKey(),
+                        "Naturewalk ignores the trap's terrain-linked effects.",
+                        context.actorHp()
+                ));
                 continue;
             }
             triggers.add(new Trigger(
@@ -95,7 +109,7 @@ public final class TileEntryTrapResolution {
             // Python _consume_trap removes the whole key after one entry trigger.
             consumed.add(trap.trapKey());
         }
-        return new Result(triggers, consumed);
+        return new Result(triggers, blocks, consumed);
     }
 
     private static boolean overlaps(Set<String> left, Set<String> right) {
