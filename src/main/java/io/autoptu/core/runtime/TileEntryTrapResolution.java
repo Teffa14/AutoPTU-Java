@@ -35,6 +35,7 @@ public final class TileEntryTrapResolution {
 
     public record EntryContext(
             String actorId,
+            String actorName,
             String actorTeamId,
             int actorHp,
             GridCoord coordinate,
@@ -42,12 +43,44 @@ public final class TileEntryTrapResolution {
     ) {
         public EntryContext {
             actorId = safe(actorId);
+            actorName = safe(actorName);
             actorTeamId = safe(actorTeamId);
             naturewalkTerrains = normalizeSet(naturewalkTerrains);
             if (actorId.isBlank()) throw new IllegalArgumentException("actorId is required");
+            if (actorName.isBlank()) actorName = actorId;
             if (actorHp < 0) throw new IllegalArgumentException("actorHp cannot be negative");
             if (coordinate == null) throw new IllegalArgumentException("coordinate is required");
         }
+
+        public EntryContext(
+                String actorId,
+                String actorTeamId,
+                int actorHp,
+                GridCoord coordinate,
+                Set<String> naturewalkTerrains
+        ) {
+            this(actorId, actorId, actorTeamId, actorHp, coordinate, naturewalkTerrains);
+        }
+    }
+
+    /** Language-neutral status instruction produced by a triggered entry hazard. */
+    public record StatusApplication(
+            String actorId,
+            String targetId,
+            String status,
+            String moveName,
+            String moveType,
+            String moveCategory,
+            String effect,
+            String description,
+            int remaining
+    ) {}
+
+    /** Ordered observable consequences of one effective trap entry. */
+    public enum EffectStep {
+        APPLY_STATUS,
+        EMIT_TRAP_EVENT,
+        CONSUME_TRAP
     }
 
     public record Trigger(
@@ -58,8 +91,15 @@ public final class TileEntryTrapResolution {
             Set<String> terrains,
             GridCoord coordinate,
             String description,
-            int targetHp
-    ) {}
+            int targetHp,
+            StatusApplication statusApplication,
+            List<EffectStep> effectOrder
+    ) {
+        public Trigger {
+            terrains = Set.copyOf(terrains == null ? Set.of() : terrains);
+            effectOrder = List.copyOf(effectOrder == null ? List.of() : effectOrder);
+        }
+    }
 
     public record Block(
             String actorId,
@@ -98,15 +138,32 @@ public final class TileEntryTrapResolution {
                 ));
                 continue;
             }
+
+            String trapName = trap.trapName().isBlank() ? trap.trapKey() : trap.trapName();
+            String moveName = trap.sourceId().isBlank() ? trap.trapKey() : trap.sourceId();
+            StatusApplication statusApplication = new StatusApplication(
+                    context.actorId(),
+                    context.actorId(),
+                    "Slowed",
+                    moveName,
+                    "Normal",
+                    "Status",
+                    "Upon entering the " + trapName + ", " + context.actorName()
+                            + " becomes Slowed until the end of their next turn.",
+                    trapName + " slows creatures that enter it.",
+                    1
+            );
             triggers.add(new Trigger(
                     context.actorId(),
                     trap.trapKey(),
-                    trap.trapName().isBlank() ? trap.trapKey() : trap.trapName(),
+                    trapName,
                     trap.sourceId(),
                     trap.terrains(),
                     context.coordinate(),
                     "A terrain trap is triggered on entry.",
-                    context.actorHp()
+                    context.actorHp(),
+                    statusApplication,
+                    List.of(EffectStep.APPLY_STATUS, EffectStep.EMIT_TRAP_EVENT, EffectStep.CONSUME_TRAP)
             ));
             // Python _consume_trap removes the whole key after one entry trigger.
             consumed.add(trap.trapKey());
