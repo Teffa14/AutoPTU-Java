@@ -72,6 +72,47 @@ def call_contains_string_literal(call: ast.Call, value: str) -> bool:
     )
 
 
+def ability_semantic_calls(node: ast.AST) -> list[ast.Call]:
+    return [
+        call for call in ast.walk(node)
+        if isinstance(call, ast.Call)
+        and not call_symbol(call).endswith("has_ability")
+        and call_contains_string_literal(call, "ability")
+    ]
+
+
+def require_scoped_ability_payload(
+    fn: ast.AST,
+    *,
+    label: str,
+    branch_fragments: tuple[str, ...],
+    forbidden_branch_fragments: tuple[str, ...],
+    event_fragments: tuple[str, ...],
+) -> None:
+    """Require an Ability semantic payload inside its own prevention control-flow scope."""
+    scope_types = (ast.If, ast.For, ast.While)
+    candidates: list[ast.AST] = []
+    for node in ast.walk(fn):
+        if not isinstance(node, scope_types):
+            continue
+        scope_text = compact(node)
+        if not all(fragment in scope_text for fragment in branch_fragments):
+            continue
+        if any(fragment in scope_text for fragment in forbidden_branch_fragments):
+            continue
+        calls = ability_semantic_calls(node)
+        if not calls:
+            continue
+        event_text = " ".join(compact(call) for call in calls)
+        if all(fragment in event_text for fragment in event_fragments):
+            candidates.append(node)
+
+    if not candidates:
+        raise SystemExit(
+            f"apply_forced_movement {label} ability semantic payload drifted from its pinned branch"
+        )
+
+
 def require_insectoid_feature_event_contract(fn: ast.AST) -> None:
     """Freeze the Python semantic-event obligation for Insectoid Utility push prevention."""
     function_text = compact(fn)
@@ -110,37 +151,48 @@ def require_ability_prevention_event_contract(fn: ast.AST) -> None:
             + ", ".join(missing_rule_fragments)
         )
 
-    semantic_event_calls = [
-        call for call in ast.walk(fn)
-        if isinstance(call, ast.Call)
-        and not call_symbol(call).endswith("has_ability")
-        and call_contains_string_literal(call, "ability")
-    ]
+    semantic_event_calls = ability_semantic_calls(fn)
     if not semantic_event_calls:
         raise SystemExit(
             "apply_forced_movement lost the pinned ability semantic-event discriminator"
         )
 
-    semantic_text = " ".join(compact(call) for call in semantic_event_calls)
-    required_payload_fragments = (
+    common_payload = (
         "'actor': target_id",
         "'target': attacker_id",
         "'effect': 'forced_movement_block'",
         "'target_hp': target.hp",
-        "'ability': source",
-        "f'{source} prevents push effects.'",
-        "'Suction Cups [Errata]'",
-        "'ability': ability_name",
-        "'Suction Cups prevents forced movement.'",
-        "'Sumo Stance [Errata]'",
-        "'Sumo Stance prevents push effects.'",
     )
-    missing_payload = [fragment for fragment in required_payload_fragments if fragment not in semantic_text]
-    if missing_payload:
-        raise SystemExit(
-            "apply_forced_movement ability semantic payload drifted from the pinned oracle: "
-            + ", ".join(missing_payload)
-        )
+    require_scoped_ability_payload(
+        fn,
+        label="push_immunity",
+        branch_fragments=("push_immunity",),
+        forbidden_branch_fragments=("Suction Cups", "Sumo Stance"),
+        event_fragments=common_payload + (
+            "'ability': source",
+            "f'{source} prevents push effects.'",
+        ),
+    )
+    require_scoped_ability_payload(
+        fn,
+        label="Suction Cups",
+        branch_fragments=("Suction Cups", "Suction Cups [Errata]"),
+        forbidden_branch_fragments=("Sumo Stance", "push_immunity"),
+        event_fragments=common_payload + (
+            "'ability': ability_name",
+            "'Suction Cups prevents forced movement.'",
+        ),
+    )
+    require_scoped_ability_payload(
+        fn,
+        label="Sumo Stance",
+        branch_fragments=("Sumo Stance", "Sumo Stance [Errata]"),
+        forbidden_branch_fragments=("Suction Cups", "push_immunity"),
+        event_fragments=common_payload + (
+            "'ability': ability_name",
+            "'Sumo Stance prevents push effects.'",
+        ),
+    )
 
 
 def main() -> None:
