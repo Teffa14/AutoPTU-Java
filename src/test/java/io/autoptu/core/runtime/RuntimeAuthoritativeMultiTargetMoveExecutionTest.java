@@ -5,6 +5,7 @@ import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.event.MoveResolvedEvent;
 import io.autoptu.core.event.RuleEffectEvent;
+import io.autoptu.core.event.TrainerFeatureEvent;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.model.CombatantStatProfile;
@@ -64,6 +65,45 @@ class RuntimeAuthoritativeMultiTargetMoveExecutionTest {
         assertEquals(100 - second.hp(), state.damageHistory().damageReceivedThisRound().get("second"));
         assertFalse(actor.actionBudget().hasActionAvailable(ActionType.STANDARD));
         assertEquals(1, actor.moveFrequencyUsage().battleUses("burst"));
+    }
+
+    @Test
+    void areaTargetPreservesForcedMovementPreventionTraceFromSharedDependencies() {
+        MoveOption burst = pushBurstMove();
+        RuntimeCombatantState actor = combatant("actor", 0, 2, 100);
+        RuntimeCombatantState first = combatant("first", 3, 3, 100);
+        BattleRuntimeState state = state(actor, first, null, burst);
+        MoveChoice choice = new MoveChoice(
+                "actor", burst.moveId(), ChoiceTargetMode.TILE, "", new GridCoord(3, 2), ActionType.STANDARD);
+        GridCoord targetOrigin = first.position();
+
+        MultiTargetAppliedActionResult result = RuntimeMoveResolution.applyAreaUsingAuthoritativeCombatState(
+                state,
+                choice,
+                "AI",
+                new PythonRandom(73),
+                legacyInput(),
+                false,
+                false,
+                dependenciesFor("first", insectoidWallclimberContent())
+        );
+
+        assertEquals(List.of("first"), result.targetIds());
+        assertEquals(2, result.events().size());
+        MoveResolvedEvent moveEvent = assertInstanceOf(MoveResolvedEvent.class, result.events().get(0));
+        TrainerFeatureEvent prevention = assertInstanceOf(TrainerFeatureEvent.class, result.events().get(1));
+        assertTrue(moveEvent.hit());
+        assertTrue(moveEvent.damage() > 0);
+        assertEquals("first", moveEvent.targetId());
+        assertEquals("first", prevention.actorId());
+        assertEquals("Insectoid Utility", prevention.feature());
+        assertEquals("forced_movement_block", prevention.effect());
+        assertEquals("trainer", prevention.trainer());
+        assertEquals(moveEvent.targetHp(), prevention.targetHp());
+        assertEquals(moveEvent.targetHp(), first.hp());
+        assertEquals(targetOrigin, first.position());
+        assertFalse(actor.actionBudget().hasActionAvailable(ActionType.STANDARD));
+        assertEquals(1, actor.moveFrequencyUsage().battleUses(burst.moveId()));
     }
 
     @Test
@@ -188,6 +228,20 @@ class RuntimeAuthoritativeMultiTargetMoveExecutionTest {
         );
     }
 
+    private static MoveOption pushBurstMove() {
+        return new MoveOption(
+                "push-burst",
+                new MoveSpec(
+                        "Ranged", "Ranged", 6, 6, "Burst", 1, "Burst 1",
+                        List.of("push 2"), "Push each target 2 meters."
+                ),
+                ActionType.STANDARD,
+                false,
+                new MoveCombatProfile(null, 6, 20, "physical", "Normal"),
+                "Scene x1"
+        );
+    }
+
     private static RuntimeCombatantState combatant(String id, int x, int y, int hp) {
         return combatantWithAbilities(id, x, y, hp, List.of());
     }
@@ -227,6 +281,19 @@ class RuntimeAuthoritativeMultiTargetMoveExecutionTest {
                 List.of(),
                 List.of(),
                 abilities
+        );
+    }
+
+    private static BattleRuntimeDependencies dependenciesFor(String combatantId, CombatantRuleContent content) {
+        return new BattleRuntimeDependencies(
+                new CombatantRuleContentRegistry(Map.of(combatantId, content))
+        );
+    }
+
+    private static CombatantRuleContent insectoidWallclimberContent() {
+        return new CombatantRuleContent(
+                List.of("Wallclimber"), null, "trainer", Map.of(),
+                List.of("Insectoid Utility"), List.of()
         );
     }
 
