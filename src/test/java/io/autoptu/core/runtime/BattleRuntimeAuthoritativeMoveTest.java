@@ -4,6 +4,7 @@ import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.event.MoveResolvedEvent;
+import io.autoptu.core.event.TrainerFeatureEvent;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveSpec;
@@ -19,6 +20,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BattleRuntimeAuthoritativeMoveTest {
@@ -138,9 +140,16 @@ class BattleRuntimeAuthoritativeMoveTest {
                 dependencies
         );
 
-        MoveResolvedEvent event = (MoveResolvedEvent) result.events().getFirst();
+        MoveResolvedEvent event = assertInstanceOf(MoveResolvedEvent.class, result.events().getFirst());
+        TrainerFeatureEvent prevention = assertInstanceOf(TrainerFeatureEvent.class, result.events().get(1));
+        assertEquals(2, result.events().size());
         assertTrue(event.hit());
         assertTrue(event.damage() > 0);
+        assertEquals("enemy", prevention.actorId());
+        assertEquals("Insectoid Utility", prevention.feature());
+        assertEquals("forced_movement_block", prevention.effect());
+        assertEquals("trainer", prevention.trainer());
+        assertEquals(event.targetHp(), prevention.targetHp());
         assertEquals(new GridCoord(2, 1), state.requireCombatant("enemy").position());
         assertFalse(state.requireCombatant("actor").actionBudget().hasActionAvailable(ActionType.STANDARD));
     }
