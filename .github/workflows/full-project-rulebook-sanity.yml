@@ -1,0 +1,38 @@
+name: Full Project + Rulebook Sanity
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  baseline:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Compile all Python migration and rule-contract exporters
+        run: |
+          find tools/python -type f -name '*.py' -print0 \
+            | sort -z \
+            | xargs -0 -n1 python3 -m py_compile
+
+      - name: Run complete Java test suite
+        run: gradle test --stacktrace
+
+      - name: Confirm pinned oracle contract
+        run: |
+          grep -R --fixed-strings \
+            '16d228efa63aabecb67fa788959a359aac7f8f03' \
+            .github/workflows/java-core.yml \
+            .github/workflows/forced-movement-instruction-parity.yml
