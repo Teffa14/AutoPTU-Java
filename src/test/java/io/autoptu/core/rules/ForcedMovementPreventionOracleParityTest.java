@@ -42,7 +42,7 @@ class ForcedMovementPreventionOracleParityTest {
         );
         assertTrue(ability.prevented());
         assertEquals(ForcedMovementPreventionResolution.SourceKind.ABILITY, ability.sourceKind());
-        assertEquals("Suction Cups", ability.sourceName());
+        assertEquals("Suction Cups [Errata]", ability.sourceName());
 
         assertTrue(ForcedMovementPreventionResolution.preventedByContent(
                 push, List.of("Insectoid Utility"), List.of("Wallclimber")
