@@ -37,15 +37,25 @@ public final class AbilityIdentityResolution {
     }
 
     public static boolean matchesRegistration(List<String> abilities, String registrationName) {
+        return matchingRegistrationName(abilities, registrationName) != null;
+    }
+
+    /**
+     * Returns the combatant's registered spelling that satisfied a base hook registration.
+     * This preserves observable `[Errata]` provenance after legality has already matched.
+     */
+    public static String matchingRegistrationName(List<String> abilities, String registrationName) {
         String target = normalize(registrationName);
-        if (target.isBlank() || abilities == null || abilities.isEmpty()) return false;
+        if (target.isBlank() || abilities == null || abilities.isEmpty()) return null;
         boolean registrationIsErrata = target.endsWith(ERRATA_SUFFIX);
         for (String ability : abilities) {
             String candidate = normalize(ability);
-            if (candidate.equals(target)) return true;
-            if (!registrationIsErrata && candidate.equals(target + ERRATA_SUFFIX)) return true;
+            if (candidate.equals(target)
+                    || (!registrationIsErrata && candidate.equals(target + ERRATA_SUFFIX))) {
+                return ability == null ? null : ability.strip();
+            }
         }
-        return false;
+        return null;
     }
 
     /** Python ability_variants.has_ability_exact() semantics. */
