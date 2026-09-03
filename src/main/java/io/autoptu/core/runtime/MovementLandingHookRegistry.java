@@ -3,6 +3,7 @@ package io.autoptu.core.runtime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -28,7 +29,7 @@ final class MovementLandingHookRegistry {
     }
 
     record LandingContext(
-            TileEntryTrapResolution.Context tileEntryContext,
+            TileEntryTrapResolution.EntryContext tileEntryContext,
             List<TileEntryTrapResolution.TrapLayer> tileTraps
     ) {
         LandingContext {
@@ -66,9 +67,9 @@ final class MovementLandingHookRegistry {
             for (TileEntryTrapResolution.TrapLayer trap : context.tileTraps()) {
                 TileEntryTrapResolution.Result result = TileEntryTrapResolution.resolve(
                         context.tileEntryContext(),
-                        trap
+                        List.of(trap)
                 );
-                if (result instanceof TileEntryTrapResolution.Skip) {
+                if (result.triggers().isEmpty() && result.blocks().isEmpty()) {
                     continue;
                 }
                 consequences.add(new TileTrapConsequence(result));
@@ -111,7 +112,7 @@ final class MovementLandingHookRegistry {
     }
 
     private static String normalizeKey(String value) {
-        String normalized = Objects.requireNonNull(value, "hookKey").trim().toLowerCase();
+        String normalized = Objects.requireNonNull(value, "hookKey").trim().toLowerCase(Locale.ROOT);
         if (normalized.isEmpty()) {
             throw new IllegalArgumentException("hookKey must not be blank");
         }
