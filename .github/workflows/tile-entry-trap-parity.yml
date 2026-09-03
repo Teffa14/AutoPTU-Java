@@ -39,6 +39,14 @@ jobs:
           python3 tools/python/export_tile_entry_trap_contract.py \
             --source-root python-oracle \
             --output build/oracle/tile-entry-trap.tsv
+          cat build/oracle/tile-entry-trap.tsv
+
+      - name: Upload Python tile-entry trap contract
+        uses: actions/upload-artifact@v4
+        with:
+          name: tile-entry-trap-oracle
+          path: build/oracle/tile-entry-trap.tsv
+          if-no-files-found: error
 
       - name: Run tile-entry trap parity tests
         env:
