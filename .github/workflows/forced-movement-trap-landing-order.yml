@@ -1,0 +1,34 @@
+name: Forced Movement Trap Landing Order
+
+on:
+  pull_request:
+    paths:
+      - 'tools/python/export_forced_movement_trap_landing_order.py'
+      - '.github/workflows/forced-movement-trap-landing-order.yml'
+      - 'src/main/java/io/autoptu/core/runtime/ForcedMovementApplication.java'
+      - 'src/main/java/io/autoptu/core/runtime/TileEntryTrapResolution.java'
+  push:
+    branches:
+      - main
+
+jobs:
+  parity:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Freeze forced movement to trap landing order
+        run: |
+          python3 -m py_compile tools/python/export_forced_movement_trap_landing_order.py
+          python3 tools/python/export_forced_movement_trap_landing_order.py \
+            --source-root python-oracle \
+            --output build/oracle/forced-movement-trap-landing-order.tsv
+          cat build/oracle/forced-movement-trap-landing-order.tsv
