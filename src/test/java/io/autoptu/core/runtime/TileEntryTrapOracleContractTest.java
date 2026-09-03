@@ -14,8 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TileEntryTrapOracleContractTest {
-    private static final String TRAP_BLOCK_KEYS = "actor|description|effect|target_hp";
-    private static final String TRAP_TRIGGER_KEYS = "actor|coord|description|effect|source_id|target_hp|terrains|trap_name";
+    private static final String TRAP_BLOCK_KEYS = "actor|description|effect|target_hp|trap|type";
+    private static final String TRAP_TRIGGER_KEYS = "actor|coord|description|effect|source_id|target_hp|terrains|trap|trap_name|type";
 
     @Test
     void matchesObservedPinnedPythonEntryScenarios() throws Exception {
