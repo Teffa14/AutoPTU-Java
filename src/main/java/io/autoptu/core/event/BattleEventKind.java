@@ -9,6 +9,7 @@ public enum BattleEventKind {
     ABILITY("ability"),
     RULE_EFFECT("rule_effect"),
     FIELD_EFFECT("field_effect"),
+    TERRAIN_HAZARD("terrain_hazard"),
     PHASE_CHANGE("phase"),
     TURN_START("turn_start"),
     TURN_END("turn_end");
