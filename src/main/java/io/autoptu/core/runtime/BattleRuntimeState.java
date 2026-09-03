@@ -1,6 +1,7 @@
 package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.MoveOption;
+import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
 
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ public final class BattleRuntimeState {
     private final MovementGrid grid;
     private final LinkedHashMap<String, RuntimeCombatantState> combatants = new LinkedHashMap<>();
     private final StatusStateStore statusState = new StatusStateStore();
+    private final TileTrapStateStore tileTrapState = new TileTrapStateStore();
     private final LinkedHashMap<String, StatusSkipFeatureState> statusSkipFeaturesByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, CombatantGeometryState> geometryByCombatant = new LinkedHashMap<>();
     private final LinkedHashMap<String, CombatantAffiliationState> affiliationByCombatant = new LinkedHashMap<>();
@@ -248,6 +250,34 @@ public final class BattleRuntimeState {
 
     public MovementGrid grid() {
         return grid;
+    }
+
+    /** Read-only tile-trap snapshot owned by the battle state, never by the world adapter. */
+    public Map<GridCoord, List<TileEntryTrapResolution.TrapLayer>> tileTraps() {
+        return tileTrapState.snapshot();
+    }
+
+    /** Read-only trap entries at one coordinate in deterministic insertion order. */
+    public List<TileEntryTrapResolution.TrapLayer> tileTrapsAt(GridCoord coordinate) {
+        return tileTrapState.entries(coordinate);
+    }
+
+    /** Runtime-only materialization boundary for canonical trap state. */
+    void replaceTileTrapsFromRuntime(
+            GridCoord coordinate,
+            Collection<TileEntryTrapResolution.TrapLayer> traps
+    ) {
+        tileTrapState.replace(coordinate, traps);
+    }
+
+    /** Runtime-only producer boundary for one canonical trap key. */
+    void putTileTrapFromRuntime(GridCoord coordinate, TileEntryTrapResolution.TrapLayer trap) {
+        tileTrapState.put(coordinate, trap);
+    }
+
+    /** Runtime-only consumption boundary matching Python _consume_trap. */
+    boolean consumeTileTrapFromRuntime(GridCoord coordinate, String trapKey) {
+        return tileTrapState.consume(coordinate, trapKey);
     }
 
     /** Server-owned battle round shared by lifecycle and all rule-hook contexts. */
