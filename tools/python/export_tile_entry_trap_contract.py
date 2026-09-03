@@ -37,6 +37,7 @@ class FakeActor:
         self.position = (4, 3)
         self.hp = 37
         self.fainted = False
+        self.combat_stages: dict[str, int] = {}
         self._naturewalk = list(naturewalk)
 
     def naturewalk_labels(self) -> list[str]:
