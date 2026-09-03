@@ -2,12 +2,14 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.hook.StatusApplicationHookRegistry;
+import io.autoptu.core.model.GridCoord;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -32,7 +34,9 @@ final class MovementLandingConsequenceExecutor {
             String trapName,
             String sourceId,
             String description,
-            int targetHp
+            int targetHp,
+            GridCoord coordinate,
+            Set<String> terrains
     ) {
         SemanticEvent {
             Objects.requireNonNull(kind, "kind");
@@ -41,9 +45,13 @@ final class MovementLandingConsequenceExecutor {
             trapName = safe(trapName);
             sourceId = safe(sourceId);
             description = safe(description);
+            terrains = Set.copyOf(terrains == null ? Set.of() : terrains);
             if (actorId.isBlank()) throw new IllegalArgumentException("actorId is required");
             if (trapKey.isBlank()) throw new IllegalArgumentException("trapKey is required");
             if (targetHp < 0) throw new IllegalArgumentException("targetHp cannot be negative");
+            if (kind == SemanticEventKind.TRAP_TRIGGER && coordinate == null) {
+                throw new IllegalArgumentException("trap trigger coordinate is required");
+            }
         }
     }
 
@@ -91,10 +99,12 @@ final class MovementLandingConsequenceExecutor {
                         SemanticEventKind.TRAP_BLOCK,
                         block.actorId(),
                         block.trapKey(),
-                        block.trapKey(),
+                        "",
                         "",
                         block.description(),
-                        block.targetHp()
+                        block.targetHp(),
+                        null,
+                        Set.of()
                 );
                 semanticEventSink.accept(event);
                 semanticEvents.add(event);
@@ -130,7 +140,9 @@ final class MovementLandingConsequenceExecutor {
                                     trigger.trapName(),
                                     trigger.sourceId(),
                                     trigger.description(),
-                                    trigger.targetHp()
+                                    trigger.targetHp(),
+                                    trigger.coordinate(),
+                                    trigger.terrains()
                             );
                             semanticEventSink.accept(event);
                             semanticEvents.add(event);
@@ -148,16 +160,9 @@ final class MovementLandingConsequenceExecutor {
         return new ExecutionResult(statusApplications, statusHookEvents, semanticEvents, consumedTrapKeys);
     }
 
-    /**
-     * Trap provenance may outlive, or never correspond to, an active combatant in the battle snapshot.
-     * Status hooks only accept a sourceActorId when that ID is an authoritative combatant; provenance
-     * remains available separately on the trap semantic event either way.
-     */
     private static String statusSourceActorId(BattleRuntimeState state, String sourceId) {
         String candidate = safe(sourceId);
-        if (candidate.isBlank()) {
-            return "";
-        }
+        if (candidate.isBlank()) return "";
         return state.combatants().containsKey(candidate) ? candidate : "";
     }
 
