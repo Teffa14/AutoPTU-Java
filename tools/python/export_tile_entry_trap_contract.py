@@ -164,6 +164,8 @@ def observed_row(method, scenario: str, layers: int, source_team: str, terrains:
         str(status.get("description") or ""),
         str(status.get("remaining") if status.get("remaining") is not None else ""),
         encode(state.trace),
+        str(event.get("actor") or ""),
+        encode(sorted(str(key) for key in event.keys())),
     ]
 
 
@@ -188,6 +190,7 @@ def main() -> None:
         "source_id", "event_terrains", "coord", "target_hp", "trap_name", "description",
         "status", "status_actor", "status_target", "status_move_name", "status_move_type",
         "status_move_category", "status_effect", "status_description", "status_remaining", "trace",
+        "event_actor", "event_keys",
     ]
     text = "\t".join(header) + "\n" + "\n".join("\t".join(row) for row in rows) + "\n"
     args.output.write_text(text, encoding="utf-8")
