@@ -14,6 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TileEntryTrapOracleContractTest {
+    private static final String TRAP_BLOCK_KEYS = "actor|description|effect|target_hp";
+    private static final String TRAP_TRIGGER_KEYS = "actor|coord|description|effect|source_id|target_hp|terrains|trap_name";
+
     @Test
     void matchesObservedPinnedPythonEntryScenarios() throws Exception {
         String fixture = System.getenv("AUTOPTU_TILE_ENTRY_TRAP_ORACLE");
@@ -21,13 +24,13 @@ class TileEntryTrapOracleContractTest {
 
         List<String> lines = Files.readAllLines(Path.of(fixture));
         assertEquals(
-                "scenario\tlayers\tsource_team\tterrains\tnaturewalk\teffect\tconsumed\tsource_id\tevent_terrains\tcoord\ttarget_hp\ttrap_name\tdescription\tstatus\tstatus_actor\tstatus_target\tstatus_move_name\tstatus_move_type\tstatus_move_category\tstatus_effect\tstatus_description\tstatus_remaining\ttrace",
+                "scenario\tlayers\tsource_team\tterrains\tnaturewalk\teffect\tconsumed\tsource_id\tevent_terrains\tcoord\ttarget_hp\ttrap_name\tdescription\tstatus\tstatus_actor\tstatus_target\tstatus_move_name\tstatus_move_type\tstatus_move_category\tstatus_effect\tstatus_description\tstatus_remaining\ttrace\tevent_actor\tevent_keys",
                 lines.getFirst()
         );
 
         for (String line : lines.subList(1, lines.size())) {
             String[] fields = line.split("\\t", -1);
-            assertEquals(23, fields.length, line);
+            assertEquals(25, fields.length, line);
 
             String scenario = fields[0];
             int layers = Integer.parseInt(fields[1]);
@@ -48,14 +51,18 @@ class TileEntryTrapOracleContractTest {
                 assertTrue(result.triggers().isEmpty(), scenario);
                 assertTrue(result.blocks().isEmpty(), scenario);
                 assertEquals("", fields[22], scenario);
+                assertEquals("", fields[23], scenario);
+                assertEquals("", fields[24], scenario);
                 continue;
             }
 
+            assertEquals("target", fields[23], scenario);
             if (expectedEffect.equals("trap_block")) {
+                assertEquals(TRAP_BLOCK_KEYS, fields[24], scenario);
                 assertTrue(result.triggers().isEmpty(), scenario);
                 assertEquals(1, result.blocks().size(), scenario);
                 var block = result.blocks().getFirst();
-                assertEquals("target", block.actorId(), scenario);
+                assertEquals(fields[23], block.actorId(), scenario);
                 assertEquals("abrasion_trap", block.trapKey(), scenario);
                 assertEquals(Integer.parseInt(fields[10]), block.targetHp(), scenario);
                 assertEquals(fields[12], block.description(), scenario);
@@ -65,10 +72,11 @@ class TileEntryTrapOracleContractTest {
             }
 
             assertEquals("trigger", expectedEffect, scenario);
+            assertEquals(TRAP_TRIGGER_KEYS, fields[24], scenario);
             assertTrue(result.blocks().isEmpty(), scenario);
             assertEquals(1, result.triggers().size(), scenario);
             var trigger = result.triggers().getFirst();
-            assertEquals("target", trigger.actorId(), scenario);
+            assertEquals(fields[23], trigger.actorId(), scenario);
             assertEquals("abrasion_trap", trigger.trapKey(), scenario);
             assertEquals(fields[11], trigger.trapName(), scenario);
             assertEquals(fields[7], trigger.sourceId(), scenario);
