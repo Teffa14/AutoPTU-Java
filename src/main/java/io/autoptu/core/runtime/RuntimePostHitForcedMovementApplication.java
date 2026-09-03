@@ -12,22 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Runtime-only forced-movement seam for a move whose hit has already been resolved.
- *
- * <p>The ordinary move declaration is revalidated before accuracy/damage execution. By the time
- * Python consumes forced movement, damage outcome bookkeeping has already occurred, so re-running
- * ordinary action-economy validation would reject the same move after its action was spent. This
- * package-private seam therefore accepts only the already-authoritative runtime choice, resolves
- * move metadata again from the server-owned moveset, preserves the Python hit gate, composes
- * source modifiers and defender prevention, and delegates spatial mutation to the shared
- * forced-displacement engine.</p>
- */
 final class RuntimePostHitForcedMovementApplication {
-    /**
-     * Language-neutral runtime outcome. Prevention provenance survives orchestration so later
-     * semantic-event adapters never have to re-evaluate the PTU rule that stopped displacement.
-     */
     record Resolution(
             Optional<RuntimeForcedMovementMoveApplication.Result> movement,
             ForcedMovementPreventionResolution.Prevention prevention
@@ -43,18 +28,10 @@ final class RuntimePostHitForcedMovementApplication {
         }
 
         static Resolution none() {
-            return new Resolution(
-                    Optional.empty(),
-                    ForcedMovementPreventionResolution.Prevention.none()
-            );
+            return new Resolution(Optional.empty(), ForcedMovementPreventionResolution.Prevention.none());
         }
     }
 
-    /**
-     * Runtime composition result for the post-hit boundary. The PTU decision and its observable
-     * semantic events travel together so downstream orchestration cannot lose prevention provenance
-     * or re-run Feature/capability/Ability/status rules merely to explain the outcome.
-     */
     record SemanticResolution(Resolution resolution, List<BattleEvent> events) {
         SemanticResolution {
             if (resolution == null) throw new IllegalArgumentException("resolution is required");
@@ -65,17 +42,11 @@ final class RuntimePostHitForcedMovementApplication {
     private RuntimePostHitForcedMovementApplication() {}
 
     static Optional<RuntimeForcedMovementMoveApplication.Result> apply(
-            BattleRuntimeState state,
-            MoveChoice choice,
-            boolean hit
+            BattleRuntimeState state, MoveChoice choice, boolean hit
     ) {
         return resolve(state, choice, hit, BattleRuntimeDependencies.empty()).movement();
     }
 
-    /**
-     * Shared composition boundary for runtime rule dependencies. The dependency snapshot selects
-     * canonical defender data; dedicated resolvers remain authoritative for PTU conclusions.
-     */
     static Optional<RuntimeForcedMovementMoveApplication.Result> apply(
             BattleRuntimeState state,
             MoveChoice choice,
@@ -85,13 +56,6 @@ final class RuntimePostHitForcedMovementApplication {
         return resolve(state, choice, hit, dependencies).movement();
     }
 
-    /**
-     * Resolve the PTU outcome and translate already-resolved prevention provenance into semantic
-     * events using the same immutable defender-content snapshot. Successful displacement then
-     * enters the shared landing pipeline from the target's authoritative post-movement state.
-     * This preserves Python's movement-before-entry-effects ordering without duplicating trap or
-     * status rules in direct, area, or delayed move callers.
-     */
     static SemanticResolution resolveWithSemanticEvents(
             BattleRuntimeState state,
             MoveChoice choice,
@@ -104,20 +68,22 @@ final class RuntimePostHitForcedMovementApplication {
 
         CombatantRuleContent targetRuleContent = dependencies.combatantRuleContent().require(choice.targetId());
         Resolution resolution = resolve(state, choice, hit, targetRuleContent);
+        ArrayList<BattleEvent> events = new ArrayList<>();
         if (resolution.movement().isPresent()) {
-            RuntimeMovementLandingApplication.apply(
+            MovementLandingConsequenceExecutor.ExecutionResult landing = RuntimeMovementLandingApplication.apply(
                     state,
                     choice.targetId(),
                     targetRuleContent,
                     ignored -> { }
             );
+            events.addAll(landing.orderedEvents());
         }
-        List<BattleEvent> events = RuntimeForcedMovementPreventionSemanticEvents.resolve(
+        events.addAll(RuntimeForcedMovementPreventionSemanticEvents.resolve(
                 choice,
                 state.requireCombatant(choice.targetId()),
                 targetRuleContent,
                 resolution.prevention()
-        );
+        ));
         return new SemanticResolution(resolution, events);
     }
 
@@ -129,15 +95,9 @@ final class RuntimePostHitForcedMovementApplication {
     ) {
         if (dependencies == null) throw new IllegalArgumentException("runtime dependencies are required");
         if (choice == null) throw new IllegalArgumentException("move choice is required");
-        return resolve(
-                state,
-                choice,
-                hit,
-                dependencies.combatantRuleContent().require(choice.targetId())
-        );
+        return resolve(state, choice, hit, dependencies.combatantRuleContent().require(choice.targetId()));
     }
 
-    /** Compatibility boundary for callers that already own the canonical content registry. */
     static Optional<RuntimeForcedMovementMoveApplication.Result> apply(
             BattleRuntimeState state,
             MoveChoice choice,
@@ -148,11 +108,6 @@ final class RuntimePostHitForcedMovementApplication {
         return resolve(state, choice, hit, new BattleRuntimeDependencies(ruleContentRegistry)).movement();
     }
 
-    /**
-     * Content-aware core seam used when canonical rule content has already been materialized.
-     * The content snapshot is data, not a pre-resolved PTU conclusion; the prevention resolver
-     * remains the single authority for composite Feature/capability rules.
-     */
     static Optional<RuntimeForcedMovementMoveApplication.Result> apply(
             BattleRuntimeState state,
             MoveChoice choice,
@@ -162,10 +117,6 @@ final class RuntimePostHitForcedMovementApplication {
         return resolve(state, choice, hit, targetRuleContent).movement();
     }
 
-    /**
-     * Resolve one post-hit forced movement attempt while preserving the exact first blocker.
-     * Python precedence is Feature/capability, temporary push immunity, Ability, then Ingrain.
-     */
     static Resolution resolve(
             BattleRuntimeState state,
             MoveChoice choice,
@@ -182,59 +133,41 @@ final class RuntimePostHitForcedMovementApplication {
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
 
         Optional<ForcedMovementInstruction> instruction = ForcedMovementInstructionResolution.resolve(
-                move.spec().keywords(),
-                move.spec().effectsText()
+                move.spec().keywords(), move.spec().effectsText()
         );
-        String damageCategory = move.combatProfile() == null
-                ? ""
-                : move.combatProfile().damageCategory();
+        String damageCategory = move.combatProfile() == null ? "" : move.combatProfile().damageCategory();
         instruction = ForcedMovementAbilityModifierResolution.resolve(
-                instruction,
-                damageCategory,
-                source.abilities(),
-                source.abilitiesSuppressed()
+                instruction, damageCategory, source.abilities(), source.abilitiesSuppressed()
         );
         if (instruction.isEmpty()) return Resolution.none();
         ForcedMovementInstruction resolved = instruction.orElseThrow();
 
         ForcedMovementPreventionResolution.Prevention prevention =
                 ForcedMovementPreventionResolution.resolveByContent(
-                        resolved,
-                        targetRuleContent.trainerFeatures(),
-                        targetRuleContent.capabilities()
+                        resolved, targetRuleContent.trainerFeatures(), targetRuleContent.capabilities()
                 );
         if (prevention.prevented()) return prevented(prevention);
 
         prevention = ForcedMovementPreventionResolution.resolveByTemporaryEffects(
-                resolved,
-                activePushImmunities(target, state.currentRound()),
-                state.currentRound()
+                resolved, activePushImmunities(target, state.currentRound()), state.currentRound()
         );
         if (prevention.prevented()) return prevented(prevention);
 
         prevention = ForcedMovementPreventionResolution.resolveByAbility(
-                resolved,
-                target.abilities(),
-                target.abilitiesSuppressed()
+                resolved, target.abilities(), target.abilitiesSuppressed()
         );
         if (prevention.prevented()) return prevented(prevention);
 
         prevention = ForcedMovementPreventionResolution.resolveByStatus(
-                resolved,
-                state.statuses(choice.targetId())
+                resolved, state.statuses(choice.targetId())
         );
         if (prevention.prevented()) return prevented(prevention);
 
         ForcedDisplacementResolution.Result displacement = ForcedMovementApplication.apply(
-                state,
-                choice.actorId(),
-                choice.targetId(),
-                resolved
+                state, choice.actorId(), choice.targetId(), resolved
         );
         return new Resolution(
-                Optional.of(new RuntimeForcedMovementMoveApplication.Result(
-                        move.moveId(), resolved, displacement
-                )),
+                Optional.of(new RuntimeForcedMovementMoveApplication.Result(move.moveId(), resolved, displacement)),
                 ForcedMovementPreventionResolution.Prevention.none()
         );
     }
@@ -244,8 +177,7 @@ final class RuntimePostHitForcedMovementApplication {
     }
 
     private static List<ForcedMovementPreventionResolution.TemporaryEffect> activePushImmunities(
-            RuntimeCombatantState target,
-            int currentRound
+            RuntimeCombatantState target, int currentRound
     ) {
         ArrayList<ForcedMovementPreventionResolution.TemporaryEffect> active = new ArrayList<>();
         for (TemporaryEffectEntry entry : target.temporaryEffects().getAll("push_immunity")) {
@@ -256,9 +188,7 @@ final class RuntimePostHitForcedMovementApplication {
             }
             Object sourceValue = entry.payload().get("source");
             String source = sourceValue == null ? "Push Immunity" : String.valueOf(sourceValue);
-            active.add(new ForcedMovementPreventionResolution.TemporaryEffect(
-                    entry.name(), expiresRound, source
-            ));
+            active.add(new ForcedMovementPreventionResolution.TemporaryEffect(entry.name(), expiresRound, source));
         }
         return List.copyOf(active);
     }
@@ -275,9 +205,7 @@ final class RuntimePostHitForcedMovementApplication {
     }
 
     private static MoveOption requireCanonicalMove(
-            BattleRuntimeState state,
-            String sourceCombatantId,
-            String moveId
+            BattleRuntimeState state, String sourceCombatantId, String moveId
     ) {
         if (!state.hasCanonicalMoves(sourceCombatantId)) {
             throw new IllegalStateException("combatant has no canonical moveset: " + sourceCombatantId);
