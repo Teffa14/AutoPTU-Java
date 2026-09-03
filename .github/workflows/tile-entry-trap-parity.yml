@@ -41,6 +41,13 @@ jobs:
             --output build/oracle/tile-entry-trap.tsv
           cat build/oracle/tile-entry-trap.tsv
 
+      - name: Upload Python tile-entry trap contract
+        uses: actions/upload-artifact@v4
+        with:
+          name: tile-entry-trap-oracle
+          path: build/oracle/tile-entry-trap.tsv
+          if-no-files-found: error
+
       - name: Run tile-entry trap parity tests
         env:
           AUTOPTU_TILE_ENTRY_TRAP_ORACLE: ${{ github.workspace }}/build/oracle/tile-entry-trap.tsv
