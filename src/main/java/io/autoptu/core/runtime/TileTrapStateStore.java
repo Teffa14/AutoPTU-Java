@@ -2,8 +2,8 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.model.GridCoord;
 
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +31,7 @@ final class TileTrapStateStore {
         for (Map.Entry<GridCoord, LinkedHashMap<String, TileEntryTrapResolution.TrapLayer>> entry : byTile.entrySet()) {
             copy.put(entry.getKey(), List.copyOf(entry.getValue().values()));
         }
-        return Map.copyOf(copy);
+        return Collections.unmodifiableMap(copy);
     }
 
     void replace(GridCoord coordinate, Collection<TileEntryTrapResolution.TrapLayer> traps) {
