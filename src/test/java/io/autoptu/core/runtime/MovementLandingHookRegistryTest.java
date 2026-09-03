@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class MovementLandingHookRegistryTest {
@@ -15,13 +14,13 @@ class MovementLandingHookRegistryTest {
     void standardRegistryKeepsOnlyObservableTrapConsequencesInTrapOrder() {
         GridCoord coordinate = new GridCoord(3, 2);
         var context = new MovementLandingHookRegistry.LandingContext(
-                new TileEntryTrapResolution.Context(
+                new TileEntryTrapResolution.EntryContext(
                         "target",
                         "Target",
                         "blue",
                         42,
-                        Set.of("forest"),
-                        coordinate
+                        coordinate,
+                        Set.of("forest")
                 ),
                 List.of(
                         trap("allied", 1, "ally", "blue", Set.of(), "Allied"),
@@ -34,7 +33,10 @@ class MovementLandingHookRegistryTest {
                 MovementLandingHookRegistry.standard().resolve(context);
 
         assertEquals(2, resolved.size());
-        assertEquals(List.of("tile_traps", "tile_traps"), resolved.stream().map(MovementLandingHookRegistry.ResolvedHook::hookKey).toList());
+        assertEquals(
+                List.of("tile_traps", "tile_traps"),
+                resolved.stream().map(MovementLandingHookRegistry.ResolvedHook::hookKey).toList()
+        );
         assertEquals(
                 List.of(
                         MovementLandingHookRegistry.HookFamily.TILE_TRAP,
@@ -43,28 +45,26 @@ class MovementLandingHookRegistryTest {
                 resolved.stream().map(MovementLandingHookRegistry.ResolvedHook::family).toList()
         );
 
-        var blocked = assertInstanceOf(
-                MovementLandingHookRegistry.TileTrapConsequence.class,
-                resolved.get(0).consequence()
-        );
-        var blockedResult = assertInstanceOf(TileEntryTrapResolution.Block.class, blocked.resolution());
-        assertEquals("naturewalk", blockedResult.trapKey());
-        assertEquals(List.of(TileEntryTrapResolution.TraceStep.EMIT_TRAP_EVENT), blockedResult.trace());
+        var blocked = (MovementLandingHookRegistry.TileTrapConsequence) resolved.get(0).consequence();
+        assertEquals(0, blocked.resolution().triggers().size());
+        assertEquals(1, blocked.resolution().blocks().size());
+        assertEquals("naturewalk", blocked.resolution().blocks().get(0).trapKey());
+        assertEquals(Set.of(), blocked.resolution().consumedTrapKeys());
 
-        var triggered = assertInstanceOf(
-                MovementLandingHookRegistry.TileTrapConsequence.class,
-                resolved.get(1).consequence()
-        );
-        var triggeredResult = assertInstanceOf(TileEntryTrapResolution.Trigger.class, triggered.resolution());
-        assertEquals("trigger", triggeredResult.trapKey());
+        var triggered = (MovementLandingHookRegistry.TileTrapConsequence) resolved.get(1).consequence();
+        assertEquals(1, triggered.resolution().triggers().size());
+        assertEquals(0, triggered.resolution().blocks().size());
+        var trigger = triggered.resolution().triggers().get(0);
+        assertEquals("trigger", trigger.trapKey());
         assertEquals(
                 List.of(
-                        TileEntryTrapResolution.TraceStep.APPLY_STATUS,
-                        TileEntryTrapResolution.TraceStep.EMIT_TRAP_EVENT,
-                        TileEntryTrapResolution.TraceStep.CONSUME_TRAP
+                        TileEntryTrapResolution.EffectStep.APPLY_STATUS,
+                        TileEntryTrapResolution.EffectStep.EMIT_TRAP_EVENT,
+                        TileEntryTrapResolution.EffectStep.CONSUME_TRAP
                 ),
-                triggeredResult.trace()
+                trigger.effectOrder()
         );
+        assertEquals(Set.of("trigger"), triggered.resolution().consumedTrapKeys());
     }
 
     @Test
@@ -82,13 +82,13 @@ class MovementLandingHookRegistryTest {
         );
 
         var context = new MovementLandingHookRegistry.LandingContext(
-                new TileEntryTrapResolution.Context(
+                new TileEntryTrapResolution.EntryContext(
                         "target",
                         "Target",
                         "blue",
                         42,
-                        Set.of(),
-                        new GridCoord(0, 0)
+                        new GridCoord(0, 0),
+                        Set.of()
                 ),
                 List.of()
         );
