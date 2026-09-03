@@ -35,13 +35,11 @@ class TileEntryTrapResolutionTest {
         assertEquals("target", status.actorId());
         assertEquals("target", status.targetId());
         assertEquals("Slowed", status.status());
-        assertEquals("source", status.moveName());
+        assertEquals("Trap", status.moveName());
         assertEquals("Normal", status.moveType());
         assertEquals("Status", status.moveCategory());
-        assertEquals(
-                "Upon entering the Abrasion Trap, target becomes Slowed until the end of their next turn.",
-                status.effect());
-        assertEquals("Abrasion Trap slows creatures that enter it.", status.description());
+        assertEquals("trap", status.effect());
+        assertEquals("The trap leaves the target Slowed until end of next turn.", status.description());
         assertEquals(1, status.remaining());
         assertEquals(List.of(
                 TileEntryTrapResolution.EffectStep.APPLY_STATUS,
