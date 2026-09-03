@@ -140,17 +140,15 @@ public final class TileEntryTrapResolution {
             }
 
             String trapName = trap.trapName().isBlank() ? trap.trapKey() : trap.trapName();
-            String moveName = trap.sourceId().isBlank() ? trap.trapKey() : trap.sourceId();
             StatusApplication statusApplication = new StatusApplication(
                     context.actorId(),
                     context.actorId(),
                     "Slowed",
-                    moveName,
+                    "Trap",
                     "Normal",
                     "Status",
-                    "Upon entering the " + trapName + ", " + context.actorName()
-                            + " becomes Slowed until the end of their next turn.",
-                    trapName + " slows creatures that enter it.",
+                    "trap",
+                    "The trap leaves the target Slowed until end of next turn.",
                     1
             );
             triggers.add(new Trigger(
