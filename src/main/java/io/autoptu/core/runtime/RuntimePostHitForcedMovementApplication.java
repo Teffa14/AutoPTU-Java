@@ -87,8 +87,10 @@ final class RuntimePostHitForcedMovementApplication {
 
     /**
      * Resolve the PTU outcome and translate already-resolved prevention provenance into semantic
-     * events using the same immutable defender-content snapshot. This method never performs a
-     * second prevention decision and is the preferred boundary for result-producing runtimes.
+     * events using the same immutable defender-content snapshot. Successful displacement then
+     * enters the shared landing pipeline from the target's authoritative post-movement state.
+     * This preserves Python's movement-before-entry-effects ordering without duplicating trap or
+     * status rules in direct, area, or delayed move callers.
      */
     static SemanticResolution resolveWithSemanticEvents(
             BattleRuntimeState state,
@@ -102,6 +104,14 @@ final class RuntimePostHitForcedMovementApplication {
 
         CombatantRuleContent targetRuleContent = dependencies.combatantRuleContent().require(choice.targetId());
         Resolution resolution = resolve(state, choice, hit, targetRuleContent);
+        if (resolution.movement().isPresent()) {
+            RuntimeMovementLandingApplication.apply(
+                    state,
+                    choice.targetId(),
+                    targetRuleContent,
+                    ignored -> { }
+            );
+        }
         List<BattleEvent> events = RuntimeForcedMovementPreventionSemanticEvents.resolve(
                 choice,
                 state.requireCombatant(choice.targetId()),
