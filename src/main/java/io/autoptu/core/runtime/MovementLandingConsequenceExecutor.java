@@ -1,6 +1,7 @@
 package io.autoptu.core.runtime;
 
 import io.autoptu.core.event.BattleEvent;
+import io.autoptu.core.event.TerrainHazardEvent;
 import io.autoptu.core.hook.StatusApplicationHookRegistry;
 import io.autoptu.core.model.GridCoord;
 
@@ -53,18 +54,29 @@ final class MovementLandingConsequenceExecutor {
                 throw new IllegalArgumentException("trap trigger coordinate is required");
             }
         }
+
+        BattleEvent toBattleEvent() {
+            return switch (kind) {
+                case TRAP_BLOCK -> TerrainHazardEvent.trapBlock(actorId, trapKey, description, targetHp);
+                case TRAP_TRIGGER -> TerrainHazardEvent.trigger(
+                        actorId, trapKey, trapName, sourceId, description, targetHp, coordinate, terrains
+                );
+            };
+        }
     }
 
     record ExecutionResult(
             List<StatusApplicationResult> statusApplications,
             List<BattleEvent> statusHookEvents,
             List<SemanticEvent> semanticEvents,
+            List<BattleEvent> orderedEvents,
             List<String> consumedTrapKeys
     ) {
         ExecutionResult {
             statusApplications = List.copyOf(statusApplications == null ? List.of() : statusApplications);
             statusHookEvents = List.copyOf(statusHookEvents == null ? List.of() : statusHookEvents);
             semanticEvents = List.copyOf(semanticEvents == null ? List.of() : semanticEvents);
+            orderedEvents = List.copyOf(orderedEvents == null ? List.of() : orderedEvents);
             consumedTrapKeys = List.copyOf(consumedTrapKeys == null ? List.of() : consumedTrapKeys);
         }
     }
@@ -82,6 +94,7 @@ final class MovementLandingConsequenceExecutor {
         ArrayList<StatusApplicationResult> statusApplications = new ArrayList<>();
         ArrayList<BattleEvent> statusHookEvents = new ArrayList<>();
         ArrayList<SemanticEvent> semanticEvents = new ArrayList<>();
+        ArrayList<BattleEvent> orderedEvents = new ArrayList<>();
         ArrayList<String> consumedTrapKeys = new ArrayList<>();
 
         for (MovementLandingHookRegistry.ResolvedHook resolvedHook
@@ -108,6 +121,7 @@ final class MovementLandingConsequenceExecutor {
                 );
                 semanticEventSink.accept(event);
                 semanticEvents.add(event);
+                orderedEvents.add(event.toBattleEvent());
             }
 
             for (TileEntryTrapResolution.Trigger trigger : trapResult.triggers()) {
@@ -115,10 +129,7 @@ final class MovementLandingConsequenceExecutor {
                     switch (effectStep) {
                         case APPLY_STATUS -> {
                             TileEntryTrapResolution.StatusApplication instruction = trigger.statusApplication();
-                            StatusEntry statusEntry = new StatusEntry(
-                                    instruction.status(),
-                                    statusPayload(instruction)
-                            );
+                            StatusEntry statusEntry = new StatusEntry(instruction.status(), statusPayload(instruction));
                             StatusApplicationResult application = StatusApplicationResolution.apply(
                                     state,
                                     statusHooks,
@@ -131,6 +142,7 @@ final class MovementLandingConsequenceExecutor {
                             );
                             statusApplications.add(application);
                             statusHookEvents.addAll(application.events());
+                            orderedEvents.addAll(application.events());
                         }
                         case EMIT_TRAP_EVENT -> {
                             SemanticEvent event = new SemanticEvent(
@@ -146,6 +158,7 @@ final class MovementLandingConsequenceExecutor {
                             );
                             semanticEventSink.accept(event);
                             semanticEvents.add(event);
+                            orderedEvents.add(event.toBattleEvent());
                         }
                         case CONSUME_TRAP -> {
                             if (state.consumeTileTrapFromRuntime(trigger.coordinate(), trigger.trapKey())) {
@@ -157,7 +170,9 @@ final class MovementLandingConsequenceExecutor {
             }
         }
 
-        return new ExecutionResult(statusApplications, statusHookEvents, semanticEvents, consumedTrapKeys);
+        return new ExecutionResult(
+                statusApplications, statusHookEvents, semanticEvents, orderedEvents, consumedTrapKeys
+        );
     }
 
     private static String statusSourceActorId(BattleRuntimeState state, String sourceId) {
