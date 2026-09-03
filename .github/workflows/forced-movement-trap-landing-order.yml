@@ -6,6 +6,11 @@ on:
       - 'tools/python/export_forced_movement_trap_landing_order.py'
       - '.github/workflows/forced-movement-trap-landing-order.yml'
       - 'src/main/java/io/autoptu/core/runtime/ForcedMovementApplication.java'
+      - 'src/main/java/io/autoptu/core/runtime/RuntimePostHitForcedMovementApplication.java'
+      - 'src/main/java/io/autoptu/core/runtime/RuntimeMovementLandingApplication.java'
+      - 'src/main/java/io/autoptu/core/runtime/RuntimeMovementLandingContext.java'
+      - 'src/main/java/io/autoptu/core/runtime/MovementLandingHookRegistry.java'
+      - 'src/main/java/io/autoptu/core/runtime/MovementLandingConsequenceExecutor.java'
       - 'src/main/java/io/autoptu/core/runtime/TileEntryTrapResolution.java'
   push:
     branches:
