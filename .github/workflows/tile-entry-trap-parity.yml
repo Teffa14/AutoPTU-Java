@@ -39,6 +39,7 @@ jobs:
           python3 tools/python/export_tile_entry_trap_contract.py \
             --source-root python-oracle \
             --output build/oracle/tile-entry-trap.tsv
+          cat build/oracle/tile-entry-trap.tsv
 
       - name: Run tile-entry trap parity tests
         env:
