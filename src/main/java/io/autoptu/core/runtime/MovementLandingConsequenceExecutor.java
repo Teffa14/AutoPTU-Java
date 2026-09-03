@@ -112,7 +112,7 @@ final class MovementLandingConsequenceExecutor {
                             StatusApplicationResult application = StatusApplicationResolution.apply(
                                     state,
                                     statusHooks,
-                                    trigger.sourceId().isBlank() ? instruction.actorId() : trigger.sourceId(),
+                                    statusSourceActorId(state, trigger.sourceId()),
                                     instruction.targetId(),
                                     statusEntry,
                                     "terrain",
@@ -146,6 +146,19 @@ final class MovementLandingConsequenceExecutor {
         }
 
         return new ExecutionResult(statusApplications, statusHookEvents, semanticEvents, consumedTrapKeys);
+    }
+
+    /**
+     * Trap provenance may outlive, or never correspond to, an active combatant in the battle snapshot.
+     * Status hooks only accept a sourceActorId when that ID is an authoritative combatant; provenance
+     * remains available separately on the trap semantic event either way.
+     */
+    private static String statusSourceActorId(BattleRuntimeState state, String sourceId) {
+        String candidate = safe(sourceId);
+        if (candidate.isBlank()) {
+            return "";
+        }
+        return state.combatants().containsKey(candidate) ? candidate : "";
     }
 
     private static Map<String, Object> statusPayload(TileEntryTrapResolution.StatusApplication instruction) {
