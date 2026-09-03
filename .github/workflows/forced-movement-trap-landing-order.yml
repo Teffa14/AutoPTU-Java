@@ -5,6 +5,9 @@ on:
     paths:
       - 'tools/python/export_forced_movement_trap_landing_order.py'
       - '.github/workflows/forced-movement-trap-landing-order.yml'
+      - 'src/main/java/io/autoptu/core/event/BattleEvent.java'
+      - 'src/main/java/io/autoptu/core/event/BattleEventKind.java'
+      - 'src/main/java/io/autoptu/core/event/TerrainHazardEvent.java'
       - 'src/main/java/io/autoptu/core/runtime/ForcedMovementApplication.java'
       - 'src/main/java/io/autoptu/core/runtime/RuntimePostHitForcedMovementApplication.java'
       - 'src/main/java/io/autoptu/core/runtime/RuntimeMovementLandingApplication.java'
@@ -12,6 +15,7 @@ on:
       - 'src/main/java/io/autoptu/core/runtime/MovementLandingHookRegistry.java'
       - 'src/main/java/io/autoptu/core/runtime/MovementLandingConsequenceExecutor.java'
       - 'src/main/java/io/autoptu/core/runtime/TileEntryTrapResolution.java'
+      - 'src/test/java/io/autoptu/core/runtime/RuntimePostHitForcedMovementLandingTest.java'
   push:
     branches:
       - main
