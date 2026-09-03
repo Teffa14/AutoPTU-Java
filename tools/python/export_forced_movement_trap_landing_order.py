@@ -24,21 +24,6 @@ def contains_string(node: ast.AST, value: str) -> bool:
     return any(isinstance(child, ast.Constant) and child.value == value for child in ast.walk(node))
 
 
-def containing_function(tree: ast.AST, target: ast.AST) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
-    candidates: list[ast.FunctionDef | ast.AsyncFunctionDef] = []
-    target_line = getattr(target, "lineno", -1)
-    for node in ast.walk(tree):
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            continue
-        start = getattr(node, "lineno", -1)
-        end = getattr(node, "end_lineno", start)
-        if start <= target_line <= end:
-            candidates.append(node)
-    if not candidates:
-        return None
-    return max(candidates, key=lambda node: node.lineno)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
@@ -47,33 +32,41 @@ def main() -> None:
 
     source = args.source_root / SOURCE
     tree = ast.parse(source.read_text(encoding="utf-8-sig"), filename=str(source))
-    trap_calls = [
-        node for node in ast.walk(tree)
-        if isinstance(node, ast.Call) and call_name(node) == TRAP_HOOK
-    ]
-    if not trap_calls:
-        raise SystemExit(f"no {TRAP_HOOK} calls found in pinned oracle")
 
     rows: list[tuple[str, int, int]] = []
-    for trap_call in sorted(trap_calls, key=lambda node: node.lineno):
-        owner = containing_function(tree, trap_call)
-        if owner is None:
-            raise SystemExit(f"trap hook at line {trap_call.lineno} has no containing function")
-        preceding_forced_events = [
-            node for node in ast.walk(owner)
-            if isinstance(node, ast.Call)
-            and node.lineno < trap_call.lineno
-            and call_name(node) == "log_event"
-            and contains_string(node, FORCED_EFFECT)
+    forced_event_functions = 0
+    for owner in ast.walk(tree):
+        if not isinstance(owner, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        calls = [node for node in ast.walk(owner) if isinstance(node, ast.Call)]
+        forced_events = [
+            node for node in calls
+            if call_name(node) == "log_event" and contains_string(node, FORCED_EFFECT)
         ]
-        if not preceding_forced_events:
+        if not forced_events:
+            continue
+        forced_event_functions += 1
+        trap_calls = [node for node in calls if call_name(node) == TRAP_HOOK]
+        if not trap_calls:
             raise SystemExit(
-                f"{owner.name}: {TRAP_HOOK} at line {trap_call.lineno} is not preceded by a "
-                f"log_event containing {FORCED_EFFECT!r}"
+                f"{owner.name}: emits {FORCED_EFFECT!r} but has no {TRAP_HOOK} landing hook"
             )
-        forced_event = max(preceding_forced_events, key=lambda node: node.lineno)
-        rows.append((owner.name, forced_event.lineno, trap_call.lineno))
+        for forced_event in sorted(forced_events, key=lambda node: node.lineno):
+            following_traps = [node for node in trap_calls if node.lineno > forced_event.lineno]
+            if not following_traps:
+                raise SystemExit(
+                    f"{owner.name}: {FORCED_EFFECT!r} event at line {forced_event.lineno} is not followed by "
+                    f"{TRAP_HOOK}"
+                )
+            trap_call = min(following_traps, key=lambda node: node.lineno)
+            rows.append((owner.name, forced_event.lineno, trap_call.lineno))
 
+    if forced_event_functions == 0:
+        raise SystemExit(f"no functions emitting {FORCED_EFFECT!r} found in pinned oracle")
+    if not rows:
+        raise SystemExit(f"no {FORCED_EFFECT!r} -> {TRAP_HOOK} ordering rows produced")
+
+    rows.sort(key=lambda row: (row[1], row[2], row[0]))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     text = "function\tforced_movement_event_line\ttrap_entry_line\n"
     text += "\n".join(f"{name}\t{event_line}\t{trap_line}" for name, event_line, trap_line in rows) + "\n"
