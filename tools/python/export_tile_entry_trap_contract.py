@@ -76,18 +76,21 @@ class FakeState:
 
     def _apply_status(
         self,
-        actor: FakeActor,
+        _events: list,
+        *,
+        attacker_id: str,
+        target_id: str,
+        move: FakeMoveSpec,
         target: FakeActor,
         status: str,
-        *,
-        move: FakeMoveSpec,
         effect: str,
         description: str,
         remaining: int,
     ) -> None:
         self.status_applications.append({
-            "actor": actor.name,
-            "target": target.name,
+            "actor": attacker_id,
+            "target": target_id,
+            "target_name": target.name,
             "status": status,
             "move_name": move.name,
             "move_type": move.type,
