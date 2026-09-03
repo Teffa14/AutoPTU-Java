@@ -36,7 +36,7 @@ class RuntimePostHitForcedMovementLandingTest {
         );
         BattleRuntimeState state = new BattleRuntimeState(
                 new MovementGrid(8, 4, Set.of(), Map.of()),
-                List.of(source, target), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(),
+                List.of(source, target), Map.of(), Map.of(), Map.of(), Map.of(),
                 Map.of("source", List.of(move))
         );
         GridCoord landing = new GridCoord(4, 1);
