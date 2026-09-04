@@ -1,6 +1,14 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.hook.BuiltinDamageModifierHooks;
+import io.autoptu.core.hook.BuiltinEffectiveMoveHooks;
+import io.autoptu.core.hook.BuiltinPostDamageHooks;
+import io.autoptu.core.hook.BuiltinPreDamageReactionHooks;
 import io.autoptu.core.hook.BuiltinStatusApplicationHooks;
+import io.autoptu.core.hook.DamageModifierHookRegistry;
+import io.autoptu.core.hook.EffectiveMoveHookRegistry;
+import io.autoptu.core.hook.PostDamageHookRegistry;
+import io.autoptu.core.hook.PreDamageReactionHookRegistry;
 import io.autoptu.core.hook.StatusApplicationHookRegistry;
 
 /**
@@ -14,24 +22,40 @@ import io.autoptu.core.hook.StatusApplicationHookRegistry;
 public record BattleRuntimeDependencies(
         CombatantRuleContentRegistry combatantRuleContent,
         StatusApplicationHookRegistry statusApplicationHooks,
-        MovementLandingHookRegistry movementLandingHooks
+        MovementLandingHookRegistry movementLandingHooks,
+        EffectiveMoveHookRegistry effectiveMoveHooks,
+        DamageModifierHookRegistry damageModifierHooks,
+        PreDamageReactionHookRegistry preDamageReactionHooks,
+        PostDamageHookRegistry postDamageHooks
 ) {
     public BattleRuntimeDependencies {
-        if (combatantRuleContent == null) {
-            throw new IllegalArgumentException("combatant rule content registry is required");
-        }
-        if (statusApplicationHooks == null) {
-            throw new IllegalArgumentException("status application hook registry is required");
-        }
-        if (movementLandingHooks == null) {
-            throw new IllegalArgumentException("movement landing hook registry is required");
-        }
+        if (combatantRuleContent == null) throw new IllegalArgumentException("combatant rule content registry is required");
+        if (statusApplicationHooks == null) throw new IllegalArgumentException("status application hook registry is required");
+        if (movementLandingHooks == null) throw new IllegalArgumentException("movement landing hook registry is required");
+        if (effectiveMoveHooks == null) throw new IllegalArgumentException("effective move hook registry is required");
+        if (damageModifierHooks == null) throw new IllegalArgumentException("damage modifier hook registry is required");
+        if (preDamageReactionHooks == null) throw new IllegalArgumentException("pre-damage reaction hook registry is required");
+        if (postDamageHooks == null) throw new IllegalArgumentException("post-damage hook registry is required");
     }
 
-    /**
-     * Compatibility constructor for callers that supply canonical combatant content and status
-     * hooks. Built-in PTU movement-landing hooks remain part of the authoritative composition.
-     */
+    /** Compatibility constructor for landing/status composition tests and callers. */
+    public BattleRuntimeDependencies(
+            CombatantRuleContentRegistry combatantRuleContent,
+            StatusApplicationHookRegistry statusApplicationHooks,
+            MovementLandingHookRegistry movementLandingHooks
+    ) {
+        this(
+                combatantRuleContent,
+                statusApplicationHooks,
+                movementLandingHooks,
+                BuiltinEffectiveMoveHooks.standardRegistry(),
+                BuiltinDamageModifierHooks.standardRegistry(),
+                BuiltinPreDamageReactionHooks.registry(),
+                BuiltinPostDamageHooks.standardRegistry()
+        );
+    }
+
+    /** Compatibility constructor for callers that supply canonical content and status hooks. */
     public BattleRuntimeDependencies(
             CombatantRuleContentRegistry combatantRuleContent,
             StatusApplicationHookRegistry statusApplicationHooks
@@ -39,16 +63,9 @@ public record BattleRuntimeDependencies(
         this(combatantRuleContent, statusApplicationHooks, MovementLandingHookRegistry.standard());
     }
 
-    /**
-     * Compatibility constructor for callers that only supply canonical combatant content.
-     * Built-in PTU hook registries are still part of the authoritative runtime composition.
-     */
+    /** Compatibility constructor for callers that only supply canonical combatant content. */
     public BattleRuntimeDependencies(CombatantRuleContentRegistry combatantRuleContent) {
-        this(
-                combatantRuleContent,
-                BuiltinStatusApplicationHooks.registry(),
-                MovementLandingHookRegistry.standard()
-        );
+        this(combatantRuleContent, BuiltinStatusApplicationHooks.registry(), MovementLandingHookRegistry.standard());
     }
 
     public static BattleRuntimeDependencies empty() {

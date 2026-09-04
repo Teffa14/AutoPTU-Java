@@ -4,10 +4,6 @@ import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.event.BattleEvent;
-import io.autoptu.core.hook.BuiltinDamageModifierHooks;
-import io.autoptu.core.hook.BuiltinEffectiveMoveHooks;
-import io.autoptu.core.hook.BuiltinPostDamageHooks;
-import io.autoptu.core.hook.BuiltinPreDamageReactionHooks;
 import io.autoptu.core.hook.DamageModifierHookContext;
 import io.autoptu.core.hook.DamageModifierHookRegistry;
 import io.autoptu.core.hook.DamageModifierHookResult;
@@ -15,8 +11,6 @@ import io.autoptu.core.hook.EffectiveMoveHookContext;
 import io.autoptu.core.hook.EffectiveMoveHookRegistry;
 import io.autoptu.core.hook.EffectiveMoveHookResult;
 import io.autoptu.core.hook.MoveSpecialHookRegistry;
-import io.autoptu.core.hook.PostDamageHookRegistry;
-import io.autoptu.core.hook.PreDamageReactionHookRegistry;
 import io.autoptu.core.model.AttackModifier;
 import io.autoptu.core.model.CombatantStatProfile;
 import io.autoptu.core.model.EvasionProfile;
@@ -42,15 +36,6 @@ import java.util.Set;
  * before delegating to BattleRuntime.
  */
 public final class RuntimeMoveResolution {
-    private static final EffectiveMoveHookRegistry EFFECTIVE_MOVE_HOOKS =
-            BuiltinEffectiveMoveHooks.standardRegistry();
-    private static final DamageModifierHookRegistry DAMAGE_MODIFIER_HOOKS =
-            BuiltinDamageModifierHooks.standardRegistry();
-    private static final PostDamageHookRegistry POST_DAMAGE_HOOKS =
-            BuiltinPostDamageHooks.standardRegistry();
-    private static final PreDamageReactionHookRegistry PRE_DAMAGE_HOOKS =
-            BuiltinPreDamageReactionHooks.registry();
-
     private RuntimeMoveResolution() {
     }
 
@@ -154,7 +139,7 @@ public final class RuntimeMoveResolution {
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
 
         EffectiveMoveHookResult effectiveMoveHooks = authoritativeEffectiveMoveHooks(
-                state, choice, move, actor, target, metadata);
+                state, choice, move, actor, target, metadata, dependencies.effectiveMoveHooks());
         MoveCombatProfile effectiveMetadata = effectiveMoveHooks.profile();
 
         MoveResolutionInput stateBoundInput = authoritativeStateBoundInput(
@@ -169,13 +154,14 @@ public final class RuntimeMoveResolution {
                 ignorePositiveDefenseStage
         );
         DamageModifierHookResult damageHooks = authoritativeDamageHooks(
-                state, choice, move, actor, target, effectiveMetadata);
+                state, choice, move, actor, target, effectiveMetadata, dependencies.damageModifierHooks());
         stateBoundInput = withModifiers(stateBoundInput, damageHooks.modifiers());
         MoveSpecialHookRegistry moveSpecialHooks = RuntimeMoveSpecialHooks.standardRegistry(move, effectiveMetadata);
         return BattleRuntime.applyAuthoritativeMove(state, choice, move, actorSize, targetSize,
                 lineOfSightBlockers, source, rng, stateBoundInput,
                 combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
-                moveSpecialHooks, PRE_DAMAGE_HOOKS, POST_DAMAGE_HOOKS, effectiveMetadata, dependencies);
+                moveSpecialHooks, dependencies.preDamageReactionHooks(), dependencies.postDamageHooks(),
+                effectiveMetadata, dependencies);
     }
 
     /**
@@ -305,7 +291,7 @@ public final class RuntimeMoveResolution {
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
 
         EffectiveMoveHookResult effectiveMoveHooks = authoritativeEffectiveMoveHooks(
-                state, choice, move, actor, target, metadata);
+                state, choice, move, actor, target, metadata, dependencies.effectiveMoveHooks());
         MoveCombatProfile effectiveMetadata = effectiveMoveHooks.profile();
         MoveResolutionInput stateBoundInput = authoritativeStateBoundInput(
                 state,
@@ -319,7 +305,7 @@ public final class RuntimeMoveResolution {
                 ignorePositiveDefenseStage
         );
         DamageModifierHookResult damageHooks = authoritativeDamageHooks(
-                state, choice, move, actor, target, effectiveMetadata);
+                state, choice, move, actor, target, effectiveMetadata, dependencies.damageModifierHooks());
         stateBoundInput = withModifiers(stateBoundInput, damageHooks.modifiers());
 
         return BattleRuntime.applyDelayedAuthoritativeMove(
@@ -329,7 +315,7 @@ public final class RuntimeMoveResolution {
                 rng,
                 stateBoundInput,
                 combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
-                POST_DAMAGE_HOOKS,
+                dependencies.postDamageHooks(),
                 effectiveMetadata,
                 dependencies
         );
@@ -351,7 +337,7 @@ public final class RuntimeMoveResolution {
         RuntimeCombatantState actor = state.requireCombatant(choice.actorId());
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
         EffectiveMoveHookResult effectiveMoveHooks = authoritativeEffectiveMoveHooks(
-                state, choice, move, actor, target, metadata);
+                state, choice, move, actor, target, metadata, dependencies.effectiveMoveHooks());
         MoveCombatProfile effectiveMetadata = effectiveMoveHooks.profile();
         MoveResolutionInput stateBoundInput = authoritativeStateBoundInput(
                 state,
@@ -365,7 +351,7 @@ public final class RuntimeMoveResolution {
                 ignorePositiveDefenseStage
         );
         DamageModifierHookResult damageHooks = authoritativeDamageHooks(
-                state, choice, move, actor, target, effectiveMetadata);
+                state, choice, move, actor, target, effectiveMetadata, dependencies.damageModifierHooks());
         stateBoundInput = withModifiers(stateBoundInput, damageHooks.modifiers());
         return BattleRuntime.applyAuthoritativeAreaMoveTarget(
                 state,
@@ -376,8 +362,8 @@ public final class RuntimeMoveResolution {
                 rng,
                 stateBoundInput,
                 combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
-                PRE_DAMAGE_HOOKS,
-                POST_DAMAGE_HOOKS,
+                dependencies.preDamageReactionHooks(),
+                dependencies.postDamageHooks(),
                 effectiveMetadata,
                 dependencies
         );
@@ -430,9 +416,10 @@ public final class RuntimeMoveResolution {
             MoveOption move,
             RuntimeCombatantState actor,
             RuntimeCombatantState target,
-            MoveCombatProfile metadata
+            MoveCombatProfile metadata,
+            EffectiveMoveHookRegistry hookRegistry
     ) {
-        return EFFECTIVE_MOVE_HOOKS.resolve(new EffectiveMoveHookContext(
+        return hookRegistry.resolve(new EffectiveMoveHookContext(
                 state,
                 choice.actorId(),
                 choice.targetId(),
@@ -460,7 +447,8 @@ public final class RuntimeMoveResolution {
             MoveOption move,
             RuntimeCombatantState actor,
             RuntimeCombatantState target,
-            MoveCombatProfile metadata
+            MoveCombatProfile metadata,
+            DamageModifierHookRegistry hookRegistry
     ) {
         ArrayList<AttackModifier> resolved = new ArrayList<>();
         for (AttackModifier modifier : actor.damageModifiers()) {
@@ -475,7 +463,7 @@ public final class RuntimeMoveResolution {
                 move,
                 metadata
         );
-        DamageModifierHookResult hookResult = DAMAGE_MODIFIER_HOOKS.resolve(hookContext);
+        DamageModifierHookResult hookResult = hookRegistry.resolve(hookContext);
         resolved.addAll(hookResult.modifiers());
         return DamageModifierHookResult.of(resolved, hookResult.events());
     }
