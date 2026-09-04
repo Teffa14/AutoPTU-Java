@@ -74,6 +74,7 @@ final class RuntimePostHitForcedMovementApplication {
                     state,
                     choice.targetId(),
                     targetRuleContent,
+                    dependencies,
                     ignored -> { }
             );
             events.addAll(landing.orderedEvents());
