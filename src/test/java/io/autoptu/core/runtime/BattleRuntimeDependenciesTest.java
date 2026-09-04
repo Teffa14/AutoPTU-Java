@@ -2,6 +2,7 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.hook.DamageModifierHookRegistry;
 import io.autoptu.core.hook.EffectiveMoveHookRegistry;
+import io.autoptu.core.hook.MoveSpecialHookRegistry;
 import io.autoptu.core.hook.PostDamageHookRegistry;
 import io.autoptu.core.hook.PreDamageReactionHookRegistry;
 import io.autoptu.core.hook.StatusApplicationHookRegistry;
@@ -19,6 +20,8 @@ final class BattleRuntimeDependenciesTest {
         DamageModifierHookRegistry damageModifier = DamageModifierHookRegistry.builder().build();
         PreDamageReactionHookRegistry preDamage = PreDamageReactionHookRegistry.builder().build();
         PostDamageHookRegistry postDamage = PostDamageHookRegistry.builder().build();
+        MoveSpecialHookRegistryFactory moveSpecialFactory = (move, profile, statusHooks) ->
+                MoveSpecialHookRegistry.builder().build();
 
         BattleRuntimeDependencies dependencies = new BattleRuntimeDependencies(
                 content,
@@ -27,7 +30,8 @@ final class BattleRuntimeDependenciesTest {
                 effectiveMove,
                 damageModifier,
                 preDamage,
-                postDamage
+                postDamage,
+                moveSpecialFactory
         );
 
         assertSame(content, dependencies.combatantRuleContent());
@@ -37,5 +41,6 @@ final class BattleRuntimeDependenciesTest {
         assertSame(damageModifier, dependencies.damageModifierHooks());
         assertSame(preDamage, dependencies.preDamageReactionHooks());
         assertSame(postDamage, dependencies.postDamageHooks());
+        assertSame(moveSpecialFactory, dependencies.moveSpecialHookRegistryFactory());
     }
 }
