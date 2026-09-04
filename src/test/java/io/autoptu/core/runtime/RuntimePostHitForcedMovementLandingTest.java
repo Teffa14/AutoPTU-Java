@@ -80,7 +80,7 @@ class RuntimePostHitForcedMovementLandingTest {
         AtomicBoolean statusObserved = new AtomicBoolean(false);
         StatusApplicationHookRegistry statusHooks = StatusApplicationHookRegistry.builder()
                 .register("integration-probe", HookSource.STATUS, 1, context -> {
-                    if (context.targetId().equals("target") && context.status().name().equals("Slowed")) {
+                    if (context.targetId().equals("target") && context.status().name().equals("slowed")) {
                         statusObserved.set(true);
                     }
                     return StatusApplicationHookResult.allow();
@@ -184,16 +184,17 @@ class RuntimePostHitForcedMovementLandingTest {
     ) {
         return new MoveChoice(
                 source.combatantId(), move.moveId(), ChoiceTargetMode.COMBATANT,
-                target.combatantId(), target.position(), move.actionType()
+                target.combatantId(), target.position(), ActionType.STANDARD
         );
     }
 
     private static RuntimeCombatantState combatant(String id, int x, int y) {
         return new RuntimeCombatantState(
                 id,
-                MovementProfile.walking(new GridCoord(x, y), 6),
                 20,
-                20,
+                new GridCoord(x, y),
+                new MovementProfile(6, 0, 0, 1, false, false, false),
+                "Medium",
                 new ActionBudget()
         );
     }
