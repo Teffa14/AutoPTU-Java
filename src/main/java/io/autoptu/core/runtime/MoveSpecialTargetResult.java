@@ -32,6 +32,23 @@ record MoveSpecialTargetResult(
         return new MoveSpecialTargetResult(result.actionResult(), result.resultSnapshot(), result.damageDealt());
     }
 
+    static MoveSpecialTargetResult fromAppliedOutcome(
+            AppliedActionResult actionResult,
+            Map<String, ?> resultSnapshot,
+            boolean hit,
+            int targetHpBefore,
+            RuntimeCombatantState target
+    ) {
+        Objects.requireNonNull(actionResult, "actionResult");
+        Objects.requireNonNull(target, "target");
+        if (targetHpBefore < 0) throw new IllegalArgumentException("targetHpBefore must be non-negative");
+
+        LinkedHashMap<String, Object> snapshot = new LinkedHashMap<>();
+        if (resultSnapshot != null) resultSnapshot.forEach(snapshot::put);
+        int appliedDamage = hit ? Math.max(0, targetHpBefore - target.hp()) : 0;
+        return new MoveSpecialTargetResult(actionResult, snapshot, appliedDamage);
+    }
+
     List<BattleEvent> events() {
         return actionResult.events();
     }
