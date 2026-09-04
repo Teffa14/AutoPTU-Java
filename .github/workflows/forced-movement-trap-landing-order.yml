@@ -34,6 +34,13 @@ jobs:
           ref: 16d228efa63aabecb67fa788959a359aac7f8f03
           path: python-oracle
 
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
       - name: Freeze forced movement to trap landing order
         run: |
           python3 -m py_compile tools/python/export_forced_movement_trap_landing_order.py
@@ -43,4 +50,4 @@ jobs:
           cat build/oracle/forced-movement-trap-landing-order.tsv
 
       - name: Verify Java landing consequences and public hazard events
-        run: ./gradlew test --tests 'io.autoptu.core.runtime.RuntimePostHitForcedMovementLandingTest'
+        run: gradle test --tests 'io.autoptu.core.runtime.RuntimePostHitForcedMovementLandingTest'
