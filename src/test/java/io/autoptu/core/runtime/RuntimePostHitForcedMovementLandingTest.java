@@ -132,6 +132,6 @@ class RuntimePostHitForcedMovementLandingTest {
 
     private static RuntimeCombatantState combatant(String id, int x, int y) {
         GridCoord position = new GridCoord(x, y);
-        return new RuntimeCombatantState(id, 20, position, MovementProfile.walking(position, 6), "Medium", new ActionBudget());
+        return new RuntimeCombatantState(id, MovementProfile.walking(position, 6), 20, 20, new ActionBudget());
     }
 }
