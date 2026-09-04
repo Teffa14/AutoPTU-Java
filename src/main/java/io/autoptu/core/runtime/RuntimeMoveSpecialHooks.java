@@ -12,6 +12,23 @@ import java.util.Objects;
 final class RuntimeMoveSpecialHooks {
     private RuntimeMoveSpecialHooks() {}
 
+    /**
+     * Compatibility seam for runtime-package callers that do not yet receive explicit dependencies.
+     * The default status registry still comes from the canonical runtime composition root instead
+     * of being constructed independently here.
+     */
+    @Deprecated(forRemoval = true)
+    static MoveSpecialHookRegistry standardRegistry(
+            MoveOption move,
+            MoveCombatProfile effectiveProfile
+    ) {
+        return standardRegistry(
+                move,
+                effectiveProfile,
+                BattleRuntimeDependencies.empty().statusApplicationHooks()
+        );
+    }
+
     static MoveSpecialHookRegistry standardRegistry(
             MoveOption move,
             MoveCombatProfile effectiveProfile,
