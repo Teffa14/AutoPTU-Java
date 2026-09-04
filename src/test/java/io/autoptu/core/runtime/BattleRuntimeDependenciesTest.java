@@ -14,7 +14,7 @@ final class BattleRuntimeDependenciesTest {
     void preservesInjectedMoveAndDamageHookRegistries() {
         CombatantRuleContentRegistry content = CombatantRuleContentRegistry.empty();
         StatusApplicationHookRegistry status = StatusApplicationHookRegistry.builder().build();
-        MovementLandingHookRegistry landing = MovementLandingHookRegistry.builder().build();
+        MovementLandingHookRegistry landing = new MovementLandingHookRegistry();
         EffectiveMoveHookRegistry effectiveMove = EffectiveMoveHookRegistry.builder().build();
         DamageModifierHookRegistry damageModifier = DamageModifierHookRegistry.builder().build();
         PreDamageReactionHookRegistry preDamage = PreDamageReactionHookRegistry.builder().build();
