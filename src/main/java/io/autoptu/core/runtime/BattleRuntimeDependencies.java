@@ -13,7 +13,8 @@ import io.autoptu.core.hook.StatusApplicationHookRegistry;
  */
 public record BattleRuntimeDependencies(
         CombatantRuleContentRegistry combatantRuleContent,
-        StatusApplicationHookRegistry statusApplicationHooks
+        StatusApplicationHookRegistry statusApplicationHooks,
+        MovementLandingHookRegistry movementLandingHooks
 ) {
     public BattleRuntimeDependencies {
         if (combatantRuleContent == null) {
@@ -22,20 +23,39 @@ public record BattleRuntimeDependencies(
         if (statusApplicationHooks == null) {
             throw new IllegalArgumentException("status application hook registry is required");
         }
+        if (movementLandingHooks == null) {
+            throw new IllegalArgumentException("movement landing hook registry is required");
+        }
+    }
+
+    /**
+     * Compatibility constructor for callers that supply canonical combatant content and status
+     * hooks. Built-in PTU movement-landing hooks remain part of the authoritative composition.
+     */
+    public BattleRuntimeDependencies(
+            CombatantRuleContentRegistry combatantRuleContent,
+            StatusApplicationHookRegistry statusApplicationHooks
+    ) {
+        this(combatantRuleContent, statusApplicationHooks, MovementLandingHookRegistry.standard());
     }
 
     /**
      * Compatibility constructor for callers that only supply canonical combatant content.
-     * Built-in PTU status hooks are still part of the authoritative runtime composition.
+     * Built-in PTU hook registries are still part of the authoritative runtime composition.
      */
     public BattleRuntimeDependencies(CombatantRuleContentRegistry combatantRuleContent) {
-        this(combatantRuleContent, BuiltinStatusApplicationHooks.registry());
+        this(
+                combatantRuleContent,
+                BuiltinStatusApplicationHooks.registry(),
+                MovementLandingHookRegistry.standard()
+        );
     }
 
     public static BattleRuntimeDependencies empty() {
         return new BattleRuntimeDependencies(
                 CombatantRuleContentRegistry.empty(),
-                BuiltinStatusApplicationHooks.registry()
+                BuiltinStatusApplicationHooks.registry(),
+                MovementLandingHookRegistry.standard()
         );
     }
 }
