@@ -1,8 +1,5 @@
 package io.autoptu.core.runtime;
 
-import io.autoptu.core.hook.BuiltinStatusApplicationHooks;
-import io.autoptu.core.hook.StatusApplicationHookRegistry;
-
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -11,13 +8,10 @@ import java.util.function.Consumer;
  *
  * <p>Movement producers supply only the combatant identity and canonical rule-content snapshot.
  * The core derives the post-movement position, tile hazards, affiliation and Naturewalk state,
- * resolves the generic landing registry, and applies the resulting mutations through the shared
+ * resolves the composed landing registry, and applies the resulting mutations through the shared
  * status/hazard boundaries. Adapters never decide whether an entry effect triggers.</p>
  */
 final class RuntimeMovementLandingApplication {
-    private static final MovementLandingHookRegistry LANDING_HOOKS = MovementLandingHookRegistry.standard();
-    private static final StatusApplicationHookRegistry STATUS_HOOKS = BuiltinStatusApplicationHooks.registry();
-
     private RuntimeMovementLandingApplication() {}
 
     static MovementLandingConsequenceExecutor.ExecutionResult apply(
@@ -26,8 +20,25 @@ final class RuntimeMovementLandingApplication {
             CombatantRuleContent ruleContent,
             Consumer<MovementLandingConsequenceExecutor.SemanticEvent> semanticEventSink
     ) {
+        return apply(
+                state,
+                combatantId,
+                ruleContent,
+                BattleRuntimeDependencies.empty(),
+                semanticEventSink
+        );
+    }
+
+    static MovementLandingConsequenceExecutor.ExecutionResult apply(
+            BattleRuntimeState state,
+            String combatantId,
+            CombatantRuleContent ruleContent,
+            BattleRuntimeDependencies dependencies,
+            Consumer<MovementLandingConsequenceExecutor.SemanticEvent> semanticEventSink
+    ) {
         Objects.requireNonNull(state, "state");
         Objects.requireNonNull(ruleContent, "ruleContent");
+        Objects.requireNonNull(dependencies, "dependencies");
         Objects.requireNonNull(semanticEventSink, "semanticEventSink");
         if (combatantId == null || combatantId.isBlank()) {
             throw new IllegalArgumentException("combatantId is required");
@@ -37,8 +48,8 @@ final class RuntimeMovementLandingApplication {
                 RuntimeMovementLandingContext.resolve(state, combatantId, ruleContent);
         return MovementLandingConsequenceExecutor.execute(
                 state,
-                STATUS_HOOKS,
-                LANDING_HOOKS.resolve(context),
+                dependencies.statusApplicationHooks(),
+                dependencies.movementLandingHooks().resolve(context),
                 semanticEventSink
         );
     }
