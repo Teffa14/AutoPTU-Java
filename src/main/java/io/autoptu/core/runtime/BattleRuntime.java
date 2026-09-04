@@ -335,9 +335,11 @@ public final class BattleRuntime {
         if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
         if (dependencies == null) throw new IllegalArgumentException("runtime dependencies are required");
         requireAreaResolvedCombatantChoice(state, choice, move);
+        MoveSpecialHookRegistry moveSpecialHookRegistry = dependencies.moveSpecialHookRegistryFactory().create(
+                move, effectiveMetadata, dependencies.statusApplicationHooks());
         return applyAuthoritativeMoveInternal(
                 state, choice, move, "", "", Set.of(), source,
-                rng, input, preResolutionEvents, RuntimeMoveSpecialHooks.standardRegistry(move, effectiveMetadata), preDamageHookRegistry,
+                rng, input, preResolutionEvents, moveSpecialHookRegistry, preDamageHookRegistry,
                 null, postDamageHookRegistry, effectiveMetadata, areaAnchor, false, true, false, dependencies
         );
     }
