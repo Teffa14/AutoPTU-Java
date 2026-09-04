@@ -41,3 +41,6 @@ jobs:
             --source-root python-oracle \
             --output build/oracle/forced-movement-trap-landing-order.tsv
           cat build/oracle/forced-movement-trap-landing-order.tsv
+
+      - name: Verify Java landing consequences and public hazard events
+        run: ./gradlew test --tests 'io.autoptu.core.runtime.RuntimePostHitForcedMovementLandingTest'
