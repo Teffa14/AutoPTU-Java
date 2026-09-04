@@ -34,6 +34,28 @@ final class MoveSpecialActionFinalization {
                 registry, state, attackerId, moveName, moveCategory, targetIds, transported);
     }
 
+    static AppliedActionResult finishSingleTarget(
+            MoveSpecialHookRegistry registry,
+            BattleRuntimeState state,
+            String attackerId,
+            String moveName,
+            String moveCategory,
+            String targetId,
+            MoveSpecialTargetResult targetResult
+    ) {
+        Objects.requireNonNull(targetResult, "targetResult");
+        MultiTargetAppliedActionResult finalized = finishTargetResults(
+                registry,
+                state,
+                attackerId,
+                moveName,
+                moveCategory,
+                List.of(Objects.requireNonNull(targetId, "targetId")),
+                List.of(targetResult)
+        );
+        return new AppliedActionResult(finalized.events());
+    }
+
     static MultiTargetAppliedActionResult finishTargetResults(
             MoveSpecialHookRegistry registry,
             BattleRuntimeState state,
