@@ -4,6 +4,9 @@ import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.event.TerrainHazardEvent;
+import io.autoptu.core.hook.HookSource;
+import io.autoptu.core.hook.StatusApplicationHookRegistry;
+import io.autoptu.core.hook.StatusApplicationHookResult;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveSpec;
@@ -15,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -58,6 +62,41 @@ class RuntimePostHitForcedMovementLandingTest {
         assertEquals(20, event.targetHp());
         assertEquals(landing, event.coordinate());
         assertEquals(Set.of("forest"), event.terrains());
+    }
+
+    @Test
+    void composedStatusHookRegistryIsUsedByForcedMovementLanding() {
+        RuntimeCombatantState source = combatant("source", 1, 1);
+        RuntimeCombatantState target = combatant("target", 2, 1);
+        MoveOption move = pushMove();
+        BattleRuntimeState state = state(source, target, move);
+        GridCoord landing = new GridCoord(4, 1);
+        state.putTileTrapFromRuntime(
+                landing,
+                new TileEntryTrapResolution.TrapLayer(
+                        "sticky_trap", 1, "trap-source", "red", Set.of("forest"), "Sticky Trap"
+                )
+        );
+        AtomicBoolean observed = new AtomicBoolean(false);
+        StatusApplicationHookRegistry hooks = StatusApplicationHookRegistry.builder()
+                .register("integration-probe", HookSource.STATUS, 1, context -> {
+                    if (context.targetId().equals("target") && context.status().name().equals("Slowed")) {
+                        observed.set(true);
+                    }
+                    return StatusApplicationHookResult.allow();
+                })
+                .build();
+        BattleRuntimeDependencies dependencies = new BattleRuntimeDependencies(
+                CombatantRuleContentRegistry.empty(), hooks
+        );
+
+        RuntimePostHitForcedMovementApplication.resolveWithSemanticEvents(
+                state, choice(source, target, move), true, dependencies
+        );
+
+        assertTrue(observed.get());
+        assertTrue(state.hasStatus("target", "Slowed"));
+        assertTrue(state.tileTrapsAt(landing).isEmpty());
     }
 
     @Test
