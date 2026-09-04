@@ -1,8 +1,5 @@
 package io.autoptu.core.runtime;
 
-import io.autoptu.core.hook.BuiltinStatusApplicationHooks;
-import io.autoptu.core.hook.StatusApplicationHookRegistry;
-
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -16,7 +13,6 @@ import java.util.function.Consumer;
  */
 final class RuntimeMovementLandingApplication {
     private static final MovementLandingHookRegistry LANDING_HOOKS = MovementLandingHookRegistry.standard();
-    private static final StatusApplicationHookRegistry STATUS_HOOKS = BuiltinStatusApplicationHooks.registry();
 
     private RuntimeMovementLandingApplication() {}
 
@@ -26,8 +22,25 @@ final class RuntimeMovementLandingApplication {
             CombatantRuleContent ruleContent,
             Consumer<MovementLandingConsequenceExecutor.SemanticEvent> semanticEventSink
     ) {
+        return apply(
+                state,
+                combatantId,
+                ruleContent,
+                BattleRuntimeDependencies.empty(),
+                semanticEventSink
+        );
+    }
+
+    static MovementLandingConsequenceExecutor.ExecutionResult apply(
+            BattleRuntimeState state,
+            String combatantId,
+            CombatantRuleContent ruleContent,
+            BattleRuntimeDependencies dependencies,
+            Consumer<MovementLandingConsequenceExecutor.SemanticEvent> semanticEventSink
+    ) {
         Objects.requireNonNull(state, "state");
         Objects.requireNonNull(ruleContent, "ruleContent");
+        Objects.requireNonNull(dependencies, "dependencies");
         Objects.requireNonNull(semanticEventSink, "semanticEventSink");
         if (combatantId == null || combatantId.isBlank()) {
             throw new IllegalArgumentException("combatantId is required");
@@ -37,7 +50,7 @@ final class RuntimeMovementLandingApplication {
                 RuntimeMovementLandingContext.resolve(state, combatantId, ruleContent);
         return MovementLandingConsequenceExecutor.execute(
                 state,
-                STATUS_HOOKS,
+                dependencies.statusApplicationHooks(),
                 LANDING_HOOKS.resolve(context),
                 semanticEventSink
         );
