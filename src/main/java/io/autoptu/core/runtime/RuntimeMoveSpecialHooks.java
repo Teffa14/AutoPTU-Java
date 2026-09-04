@@ -1,9 +1,9 @@
 package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.MoveOption;
-import io.autoptu.core.hook.BuiltinStatusApplicationHooks;
 import io.autoptu.core.hook.MoveSpecialHookRegistry;
 import io.autoptu.core.hook.MoveSpecialPhase;
+import io.autoptu.core.hook.StatusApplicationHookRegistry;
 import io.autoptu.core.model.MoveCombatProfile;
 
 import java.util.Objects;
@@ -14,10 +14,12 @@ final class RuntimeMoveSpecialHooks {
 
     static MoveSpecialHookRegistry standardRegistry(
             MoveOption move,
-            MoveCombatProfile effectiveProfile
+            MoveCombatProfile effectiveProfile,
+            StatusApplicationHookRegistry statusApplicationHooks
     ) {
         Objects.requireNonNull(move, "move");
         Objects.requireNonNull(effectiveProfile, "effectiveProfile");
+        Objects.requireNonNull(statusApplicationHooks, "statusApplicationHooks");
 
         return MoveSpecialHookRegistry.builder()
                 .registerGlobal(
@@ -25,7 +27,7 @@ final class RuntimeMoveSpecialHooks {
                         MoveSpecialPhase.POST_DAMAGE,
                         context -> MoveSpecialSecondaryStatusPostDamage.resolveAndApply(
                                 context.state(),
-                                BuiltinStatusApplicationHooks.registry(),
+                                statusApplicationHooks,
                                 context.attackerId(),
                                 context.defenderId(),
                                 move,
