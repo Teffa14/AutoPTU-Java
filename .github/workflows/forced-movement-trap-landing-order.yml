@@ -8,6 +8,9 @@ on:
       - 'src/main/java/io/autoptu/core/event/BattleEvent.java'
       - 'src/main/java/io/autoptu/core/event/BattleEventKind.java'
       - 'src/main/java/io/autoptu/core/event/TerrainHazardEvent.java'
+      - 'src/main/java/io/autoptu/core/runtime/BattleRuntime.java'
+      - 'src/main/java/io/autoptu/core/runtime/RuntimeMoveResolution.java'
+      - 'src/main/java/io/autoptu/core/runtime/DelayedHitBindingResolver.java'
       - 'src/main/java/io/autoptu/core/runtime/ForcedMovementApplication.java'
       - 'src/main/java/io/autoptu/core/runtime/RuntimePostHitForcedMovementApplication.java'
       - 'src/main/java/io/autoptu/core/runtime/RuntimeMovementLandingApplication.java'
@@ -16,6 +19,7 @@ on:
       - 'src/main/java/io/autoptu/core/runtime/MovementLandingConsequenceExecutor.java'
       - 'src/main/java/io/autoptu/core/runtime/TileEntryTrapResolution.java'
       - 'src/test/java/io/autoptu/core/runtime/RuntimePostHitForcedMovementLandingTest.java'
+      - 'src/test/java/io/autoptu/core/runtime/ForcedMovementLandingCrossProducerTest.java'
   push:
     branches:
       - main
@@ -50,4 +54,6 @@ jobs:
           cat build/oracle/forced-movement-trap-landing-order.tsv
 
       - name: Verify Java landing consequences and public hazard events
-        run: gradle test --tests 'io.autoptu.core.runtime.RuntimePostHitForcedMovementLandingTest'
+        run: |
+          gradle test --tests 'io.autoptu.core.runtime.RuntimePostHitForcedMovementLandingTest' \
+            --tests 'io.autoptu.core.runtime.ForcedMovementLandingCrossProducerTest'
