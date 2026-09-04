@@ -26,7 +26,8 @@ public record BattleRuntimeDependencies(
         EffectiveMoveHookRegistry effectiveMoveHooks,
         DamageModifierHookRegistry damageModifierHooks,
         PreDamageReactionHookRegistry preDamageReactionHooks,
-        PostDamageHookRegistry postDamageHooks
+        PostDamageHookRegistry postDamageHooks,
+        MoveSpecialHookRegistryFactory moveSpecialHookRegistryFactory
 ) {
     public BattleRuntimeDependencies {
         if (combatantRuleContent == null) throw new IllegalArgumentException("combatant rule content registry is required");
@@ -36,6 +37,29 @@ public record BattleRuntimeDependencies(
         if (damageModifierHooks == null) throw new IllegalArgumentException("damage modifier hook registry is required");
         if (preDamageReactionHooks == null) throw new IllegalArgumentException("pre-damage reaction hook registry is required");
         if (postDamageHooks == null) throw new IllegalArgumentException("post-damage hook registry is required");
+        if (moveSpecialHookRegistryFactory == null) throw new IllegalArgumentException("move-special hook registry factory is required");
+    }
+
+    /** Compatibility constructor for callers that compose move/damage registries explicitly. */
+    public BattleRuntimeDependencies(
+            CombatantRuleContentRegistry combatantRuleContent,
+            StatusApplicationHookRegistry statusApplicationHooks,
+            MovementLandingHookRegistry movementLandingHooks,
+            EffectiveMoveHookRegistry effectiveMoveHooks,
+            DamageModifierHookRegistry damageModifierHooks,
+            PreDamageReactionHookRegistry preDamageReactionHooks,
+            PostDamageHookRegistry postDamageHooks
+    ) {
+        this(
+                combatantRuleContent,
+                statusApplicationHooks,
+                movementLandingHooks,
+                effectiveMoveHooks,
+                damageModifierHooks,
+                preDamageReactionHooks,
+                postDamageHooks,
+                MoveSpecialHookRegistryFactory.standard()
+        );
     }
 
     /** Compatibility constructor for landing/status composition tests and callers. */
@@ -51,7 +75,8 @@ public record BattleRuntimeDependencies(
                 BuiltinEffectiveMoveHooks.standardRegistry(),
                 BuiltinDamageModifierHooks.standardRegistry(),
                 BuiltinPreDamageReactionHooks.registry(),
-                BuiltinPostDamageHooks.standardRegistry()
+                BuiltinPostDamageHooks.standardRegistry(),
+                MoveSpecialHookRegistryFactory.standard()
         );
     }
 
