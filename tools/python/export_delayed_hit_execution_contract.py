@@ -8,7 +8,10 @@ the defender's current position; target_position is the fallback when there is n
 defender. Area geometry is recomputed at maturity through affected_tiles, LoS
 filtering and footprint overlap rather than being frozen when the hit is scheduled.
 The effective target collector excludes combatants without positive HP but does not
-apply a generic active-state filter at this stage.
+apply a generic active-state filter at this stage. Re-entry also preserves the
+ordinary move-special phase pipeline, so delayed-hit maturity must not silently
+replace pre-damage, post-damage, or end-action move-special processing with an empty
+registry.
 """
 
 from __future__ import annotations
@@ -57,6 +60,19 @@ def keyword_names_for_call(fn, expected_call: str) -> set[str]:
             continue
         names.update(keyword.arg for keyword in node.keywords if keyword.arg)
     return names
+
+
+def literal_keyword_values_for_call(fn, expected_call: str, expected_keyword: str) -> set[str]:
+    values: set[str] = set()
+    for node in ast.walk(function_tree(fn)):
+        if not isinstance(node, ast.Call) or call_name(node) != expected_call:
+            continue
+        for keyword in node.keywords:
+            if keyword.arg != expected_keyword:
+                continue
+            if isinstance(keyword.value, ast.Constant) and isinstance(keyword.value.value, str):
+                values.add(keyword.value.value)
+    return values
 
 
 def target_position_rewrites_move_to_tile(fn) -> bool:
@@ -170,6 +186,11 @@ def main() -> int:
     delayed_calls = call_names(resolve_delayed_hits)
     target_calls = call_names(BattleState.resolve_move_targets)
     forwarded = keyword_names_for_call(resolve_delayed_hits, "resolve_move_targets")
+    move_special_phases = literal_keyword_values_for_call(
+        BattleState.resolve_move_targets,
+        "handle_move_specials",
+        "phase",
+    )
     delayed_rewrites_tile = target_position_rewrites_move_to_tile(resolve_delayed_hits)
     target_resolution_rewrites_tile = target_position_rewrites_move_to_tile(BattleState.resolve_move_targets)
     uses_live_defender_position, uses_stored_position_fallback = resolved_target_position_contract(
@@ -180,13 +201,16 @@ def main() -> int:
     area_uses_los = "line_of_sight_clear" in target_calls
     target_id_priority = target_id_is_prioritized_for_area_resolution(BattleState.resolve_move_targets)
     filters_nonpositive_hp, filters_inactive = area_target_eligibility_contract(BattleState.resolve_move_targets)
+    runs_move_special_pre_damage = "pre_damage" in move_special_phases
+    runs_move_special_post_damage = "post_damage" in move_special_phases
+    runs_move_special_end_action = "end_action" in move_special_phases
 
     print("--- PINNED resolve_delayed_hits ---")
     print(inspect.getsource(resolve_delayed_hits))
     print("--- PINNED BattleState.resolve_move_targets ---")
     print(inspect.getsource(BattleState.resolve_move_targets))
 
-    # Fail loudly if Python changes this execution or target-geometry boundary.
+    # Fail loudly if Python changes this execution, target-geometry, or move-special boundary.
     assert "resolve_move_targets" in delayed_calls
     assert "resolve_move_action" not in delayed_calls
     assert "target_id" in forwarded
@@ -202,6 +226,9 @@ def main() -> int:
     assert target_id_priority
     assert filters_nonpositive_hp
     assert not filters_inactive
+    assert runs_move_special_pre_damage
+    assert runs_move_special_post_damage
+    assert runs_move_special_end_action
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -223,6 +250,9 @@ def main() -> int:
                 "1" if uses_stored_position_fallback else "0",
                 "1" if filters_nonpositive_hp else "0",
                 "1" if filters_inactive else "0",
+                "1" if runs_move_special_pre_damage else "0",
+                "1" if runs_move_special_post_damage else "0",
+                "1" if runs_move_special_end_action else "0",
             ]
         )
         + "\n",

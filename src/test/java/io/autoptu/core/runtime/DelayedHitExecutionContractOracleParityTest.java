@@ -42,6 +42,9 @@ class DelayedHitExecutionContractOracleParityTest {
         assertTrue(asBool(parts[12]), "a missing defender must fall back to the stored target_position");
         assertTrue(asBool(parts[13]), "effective target collection must exclude non-positive HP combatants");
         assertFalse(asBool(parts[14]), "effective target collection must not invent a generic active-state filter");
+        assertTrue(asBool(parts[15]), "delayed-hit target re-entry must preserve move-special pre_damage");
+        assertTrue(asBool(parts[16]), "delayed-hit target re-entry must preserve move-special post_damage");
+        assertTrue(asBool(parts[17]), "delayed-hit target re-entry must preserve move-special end_action");
 
         DelayedHitExecutionPolicy policy = DelayedHitExecutionPolicy.targetResolution();
         assertEquals(DelayedHitExecutionPolicy.EntryPoint.TARGET_RESOLUTION, policy.entryPoint());
