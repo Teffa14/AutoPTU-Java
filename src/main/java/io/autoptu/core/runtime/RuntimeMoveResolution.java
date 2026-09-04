@@ -156,7 +156,8 @@ public final class RuntimeMoveResolution {
         DamageModifierHookResult damageHooks = authoritativeDamageHooks(
                 state, choice, move, actor, target, effectiveMetadata, dependencies.damageModifierHooks());
         stateBoundInput = withModifiers(stateBoundInput, damageHooks.modifiers());
-        MoveSpecialHookRegistry moveSpecialHooks = RuntimeMoveSpecialHooks.standardRegistry(move, effectiveMetadata);
+        MoveSpecialHookRegistry moveSpecialHooks = dependencies.moveSpecialHookRegistryFactory().create(
+                move, effectiveMetadata, dependencies.statusApplicationHooks());
         return BattleRuntime.applyAuthoritativeMove(state, choice, move, actorSize, targetSize,
                 lineOfSightBlockers, source, rng, stateBoundInput,
                 combineEvents(effectiveMoveHooks.events(), damageHooks.events()),
