@@ -65,7 +65,7 @@ class RuntimePostHitForcedMovementLandingTest {
     }
 
     @Test
-    void composedStatusHookRegistryIsUsedByForcedMovementLanding() {
+    void composedHookRegistriesAreUsedByForcedMovementLanding() {
         RuntimeCombatantState source = combatant("source", 1, 1);
         RuntimeCombatantState target = combatant("target", 2, 1);
         MoveOption move = pushMove();
@@ -77,24 +77,35 @@ class RuntimePostHitForcedMovementLandingTest {
                         "sticky_trap", 1, "trap-source", "red", Set.of("forest"), "Sticky Trap"
                 )
         );
-        AtomicBoolean observed = new AtomicBoolean(false);
-        StatusApplicationHookRegistry hooks = StatusApplicationHookRegistry.builder()
+        AtomicBoolean statusObserved = new AtomicBoolean(false);
+        StatusApplicationHookRegistry statusHooks = StatusApplicationHookRegistry.builder()
                 .register("integration-probe", HookSource.STATUS, 1, context -> {
                     if (context.targetId().equals("target") && context.status().name().equals("Slowed")) {
-                        observed.set(true);
+                        statusObserved.set(true);
                     }
                     return StatusApplicationHookResult.allow();
                 })
                 .build();
+        AtomicBoolean landingObserved = new AtomicBoolean(false);
+        MovementLandingHookRegistry landingHooks = MovementLandingHookRegistry.standard()
+                .register(
+                        MovementLandingHookRegistry.HookFamily.TILE_TRAP,
+                        "integration_probe",
+                        context -> {
+                            landingObserved.set(true);
+                            return List.of();
+                        }
+                );
         BattleRuntimeDependencies dependencies = new BattleRuntimeDependencies(
-                CombatantRuleContentRegistry.empty(), hooks
+                CombatantRuleContentRegistry.empty(), statusHooks, landingHooks
         );
 
         RuntimePostHitForcedMovementApplication.resolveWithSemanticEvents(
                 state, choice(source, target, move), true, dependencies
         );
 
-        assertTrue(observed.get());
+        assertTrue(landingObserved.get());
+        assertTrue(statusObserved.get());
         assertTrue(state.hasStatus("target", "Slowed"));
         assertTrue(state.tileTrapsAt(landing).isEmpty());
     }
