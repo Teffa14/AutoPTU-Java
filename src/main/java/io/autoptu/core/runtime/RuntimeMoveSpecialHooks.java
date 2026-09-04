@@ -1,7 +1,6 @@
 package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.MoveOption;
-import io.autoptu.core.hook.BuiltinStatusApplicationHooks;
 import io.autoptu.core.hook.MoveSpecialHookRegistry;
 import io.autoptu.core.hook.MoveSpecialPhase;
 import io.autoptu.core.hook.StatusApplicationHookRegistry;
@@ -14,15 +13,20 @@ final class RuntimeMoveSpecialHooks {
     private RuntimeMoveSpecialHooks() {}
 
     /**
-     * Internal compatibility seam for legacy runtime-package tests/callers.
-     * Production authoritative composition must use the explicit status-hook overload below.
+     * Compatibility seam for runtime-package callers that do not yet receive explicit dependencies.
+     * The default status registry still comes from the canonical runtime composition root instead
+     * of being constructed independently here.
      */
     @Deprecated(forRemoval = true)
     static MoveSpecialHookRegistry standardRegistry(
             MoveOption move,
             MoveCombatProfile effectiveProfile
     ) {
-        return standardRegistry(move, effectiveProfile, BuiltinStatusApplicationHooks.registry());
+        return standardRegistry(
+                move,
+                effectiveProfile,
+                BattleRuntimeDependencies.empty().statusApplicationHooks()
+        );
     }
 
     static MoveSpecialHookRegistry standardRegistry(
