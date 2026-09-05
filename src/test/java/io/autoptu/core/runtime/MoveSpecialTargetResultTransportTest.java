@@ -37,6 +37,26 @@ class MoveSpecialTargetResultTransportTest {
     }
 
     @Test
+    void preservesSnapshotAndDamageWhenLaterPipelineStagesReplaceTheActionResult() {
+        RuntimeCombatantState target = new RuntimeCombatantState(
+                "enemy", MovementProfile.walking(new GridCoord(2, 1), 3), 50, 50, new ActionBudget());
+        target.setHp(41);
+        LinkedHashMap<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("marker", "post_damage");
+        MoveSpecialTargetResult transported = MoveSpecialTargetResult.fromAppliedOutcome(
+                new AppliedActionResult(List.of()), snapshot, true, 50, target);
+        AppliedActionResult composed = new AppliedActionResult(List.of(
+                new StatusSkipEvent("actor", "forced-movement", TurnPhase.ACTION, "after_damage")));
+
+        MoveSpecialTargetResult recomposed = transported.withActionResult(composed);
+
+        assertEquals(composed.events(), recomposed.events());
+        assertEquals(9, recomposed.damageDealt());
+        assertEquals("post_damage", recomposed.resultSnapshot().get("marker"));
+        assertEquals(41, target.hp());
+    }
+
+    @Test
     void missCarriesZeroDamageEvenIfTargetHpChangedOutsideTheMove() {
         RuntimeCombatantState target = new RuntimeCombatantState(
                 "enemy", MovementProfile.walking(new GridCoord(2, 1), 3), 50, 50, new ActionBudget());
