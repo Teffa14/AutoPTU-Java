@@ -1,0 +1,41 @@
+name: PTU Evasion Rulebook Conformance
+
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/io/autoptu/core/rules/Calculations.java'
+      - 'src/main/java/io/autoptu/core/rules/StatResolution.java'
+      - 'src/main/java/io/autoptu/core/rules/EvasionResolution.java'
+      - 'src/test/java/io/autoptu/core/rules/EvasionResolutionRulebookConformanceTest.java'
+      - 'docs/RULEBOOK_DIVERGENCES.md'
+      - '.github/workflows/ptu-evasion-rulebook-conformance.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/main/java/io/autoptu/core/rules/Calculations.java'
+      - 'src/main/java/io/autoptu/core/rules/StatResolution.java'
+      - 'src/main/java/io/autoptu/core/rules/EvasionResolution.java'
+      - 'src/test/java/io/autoptu/core/rules/EvasionResolutionRulebookConformanceTest.java'
+      - 'docs/RULEBOOK_DIVERGENCES.md'
+      - '.github/workflows/ptu-evasion-rulebook-conformance.yml'
+
+jobs:
+  evasion-rulebook:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Verify PTU staged-stat Evasion rules
+        run: gradle test --tests io.autoptu.core.rules.EvasionResolutionRulebookConformanceTest --stacktrace
+
+      - name: Confirm divergence is registered
+        run: grep -F 'EV-001' docs/RULEBOOK_DIVERGENCES.md
