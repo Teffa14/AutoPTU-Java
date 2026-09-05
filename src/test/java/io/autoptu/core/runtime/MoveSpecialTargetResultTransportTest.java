@@ -57,6 +57,51 @@ class MoveSpecialTargetResultTransportTest {
     }
 
     @Test
+    void composesPreAndPostEventsWithoutLosingEndActionInputs() {
+        RuntimeCombatantState target = new RuntimeCombatantState(
+                "enemy", MovementProfile.walking(new GridCoord(2, 1), 3), 50, 50, new ActionBudget());
+        target.setHp(41);
+        LinkedHashMap<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("marker", "post_damage");
+        StatusSkipEvent moveResolved = new StatusSkipEvent(
+                "actor", "move-special", TurnPhase.ACTION, "resolved");
+        StatusSkipEvent forcedMovement = new StatusSkipEvent(
+                "actor", "forced-movement", TurnPhase.ACTION, "after_damage");
+        StatusSkipEvent postResult = new StatusSkipEvent(
+                "actor", "ability", TurnPhase.ACTION, "post_result");
+        StatusSkipEvent preDamage = new StatusSkipEvent(
+                "actor", "reaction", TurnPhase.ACTION, "pre_damage");
+        StatusSkipEvent preResolution = new StatusSkipEvent(
+                "actor", "targeting", TurnPhase.ACTION, "pre_resolution");
+        MoveSpecialTargetResult transported = MoveSpecialTargetResult.fromAppliedOutcome(
+                new AppliedActionResult(List.of(moveResolved)), snapshot, true, 50, target);
+
+        MoveSpecialTargetResult composed = transported
+                .appendEvents(List.of(forcedMovement))
+                .prependEvents(List.of(postResult))
+                .prependEvents(List.of(preDamage))
+                .prependEvents(List.of(preResolution));
+
+        assertEquals(
+                List.of(preResolution, preDamage, postResult, moveResolved, forcedMovement),
+                composed.events());
+        assertEquals(9, composed.damageDealt());
+        assertEquals("post_damage", composed.resultSnapshot().get("marker"));
+        assertEquals(41, target.hp());
+    }
+
+    @Test
+    void rejectsNullEventsDuringTransportComposition() {
+        MoveSpecialTargetResult transported = new MoveSpecialTargetResult(
+                new AppliedActionResult(List.of()), new LinkedHashMap<>(), 0);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> transported.prependEvents(java.util.Arrays.asList((StatusSkipEvent) null)));
+        assertThrows(IllegalArgumentException.class,
+                () -> transported.appendEvents(java.util.Arrays.asList((StatusSkipEvent) null)));
+    }
+
+    @Test
     void missCarriesZeroDamageEvenIfTargetHpChangedOutsideTheMove() {
         RuntimeCombatantState target = new RuntimeCombatantState(
                 "enemy", MovementProfile.walking(new GridCoord(2, 1), 3), 50, 50, new ActionBudget());
