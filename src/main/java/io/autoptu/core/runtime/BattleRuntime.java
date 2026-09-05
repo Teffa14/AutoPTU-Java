@@ -580,41 +580,41 @@ public final class BattleRuntime {
         }
 
         int targetHpBeforeOutcome = target.hp();
-        AppliedActionResult result = applyResolvedMoveOutcomeInternal(
+        AppliedActionResult resolvedOutcome = applyResolvedMoveOutcomeInternal(
                 state, choice, source, accuracy, damage, spendOrdinaryMoveResources);
-        if (accuracy.hit() && moveSpecialResultSnapshot != null) {
-            result = RuntimeMoveSpecialPostDamageApplication.resolveAfterAppliedOutcome(
-                    moveSpecialHookRegistry,
-                    state,
-                    choice,
-                    move.moveId(),
-                    moveSpecialCategory,
-                    moveSpecialResultSnapshot,
-                    true,
-                    targetHpBeforeOutcome,
-                    result
-            ).actionResult();
-        }
+        RuntimeMoveSpecialPostDamageApplication.Result postDamageResult =
+                RuntimeMoveSpecialPostDamageApplication.resolveAfterAppliedOutcome(
+                        moveSpecialHookRegistry,
+                        state,
+                        choice,
+                        move.moveId(),
+                        moveSpecialCategory,
+                        moveSpecialResultSnapshot,
+                        accuracy.hit(),
+                        targetHpBeforeOutcome,
+                        resolvedOutcome
+                );
+
+        List<? extends BattleEvent> forcedMovementEvents = List.of();
         if (accuracy.hit() && state.hasCanonicalMoves(choice.actorId())) {
             RuntimePostHitForcedMovementApplication.SemanticResolution forcedMovement =
                     RuntimePostHitForcedMovementApplication.resolveWithSemanticEvents(
                             state, choice, true, dependencies);
-            if (!forcedMovement.events().isEmpty()) {
-                ArrayList<BattleEvent> events = new ArrayList<>(result.events().size() + forcedMovement.events().size());
-                events.addAll(result.events());
-                events.addAll(forcedMovement.events());
-                result = new AppliedActionResult(events);
-            }
+            forcedMovementEvents = forcedMovement.events();
         }
-        if (accuracy.hit()) {
-            result = prependEvents(resolvedPostDamageHooks.events(), result);
-        }
-        result = prependEvents(preDamageEvents, result);
-        result = prependEvents(moveSpecialPreDamageEvents, result);
+
+        MoveSpecialTargetResult targetResult = RuntimeMoveSpecialTargetComposition.compose(
+                postDamageResult,
+                forcedMovementEvents,
+                accuracy.hit() ? resolvedPostDamageHooks.events() : List.of(),
+                preDamageEvents,
+                moveSpecialPreDamageEvents,
+                preResolutionEvents
+        );
         if (spendOrdinaryMoveResources) {
             actor.moveFrequencyUsage().recordUse(move);
         }
-        return prependEvents(preResolutionEvents, result);
+        return targetResult.actionResult();
     }
 
     public static AppliedActionResult applyRevalidatedResolvedMoveOutcome(
