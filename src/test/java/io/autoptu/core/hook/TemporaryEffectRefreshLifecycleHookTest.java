@@ -71,15 +71,17 @@ class TemporaryEffectRefreshLifecycleHookTest {
     }
 
     @Test
-    void builtinTurnEndUsesOrderedCleanupThenRefreshContracts() {
+    void builtinTurnEndUsesOrderedCleanupRefreshThenEffectBoundary() {
         List<LifecycleHookRegistry.Registration> hooks = BuiltinLifecycleHooks.registry().registrations().stream()
                 .filter(registration -> registration.point() == LifecycleHookPoint.TURN_END)
                 .toList();
 
-        assertEquals(List.of("turn-extra-action-cleanup", "turn-last-turn-round-refresh"),
-                hooks.stream().map(LifecycleHookRegistry.Registration::id).toList());
-        assertEquals(490, hooks.get(0).order());
-        assertEquals(500, hooks.get(1).order());
+        assertEquals(List.of(
+                        "turn-extra-action-cleanup",
+                        "turn-last-turn-round-refresh",
+                        "turn-end-effects"
+                ), hooks.stream().map(LifecycleHookRegistry.Registration::id).toList());
+        assertEquals(List.of(490, 500, 510), hooks.stream().map(LifecycleHookRegistry.Registration::order).toList());
 
         TemporaryEffectCleanupLifecycleHook cleanup = (TemporaryEffectCleanupLifecycleHook) hooks.get(0).hook();
         assertEquals(TemporaryEffectCleanupLifecycleHook.Scope.ACTOR, cleanup.scope());
@@ -88,6 +90,8 @@ class TemporaryEffectRefreshLifecycleHookTest {
         TemporaryEffectRefreshLifecycleHook refresh = (TemporaryEffectRefreshLifecycleHook) hooks.get(1).hook();
         assertEquals(TemporaryEffectRefreshLifecycleHook.Scope.ACTOR, refresh.scope());
         assertEquals("last_turn_round", refresh.effectName());
+
+        assertEquals(TurnEndEffectHook.class, hooks.get(2).hook().getClass());
     }
 
     private static LifecycleHookContext context(BattleRuntimeState state, int round, String actorId) {
