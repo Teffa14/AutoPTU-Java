@@ -186,7 +186,7 @@ public final class BuiltinLifecycleHooks {
                         HookSource.SYSTEM,
                         LifecycleHookPoint.TURN_END,
                         510,
-                        new TurnEndEffectHook(TurnEndEffectRegistry.builder().build())
+                        new TurnEndEffectHook(BuiltinTurnEndEffects.registry())
                 )
                 .build();
     }
