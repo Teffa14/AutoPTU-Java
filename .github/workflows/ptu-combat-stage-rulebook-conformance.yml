@@ -1,0 +1,41 @@
+name: PTU Combat Stage Rulebook Conformance
+
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/io/autoptu/core/rules/Calculations.java'
+      - 'src/test/java/io/autoptu/core/rules/CalculationsTest.java'
+      - 'docs/RULEBOOK_CONFORMANCE_AUDIT.md'
+      - 'docs/RULEBOOK_DIVERGENCES.md'
+      - '.github/workflows/ptu-combat-stage-rulebook-conformance.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/main/java/io/autoptu/core/rules/Calculations.java'
+      - 'src/test/java/io/autoptu/core/rules/CalculationsTest.java'
+      - 'docs/RULEBOOK_CONFORMANCE_AUDIT.md'
+      - 'docs/RULEBOOK_DIVERGENCES.md'
+      - '.github/workflows/ptu-combat-stage-rulebook-conformance.yml'
+
+jobs:
+  combat-stage-rulebook:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Verify PTU 1.05 and Kairos combat-stage table
+        run: gradle test --tests io.autoptu.core.rules.CalculationsTest --stacktrace
+
+      - name: Confirm divergence is documented while Python oracle remains stale
+        run: |
+          grep -F 'CS-001' docs/RULEBOOK_DIVERGENCES.md
+          grep -F 'PTU 1.05 combat stages: +20%' src/main/java/io/autoptu/core/rules/Calculations.java
