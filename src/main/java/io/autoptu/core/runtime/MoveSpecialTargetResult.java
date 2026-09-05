@@ -49,6 +49,14 @@ record MoveSpecialTargetResult(
         return new MoveSpecialTargetResult(actionResult, snapshot, appliedDamage);
     }
 
+    /**
+     * Replaces only the adapter-facing event result while preserving the post-damage snapshot
+     * and applied-damage bookkeeping needed by action-wide END_ACTION finalization.
+     */
+    MoveSpecialTargetResult withActionResult(AppliedActionResult nextActionResult) {
+        return new MoveSpecialTargetResult(nextActionResult, resultSnapshot, damageDealt);
+    }
+
     List<BattleEvent> events() {
         return actionResult.events();
     }
