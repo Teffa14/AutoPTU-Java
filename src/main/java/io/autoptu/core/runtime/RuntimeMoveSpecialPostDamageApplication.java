@@ -86,6 +86,15 @@ public final class RuntimeMoveSpecialPostDamageApplication {
             damageDealt = Math.max(0, damageDealt);
         }
 
+        /**
+         * Package-private bridge into the action-wide move-special transport. Keeping the
+         * conversion beside POST_DAMAGE prevents BattleRuntime callers from reconstructing the
+         * snapshot or applied-damage bookkeeping after the result has already been resolved.
+         */
+        MoveSpecialTargetResult targetResult() {
+            return MoveSpecialTargetResult.from(this);
+        }
+
         public List<BattleEvent> events() {
             return actionResult.events();
         }
