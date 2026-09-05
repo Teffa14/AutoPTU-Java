@@ -92,6 +92,25 @@ public final class TemporaryEffectStore {
         return removeIf(effectName, ignored -> true);
     }
 
+    /**
+     * Remove every occurrence and return immutable snapshots in original insertion order.
+     *
+     * <p>Some Python lifecycle rules inspect metadata from every member of an effect family
+     * before clearing that family. Returning the removed snapshots keeps that operation
+     * atomic at the server-owned state boundary and avoids content hooks reimplementing a
+     * read-then-remove sequence.</p>
+     */
+    public List<TemporaryEffectEntry> removeAllEntries(String effectName) {
+        String key = normalize(effectName);
+        ArrayList<TemporaryEffectEntry> removed = new ArrayList<>();
+        entries.removeIf(entry -> {
+            if (!entry.name().equals(key)) return false;
+            removed.add(entry);
+            return true;
+        });
+        return List.copyOf(removed);
+    }
+
     /** Remove only matching occurrences of one normalized effect family. */
     public int removeIf(String effectName, Predicate<TemporaryEffectEntry> predicate) {
         String key = normalize(effectName);
