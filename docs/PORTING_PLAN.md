@@ -2,7 +2,7 @@
 
 ## Goal
 
-Rebuild the AutoPTU battle core in Java while using the existing Python engine as an executable oracle.
+Rebuild the AutoPTU battle core in Java while using both the selected PTU rule profile and the existing Python engine as independent evidence sources.
 
 The Java runtime should eventually be usable directly by a Craftics/Cobblemon integration without shipping Python to end users.
 
@@ -28,16 +28,24 @@ The Java runtime should eventually be usable directly by a Craftics/Cobblemon in
 - PyInstaller and desktop launchers.
 - Minecraft rendering and Cobblemon entity integration.
 
-## Parity contract
+## Conformance and parity contract
 
-For a fixed input, content version, and RNG stream:
+Rules correctness and migration compatibility are separate checks.
+
+For a fixed rule profile, input, content version, and RNG stream:
 
 ```text
-Python AutoPTU -> ordered events -> final state
-Java AutoPTU   -> ordered events -> final state
+Selected PTU/Kairos/Caelo rule source -> normative expected behavior
+Python AutoPTU                      -> ordered events -> final state
+Java AutoPTU                        -> ordered events -> final state
 ```
 
-The Java implementation passes only when the normalized outputs match.
+A rule-bearing Java implementation is accepted only when:
+
+- it passes the selected rule-profile conformance fixture; and
+- its relationship to the pinned Python oracle is known and tested.
+
+If Python and the selected rule source disagree, do not silently reproduce the Python behavior. Record the divergence and implement the explicit project ruling/profile. See `docs/RULEBOOK_CONFORMANCE_AUDIT.md` and `docs/MIGRATION_AGENT_PROTOCOL.md`.
 
 ## Migration order
 
@@ -56,8 +64,11 @@ The Java implementation passes only when the normalized outputs match.
 
 ## Non-negotiable compatibility rules
 
+- Identify the selected rule profile and exact normative source before declaring rule-bearing work complete.
+- Do not collapse vanilla PTU, Kairos, Caelo, or another campaign profile into one implicit ruleset.
 - Never rely on Java collection iteration order accidentally. Use explicit ordering where Python behavior depends on ordering.
 - Never assume `java.util.Random` matches Python `random.Random`.
 - Make rounding points explicit and test them.
 - Preserve event order, not only final HP totals.
 - Data that can remain data should not be rewritten as Java code.
+- Python parity is not evidence that a PTU rule is correct when the applicable rulebook says otherwise.
