@@ -155,6 +155,13 @@ public final class BuiltinLifecycleHooks {
                         phaseEnvelope
                 )
                 .register(
+                        "global-temporary-phase-effects",
+                        HookSource.TEMPORARY_EFFECT,
+                        LifecycleHookPoint.PHASE_CHANGE,
+                        510,
+                        new GlobalTemporaryEffectPhaseHook(BuiltinGlobalTemporaryEffects.registry())
+                )
+                .register(
                         "turn-temporary-effect-cleanup",
                         HookSource.TEMPORARY_EFFECT,
                         LifecycleHookPoint.TURN_END,
