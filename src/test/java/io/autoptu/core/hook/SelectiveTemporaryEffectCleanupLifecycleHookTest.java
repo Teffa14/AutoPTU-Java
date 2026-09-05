@@ -29,7 +29,7 @@ class SelectiveTemporaryEffectCleanupLifecycleHookTest {
         hook(SelectiveTemporaryEffectCleanupLifecycleHook.Scope.ACTOR).apply(context(state(actor), "actor"));
 
         assertEquals(1, actor.temporaryEffects().getAll("terrain_alias").size());
-        assertEquals("Other Feature", actor.temporaryEffects().getAll("terrain_alias").getFirst().payload().get("feature"));
+        assertEquals("Other Feature", actor.temporaryEffects().getAll("terrain_alias").get(0).payload().get("feature"));
         assertEquals(1, actor.temporaryEffects().getAll("persistent_fixture").size());
     }
 
