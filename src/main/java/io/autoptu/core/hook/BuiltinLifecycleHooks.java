@@ -181,6 +181,13 @@ public final class BuiltinLifecycleHooks {
                                 (context, combatantId) -> Map.of("round", context.round())
                         )
                 )
+                .register(
+                        "turn-end-effects",
+                        HookSource.SYSTEM,
+                        LifecycleHookPoint.TURN_END,
+                        510,
+                        new TurnEndEffectHook(TurnEndEffectRegistry.builder().build())
+                )
                 .build();
     }
 }
