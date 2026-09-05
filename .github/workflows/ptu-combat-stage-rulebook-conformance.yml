@@ -4,7 +4,11 @@ on:
   pull_request:
     paths:
       - 'src/main/java/io/autoptu/core/rules/Calculations.java'
+      - 'src/main/java/io/autoptu/core/rules/StatResolution.java'
+      - 'src/main/java/io/autoptu/core/rules/StatusStatResolution.java'
       - 'src/test/java/io/autoptu/core/rules/CalculationsTest.java'
+      - 'src/test/java/io/autoptu/core/rules/StatResolutionTest.java'
+      - 'src/test/java/io/autoptu/core/rules/StatusStatResolutionTest.java'
       - 'docs/RULEBOOK_CONFORMANCE_AUDIT.md'
       - 'docs/RULEBOOK_DIVERGENCES.md'
       - '.github/workflows/ptu-combat-stage-rulebook-conformance.yml'
@@ -13,7 +17,11 @@ on:
       - main
     paths:
       - 'src/main/java/io/autoptu/core/rules/Calculations.java'
+      - 'src/main/java/io/autoptu/core/rules/StatResolution.java'
+      - 'src/main/java/io/autoptu/core/rules/StatusStatResolution.java'
       - 'src/test/java/io/autoptu/core/rules/CalculationsTest.java'
+      - 'src/test/java/io/autoptu/core/rules/StatResolutionTest.java'
+      - 'src/test/java/io/autoptu/core/rules/StatusStatResolutionTest.java'
       - 'docs/RULEBOOK_CONFORMANCE_AUDIT.md'
       - 'docs/RULEBOOK_DIVERGENCES.md'
       - '.github/workflows/ptu-combat-stage-rulebook-conformance.yml'
@@ -32,8 +40,13 @@ jobs:
           "$JAVA_HOME_21_X64/bin/java" -version
           gradle --version
 
-      - name: Verify PTU 1.05 and Kairos combat-stage table
-        run: gradle test --tests io.autoptu.core.rules.CalculationsTest --stacktrace
+      - name: Verify PTU 1.05 and Kairos combat-stage projections
+        run: |
+          gradle test \
+            --tests io.autoptu.core.rules.CalculationsTest \
+            --tests io.autoptu.core.rules.StatResolutionTest \
+            --tests io.autoptu.core.rules.StatusStatResolutionTest \
+            --stacktrace
 
       - name: Confirm divergence is documented while Python oracle remains stale
         run: |
