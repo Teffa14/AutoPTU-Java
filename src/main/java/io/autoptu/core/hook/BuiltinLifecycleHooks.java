@@ -98,15 +98,10 @@ public final class BuiltinLifecycleHooks {
                         HookSource.TEMPORARY_EFFECT,
                         LifecycleHookPoint.ROUND_START,
                         45,
-                        context -> {
-                            for (String combatantId : context.state().combatantIds()) {
-                                RuntimeCombatantState combatant = context.state().requireCombatant(combatantId);
-                                for (String effectName : ROUND_START_TEMPORARY_EFFECTS) {
-                                    combatant.temporaryEffects().removeAll(effectName);
-                                }
-                            }
-                            return LifecycleHookResult.empty();
-                        }
+                        new TemporaryEffectCleanupLifecycleHook(
+                                TemporaryEffectCleanupLifecycleHook.Scope.ALL_COMBATANTS,
+                                ROUND_START_TEMPORARY_EFFECTS
+                        )
                 )
                 .register(
                         "round-declared-action-cleanup",
