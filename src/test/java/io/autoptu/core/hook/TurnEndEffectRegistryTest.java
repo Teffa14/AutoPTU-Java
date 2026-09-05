@@ -87,6 +87,51 @@ class TurnEndEffectRegistryTest {
         assertEquals(List.of(490, 500, 510), hooks.stream().map(LifecycleHookRegistry.Registration::order).toList());
     }
 
+    @Test
+    void builtinAdaptiveGeographyRemovesOnlyActorsFeatureOwnedTerrainAlias() {
+        RuntimeCombatantState actor = combatant("actor", new GridCoord(0, 0));
+        RuntimeCombatantState other = combatant("other", new GridCoord(1, 0));
+        actor.temporaryEffects().add("terrain_alias", Map.of("feature", "Adaptive Geography", "terrain", "forest"));
+        actor.temporaryEffects().add("terrain_alias", Map.of("feature", "Other Feature", "terrain", "urban"));
+        actor.temporaryEffects().add("psychic_residue", Map.of("source", "Suggestion"));
+        other.temporaryEffects().add("terrain_alias", Map.of("feature", "Adaptive Geography", "terrain", "tundra"));
+        BattleRuntimeState state = state(actor, other);
+
+        LifecycleHookResult result = BuiltinTurnEndEffects.registry()
+                .resolve(context(state, "actor", LifecycleHookPoint.TURN_END));
+
+        assertEquals(1, actor.temporaryEffects().count("terrain_alias"));
+        assertEquals("Other Feature", actor.temporaryEffects().getAll("terrain_alias").get(0).payload().get("feature"));
+        assertEquals(1, actor.temporaryEffects().count("psychic_residue"));
+        assertEquals(1, other.temporaryEffects().count("terrain_alias"));
+        assertEquals(List.of(), result.events());
+    }
+
+    @Test
+    void builtinAdaptiveGeographyCleanupUsesPythonMetadataNormalization() {
+        RuntimeCombatantState actor = combatant("actor", new GridCoord(0, 0));
+        actor.temporaryEffects().add("terrain_alias", Map.of("feature", "  adaptive geography  ", "terrain", "forest"));
+        actor.temporaryEffects().add("terrain_alias", Map.of("terrain", "cave"));
+        BattleRuntimeState state = state(actor);
+
+        BuiltinTurnEndEffects.registry().resolve(context(state, "actor", LifecycleHookPoint.TURN_END));
+
+        assertEquals(1, actor.temporaryEffects().count("terrain_alias"));
+        assertEquals("cave", actor.temporaryEffects().getAll("terrain_alias").get(0).payload().get("terrain"));
+    }
+
+    @Test
+    void builtinAdaptiveGeographyIsFirstRegisteredTurnEndEffectFamily() {
+        assertEquals(List.of("adaptive-geography-terrain-alias-cleanup"),
+                BuiltinTurnEndEffects.registry().registrations().stream()
+                        .map(TurnEndEffectRegistry.Registration::id)
+                        .toList());
+        assertEquals(List.of(10),
+                BuiltinTurnEndEffects.registry().registrations().stream()
+                        .map(TurnEndEffectRegistry.Registration::order)
+                        .toList());
+    }
+
     private static LifecycleHookContext context(
             BattleRuntimeState state,
             String actorId,
