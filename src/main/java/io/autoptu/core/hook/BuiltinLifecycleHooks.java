@@ -6,7 +6,6 @@ import io.autoptu.core.runtime.DelayedHitRoundLifecycleHook;
 import io.autoptu.core.runtime.FieldRoundLifecycleHook;
 import io.autoptu.core.runtime.HeldItemRuleCatalog;
 import io.autoptu.core.runtime.RoundTemporaryEffectExpiryHook;
-import io.autoptu.core.runtime.RuntimeCombatantState;
 import io.autoptu.core.runtime.TrainerRuntimeState;
 
 import java.util.List;
@@ -162,17 +161,25 @@ public final class BuiltinLifecycleHooks {
                         new GlobalTemporaryEffectPhaseHook(BuiltinGlobalTemporaryEffects.registry())
                 )
                 .register(
-                        "turn-temporary-effect-cleanup",
+                        "turn-extra-action-cleanup",
+                        HookSource.TEMPORARY_EFFECT,
+                        LifecycleHookPoint.TURN_END,
+                        490,
+                        new TemporaryEffectCleanupLifecycleHook(
+                                TemporaryEffectCleanupLifecycleHook.Scope.ACTOR,
+                                List.of("extra_action")
+                        )
+                )
+                .register(
+                        "turn-last-turn-round-refresh",
                         HookSource.TEMPORARY_EFFECT,
                         LifecycleHookPoint.TURN_END,
                         500,
-                        context -> {
-                            RuntimeCombatantState actor = context.state().requireCombatant(context.actorId());
-                            actor.temporaryEffects().removeAll("extra_action");
-                            actor.temporaryEffects().removeAll("last_turn_round");
-                            actor.temporaryEffects().add("last_turn_round", Map.of("round", context.round()));
-                            return LifecycleHookResult.empty();
-                        }
+                        new TemporaryEffectRefreshLifecycleHook(
+                                TemporaryEffectRefreshLifecycleHook.Scope.ACTOR,
+                                "last_turn_round",
+                                (context, combatantId) -> Map.of("round", context.round())
+                        )
                 )
                 .build();
     }
