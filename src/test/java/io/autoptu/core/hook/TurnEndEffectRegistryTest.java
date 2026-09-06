@@ -1,6 +1,9 @@
 package io.autoptu.core.hook;
 
+import io.autoptu.core.action.MoveOption;
+import io.autoptu.core.event.BorrowMoveEndedEvent;
 import io.autoptu.core.model.GridCoord;
+import io.autoptu.core.model.MoveSpec;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
 import io.autoptu.core.model.TurnPhase;
@@ -15,9 +18,12 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TurnEndEffectRegistryTest {
+    private static final MoveSpec MOVE_SPEC = new MoveSpec("1 Target", "Melee", 1, 1, null, null, "Melee");
+
     @Test
     void resolvesActorAndGlobalEffectsInRegistrationOrderWithStableRosterTraversal() {
         RuntimeCombatantState actor = combatant("actor", new GridCoord(0, 0));
@@ -121,12 +127,63 @@ class TurnEndEffectRegistryTest {
     }
 
     @Test
-    void builtinAdaptiveGeographyIsFirstRegisteredTurnEndEffectFamily() {
-        assertEquals(List.of("adaptive-geography-terrain-alias-cleanup"),
-                BuiltinTurnEndEffects.registry().registrations().stream()
+    void builtinPsionicSpongeExpiresBorrowedMovesAndEmitsSortedSemanticEvent() {
+        RuntimeCombatantState actor = combatant("actor", new GridCoord(0, 0));
+        RuntimeCombatantState other = combatant("other", new GridCoord(1, 0));
+        actor.temporaryEffects().add("psionic_sponge_move", Map.of("name", " Psybeam "));
+        actor.temporaryEffects().add("psionic_sponge_move", Map.of("name", "CONFUSION"));
+        actor.temporaryEffects().add("psionic_sponge_move", Map.of("name", "confusion"));
+        actor.temporaryEffects().add("psionic_sponge_move", Map.of("name", ""));
+        other.temporaryEffects().add("psionic_sponge_move", Map.of("name", "Confusion"));
+        MoveOption tackle = move("Tackle");
+        MoveOption confusion = move("Confusion");
+        MoveOption psybeam = move("Psybeam");
+        BattleRuntimeState state = stateWithMoves(
+                Map.of(
+                        "actor", List.of(tackle, confusion, psybeam),
+                        "other", List.of(move("Confusion"))
+                ),
+                actor,
+                other
+        );
+
+        LifecycleHookResult result = BuiltinTurnEndEffects.registry()
+                .resolve(context(state, "actor", LifecycleHookPoint.TURN_END));
+
+        assertEquals(List.of(tackle), state.moveOptions("actor"));
+        assertEquals(0, actor.temporaryEffects().count("psionic_sponge_move"));
+        assertEquals(1, other.temporaryEffects().count("psionic_sponge_move"));
+        assertEquals(1, result.events().size());
+        BorrowMoveEndedEvent event = assertInstanceOf(BorrowMoveEndedEvent.class, result.events().get(0));
+        assertEquals("actor", event.combatantId());
+        assertEquals(List.of("confusion", "psybeam"), event.moves());
+    }
+
+    @Test
+    void builtinPsionicSpongeDrainsMetadataOnlyEntriesWithoutInventingEvent() {
+        RuntimeCombatantState actor = combatant("actor", new GridCoord(0, 0));
+        actor.temporaryEffects().add("psionic_sponge_move", Map.of("source", "Psionic Sponge"));
+        actor.temporaryEffects().add("psionic_sponge_move", Map.of("name", "   "));
+        MoveOption tackle = move("Tackle");
+        BattleRuntimeState state = stateWithMoves(Map.of("actor", List.of(tackle)), actor);
+
+        LifecycleHookResult result = BuiltinTurnEndEffects.registry()
+                .resolve(context(state, "actor", LifecycleHookPoint.TURN_END));
+
+        assertEquals(List.of(tackle), state.moveOptions("actor"));
+        assertEquals(0, actor.temporaryEffects().count("psionic_sponge_move"));
+        assertEquals(List.of(), result.events());
+    }
+
+    @Test
+    void builtinTurnEndEffectCatalogMatchesPythonFamilyOrder() {
+        assertEquals(List.of(
+                        "adaptive-geography-terrain-alias-cleanup",
+                        "psionic-sponge-borrowed-move-cleanup"
+                ), BuiltinTurnEndEffects.registry().registrations().stream()
                         .map(TurnEndEffectRegistry.Registration::id)
                         .toList());
-        assertEquals(List.of(10),
+        assertEquals(List.of(10, 20),
                 BuiltinTurnEndEffects.registry().registrations().stream()
                         .map(TurnEndEffectRegistry.Registration::order)
                         .toList());
@@ -159,11 +216,30 @@ class TurnEndEffectRegistryTest {
         );
     }
 
+    private static MoveOption move(String id) {
+        return MoveOption.standard(id, MOVE_SPEC);
+    }
+
     private static BattleRuntimeState state(RuntimeCombatantState... combatants) {
         return new BattleRuntimeState(
                 new MovementGrid(4, 4, Set.of(), Map.of()),
                 List.of(combatants),
                 Map.of()
+        );
+    }
+
+    private static BattleRuntimeState stateWithMoves(
+            Map<String, ? extends List<MoveOption>> moves,
+            RuntimeCombatantState... combatants
+    ) {
+        return new BattleRuntimeState(
+                new MovementGrid(4, 4, Set.of(), Map.of()),
+                List.of(combatants),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                moves
         );
     }
 }
