@@ -41,40 +41,126 @@ public final class RuntimeCombatantState {
     private List<String> abilities = List.of();
     private CombatantProfileIdentity profileIdentity;
 
-    public RuntimeCombatantState(String combatantId, MovementProfile movementProfile, int hp, int maxHp, ActionBudget actionBudget) {
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget
+    ) {
         this(combatantId, movementProfile, hp, maxHp, actionBudget, null, null, 0, false, false, false, false);
     }
 
-    public RuntimeCombatantState(String combatantId, MovementProfile movementProfile, int hp, int maxHp, ActionBudget actionBudget, CombatantStatProfile statProfile) {
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile
+    ) {
         this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, null, 0, false, false, false, false);
     }
 
-    public RuntimeCombatantState(String combatantId, MovementProfile movementProfile, int hp, int maxHp, ActionBudget actionBudget, CombatantStatProfile statProfile, EvasionProfile evasionProfile) {
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile
+    ) {
         this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, 0, false, false, false, false);
     }
 
-    public RuntimeCombatantState(String combatantId, MovementProfile movementProfile, int hp, int maxHp, ActionBudget actionBudget, CombatantStatProfile statProfile, EvasionProfile evasionProfile, int accuracyStage) {
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage
+    ) {
         this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, false, false, false, false);
     }
 
-    public RuntimeCombatantState(String combatantId, MovementProfile movementProfile, int hp, int maxHp, ActionBudget actionBudget, CombatantStatProfile statProfile, EvasionProfile evasionProfile, int accuracyStage, boolean sniper) {
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage,
+            boolean sniper
+    ) {
         this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, sniper, false, false, false);
     }
 
-    public RuntimeCombatantState(String combatantId, MovementProfile movementProfile, int hp, int maxHp, ActionBudget actionBudget, CombatantStatProfile statProfile, EvasionProfile evasionProfile, int accuracyStage, boolean sniper, boolean noGuard) {
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage,
+            boolean sniper,
+            boolean noGuard
+    ) {
         this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, sniper, noGuard, false, false);
     }
 
-    public RuntimeCombatantState(String combatantId, MovementProfile movementProfile, int hp, int maxHp, ActionBudget actionBudget, CombatantStatProfile statProfile, EvasionProfile evasionProfile, int accuracyStage, boolean sniper, boolean noGuard, boolean blur) {
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage,
+            boolean sniper,
+            boolean noGuard,
+            boolean blur
+    ) {
         this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, sniper, noGuard, blur, false);
     }
 
-    public RuntimeCombatantState(String combatantId, MovementProfile movementProfile, int hp, int maxHp, ActionBudget actionBudget, CombatantStatProfile statProfile, EvasionProfile evasionProfile, int accuracyStage, boolean sniper, boolean noGuard, boolean blur, boolean probabilityControl) {
-        if (combatantId == null || combatantId.isBlank()) throw new IllegalArgumentException("combatantId is required");
-        if (movementProfile == null) throw new IllegalArgumentException("movementProfile is required");
-        if (maxHp <= 0) throw new IllegalArgumentException("maxHp must be positive");
-        if (hp < 0 || hp > maxHp) throw new IllegalArgumentException("hp must be between 0 and maxHp");
-        if (actionBudget == null) throw new IllegalArgumentException("actionBudget is required");
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage,
+            boolean sniper,
+            boolean noGuard,
+            boolean blur,
+            boolean probabilityControl
+    ) {
+        if (combatantId == null || combatantId.isBlank()) {
+            throw new IllegalArgumentException("combatantId is required");
+        }
+        if (movementProfile == null) {
+            throw new IllegalArgumentException("movementProfile is required");
+        }
+        if (maxHp <= 0) {
+            throw new IllegalArgumentException("maxHp must be positive");
+        }
+        if (hp < 0 || hp > maxHp) {
+            throw new IllegalArgumentException("hp must be between 0 and maxHp");
+        }
+        if (actionBudget == null) {
+            throw new IllegalArgumentException("actionBudget is required");
+        }
         this.combatantId = combatantId;
         this.profileIdentity = CombatantProfileIdentity.fromCombatantId(combatantId);
         this.movementProfile = movementProfile;
@@ -91,59 +177,239 @@ public final class RuntimeCombatantState {
         this.probabilityControl = probabilityControl;
     }
 
-    public RuntimeCombatantState(String combatantId, MovementProfile movementProfile, int hp, int maxHp, ActionBudget actionBudget, CombatantStatProfile statProfile, EvasionProfile evasionProfile, int accuracyStage, boolean sniper, boolean noGuard, boolean blur, boolean probabilityControl, List<String> types) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, sniper, noGuard, blur, probabilityControl);
+    /**
+     * Full authoritative constructor used by the Minecraft/Cobblemon adapter when
+     * materializing battle state from trusted content. Type names preserve Python
+     * oracle casing because PTU type lookup is intentionally case-sensitive.
+     */
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage,
+            boolean sniper,
+            boolean noGuard,
+            boolean blur,
+            boolean probabilityControl,
+            List<String> types
+    ) {
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile,
+                accuracyStage, sniper, noGuard, blur, probabilityControl);
         this.types = normalizeNames(types);
     }
 
-    public RuntimeCombatantState(String combatantId, MovementProfile movementProfile, int hp, int maxHp, ActionBudget actionBudget, CombatantStatProfile statProfile, EvasionProfile evasionProfile, int accuracyStage, boolean sniper, boolean noGuard, boolean blur, boolean probabilityControl, List<String> types, List<AttackModifier> damageModifiers) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, sniper, noGuard, blur, probabilityControl, types, damageModifiers, List.of());
+    /**
+     * Transitional authoritative constructor for pre-damage AttackContext modifiers.
+     * The list is server-owned and copied defensively. Hook registries can replace
+     * this resolved projection without changing the Minecraft-facing move boundary.
+     */
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage,
+            boolean sniper,
+            boolean noGuard,
+            boolean blur,
+            boolean probabilityControl,
+            List<String> types,
+            List<AttackModifier> damageModifiers
+    ) {
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile,
+                accuracyStage, sniper, noGuard, blur, probabilityControl, types,
+                damageModifiers, List.of());
     }
 
-    public RuntimeCombatantState(String combatantId, MovementProfile movementProfile, int hp, int maxHp, ActionBudget actionBudget, CombatantStatProfile statProfile, EvasionProfile evasionProfile, int accuracyStage, boolean sniper, boolean noGuard, boolean blur, boolean probabilityControl, List<String> types, List<AttackModifier> damageModifiers, List<String> abilities) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, sniper, noGuard, blur, probabilityControl, types);
+    /**
+     * Full current combatant snapshot including canonical ability identities.
+     * Ability hooks read this server-owned list; clients may render abilities but
+     * cannot grant one by naming it in an action request.
+     */
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage,
+            boolean sniper,
+            boolean noGuard,
+            boolean blur,
+            boolean probabilityControl,
+            List<String> types,
+            List<AttackModifier> damageModifiers,
+            List<String> abilities
+    ) {
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile,
+                accuracyStage, sniper, noGuard, blur, probabilityControl, types);
         this.damageModifiers = normalizeDamageModifiers(damageModifiers);
         this.abilities = normalizeNames(abilities);
     }
 
-    public RuntimeCombatantState(String combatantId, MovementProfile movementProfile, int hp, int maxHp, ActionBudget actionBudget, CombatantStatProfile statProfile, EvasionProfile evasionProfile, int accuracyStage, boolean sniper, boolean noGuard, boolean blur, boolean probabilityControl, List<String> types, List<AttackModifier> damageModifiers, List<String> abilities, CombatantProfileIdentity profileIdentity) {
-        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile, accuracyStage, sniper, noGuard, blur, probabilityControl, types, damageModifiers, abilities);
-        this.profileIdentity = profileIdentity == null ? CombatantProfileIdentity.fromCombatantId(combatantId) : profileIdentity;
+    /**
+     * Full current combatant snapshot including the canonical name/species identity used by
+     * rule families such as Chronicler Profile matching.
+     */
+    public RuntimeCombatantState(
+            String combatantId,
+            MovementProfile movementProfile,
+            int hp,
+            int maxHp,
+            ActionBudget actionBudget,
+            CombatantStatProfile statProfile,
+            EvasionProfile evasionProfile,
+            int accuracyStage,
+            boolean sniper,
+            boolean noGuard,
+            boolean blur,
+            boolean probabilityControl,
+            List<String> types,
+            List<AttackModifier> damageModifiers,
+            List<String> abilities,
+            CombatantProfileIdentity profileIdentity
+    ) {
+        this(combatantId, movementProfile, hp, maxHp, actionBudget, statProfile, evasionProfile,
+                accuracyStage, sniper, noGuard, blur, probabilityControl, types, damageModifiers, abilities);
+        this.profileIdentity = profileIdentity == null
+                ? CombatantProfileIdentity.fromCombatantId(combatantId)
+                : profileIdentity;
     }
 
-    public String combatantId() { return combatantId; }
-    public CombatantProfileIdentity profileIdentity() { return profileIdentity; }
-    public GridCoord position() { return movementProfile.position(); }
-    public MovementProfile movementProfile() { return movementProfile; }
-    public int hp() { return hp; }
-    public int maxHp() { return maxHp; }
-    public int tempHp() { return tempHp; }
-    public ActionBudget actionBudget() { return actionBudget; }
-    public MoveFrequencyUsage moveFrequencyUsage() { return moveFrequencyUsage; }
-    public TemporaryEffectStore temporaryEffects() { return temporaryEffects; }
-    public boolean hasStatProfile() { return statProfile != null; }
+    public String combatantId() {
+        return combatantId;
+    }
+
+    /** Canonical Pokemon name/species identity used by profile-aware server rules. */
+    public CombatantProfileIdentity profileIdentity() {
+        return profileIdentity;
+    }
+
+    public GridCoord position() {
+        return movementProfile.position();
+    }
+
+    public MovementProfile movementProfile() {
+        return movementProfile;
+    }
+
+    public int hp() {
+        return hp;
+    }
+
+    public int maxHp() {
+        return maxHp;
+    }
+
+    /** Server-owned temporary HP. It may exceed max HP and stacks additively like Python. */
+    public int tempHp() {
+        return tempHp;
+    }
+
+    public ActionBudget actionBudget() {
+        return actionBudget;
+    }
+
+    public MoveFrequencyUsage moveFrequencyUsage() {
+        return moveFrequencyUsage;
+    }
+
+    /** Server-owned temporary effects, including multiplicity for repeated Python entries. */
+    public TemporaryEffectStore temporaryEffects() {
+        return temporaryEffects;
+    }
+
+    public boolean hasStatProfile() {
+        return statProfile != null;
+    }
+
     public CombatantStatProfile requireStatProfile() {
-        if (statProfile == null) throw new IllegalStateException("combatant " + combatantId + " has no stat profile");
+        if (statProfile == null) {
+            throw new IllegalStateException("combatant " + combatantId + " has no stat profile");
+        }
         return statProfile;
     }
-    public CombatStageState combatStages() { return combatStages; }
-    public CombatantStatProfile effectiveStatProfile() { return requireStatProfile().withStages(combatStages.snapshot()); }
-    public boolean hasEvasionProfile() { return evasionProfile != null; }
+
+    /** Mutable canonical PTU combat stages used by moves, statuses, abilities, items, and Features. */
+    public CombatStageState combatStages() {
+        return combatStages;
+    }
+
+    /** Pure stat profile rebound to the current canonical five arithmetic combat stages. */
+    public CombatantStatProfile effectiveStatProfile() {
+        return requireStatProfile().withStages(combatStages.snapshot());
+    }
+
+    public boolean hasEvasionProfile() {
+        return evasionProfile != null;
+    }
+
     public EvasionProfile requireEvasionProfile() {
-        if (evasionProfile == null) throw new IllegalStateException("combatant " + combatantId + " has no evasion profile");
+        if (evasionProfile == null) {
+            throw new IllegalStateException("combatant " + combatantId + " has no evasion profile");
+        }
         return evasionProfile;
     }
-    public int accuracyStage() { return combatStages.get(CombatStageStat.ACCURACY); }
-    public int setAccuracyStage(int value) { return combatStages.set(CombatStageStat.ACCURACY, value); }
-    public int adjustAccuracyStage(int delta) { return combatStages.adjust(CombatStageStat.ACCURACY, delta); }
-    public boolean sniper() { return sniper; }
-    public boolean noGuard() { return noGuard; }
-    public boolean blur() { return blur; }
-    public boolean probabilityControl() { return probabilityControl; }
-    public boolean abilitiesSuppressed() { return abilitiesSuppressed; }
-    public List<String> types() { return types; }
-    public List<AttackModifier> damageModifiers() { return damageModifiers; }
-    public List<String> abilities() { return abilities; }
+
+    /** Compatibility projection of canonical Accuracy Combat Stage state. */
+    public int accuracyStage() {
+        return combatStages.get(CombatStageStat.ACCURACY);
+    }
+
+    /** Mutable canonical Accuracy CS used by Trainer Features and move/status effects. */
+    public int setAccuracyStage(int value) {
+        return combatStages.set(CombatStageStat.ACCURACY, value);
+    }
+
+    /** Adjust Accuracy CS and return the final clamped PTU stage. */
+    public int adjustAccuracyStage(int delta) {
+        return combatStages.adjust(CombatStageStat.ACCURACY, delta);
+    }
+
+    public boolean sniper() {
+        return sniper;
+    }
+
+    public boolean noGuard() {
+        return noGuard;
+    }
+
+    public boolean blur() {
+        return blur;
+    }
+
+    public boolean probabilityControl() {
+        return probabilityControl;
+    }
+
+    /**
+     * Server-owned projection of Python's target-ability suppression gate.
+     * Action requests and Minecraft adapters cannot supply this value to status resolution.
+     */
+    public boolean abilitiesSuppressed() {
+        return abilitiesSuppressed;
+    }
+
+    public List<String> types() {
+        return types;
+    }
+
+    public List<AttackModifier> damageModifiers() {
+        return damageModifiers;
+    }
+
+    public List<String> abilities() {
+        return abilities;
+    }
 
     public boolean hasAbilityExact(String abilityName) {
         if (abilityName == null || abilityName.isBlank()) return false;
@@ -155,14 +421,25 @@ public final class RuntimeCombatantState {
     }
 
     boolean consumeProbabilityControl() {
-        if (!probabilityControl) return false;
+        if (!probabilityControl) {
+            return false;
+        }
         probabilityControl = false;
         return true;
     }
 
-    void setAbilitiesSuppressedFromRuntime(boolean abilitiesSuppressed) { this.abilitiesSuppressed = abilitiesSuppressed; }
-    void moveTo(GridCoord destination) { movementProfile = movementProfile.withPosition(destination); }
-    void setHp(int nextHp) { hp = Math.max(0, Math.min(maxHp, nextHp)); }
+    /** Core-owned ability suppression mutation boundary for future ability/lifecycle resolvers. */
+    void setAbilitiesSuppressedFromRuntime(boolean abilitiesSuppressed) {
+        this.abilitiesSuppressed = abilitiesSuppressed;
+    }
+
+    void moveTo(GridCoord destination) {
+        movementProfile = movementProfile.withPosition(destination);
+    }
+
+    void setHp(int nextHp) {
+        hp = Math.max(0, Math.min(maxHp, nextHp));
+    }
 
     int addTempHpFromRuntime(int amount) {
         int gained = Math.max(0, amount);
@@ -170,26 +447,38 @@ public final class RuntimeCombatantState {
         return gained;
     }
 
-    /** Runtime-package mutation boundary for damage/healing pipeline composition. */
+    /** Runtime-package mutation boundary for server-owned damage pipeline composition. */
     void replaceTempHpFromRuntime(int nextTempHp) {
-        if (nextTempHp < 0) throw new IllegalArgumentException("temporary HP cannot be negative");
+        if (nextTempHp < 0) {
+            throw new IllegalArgumentException("temporary HP cannot be negative");
+        }
         tempHp = nextTempHp;
     }
 
     private static List<String> normalizeNames(List<String> values) {
-        if (values == null || values.isEmpty()) return List.of();
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
         List<String> normalized = new ArrayList<>(values.size());
         for (String value : values) {
-            if (value == null || value.isBlank()) continue;
+            if (value == null || value.isBlank()) {
+                continue;
+            }
             normalized.add(value.strip());
         }
         return List.copyOf(normalized);
     }
 
     private static List<AttackModifier> normalizeDamageModifiers(List<AttackModifier> values) {
-        if (values == null || values.isEmpty()) return List.of();
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
         List<AttackModifier> normalized = new ArrayList<>(values.size());
-        for (AttackModifier value : values) if (value != null) normalized.add(value);
+        for (AttackModifier value : values) {
+            if (value != null) {
+                normalized.add(value);
+            }
+        }
         return List.copyOf(normalized);
     }
 }
