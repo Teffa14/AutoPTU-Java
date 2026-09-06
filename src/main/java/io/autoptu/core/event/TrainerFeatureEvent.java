@@ -1,7 +1,9 @@
 package io.autoptu.core.event;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
@@ -17,7 +19,7 @@ public record TrainerFeatureEvent(
         actorId = safe(actorId);
         feature = safe(feature);
         effect = safe(effect);
-        details = immutableScalarDetails(details);
+        details = immutableDetails(details);
         if (actorId.isBlank()) throw new IllegalArgumentException("actorId is required");
         if (feature.isBlank()) throw new IllegalArgumentException("feature is required");
         if (effect.isBlank()) throw new IllegalArgumentException("effect is required");
@@ -119,7 +121,7 @@ public record TrainerFeatureEvent(
         return fallback;
     }
 
-    private static Map<String, Object> immutableScalarDetails(Map<String, ?> source) {
+    private static Map<String, Object> immutableDetails(Map<String, ?> source) {
         if (source == null || source.isEmpty()) return Map.of();
         LinkedHashMap<String, Object> copied = new LinkedHashMap<>();
         for (Map.Entry<String, ?> entry : source.entrySet()) {
@@ -127,20 +129,37 @@ public record TrainerFeatureEvent(
             if (key == null || key.isBlank()) {
                 throw new IllegalArgumentException("Trainer Feature detail keys must be non-blank");
             }
-            Object value = entry.getValue();
-            if (value != null
-                    && !(value instanceof String)
-                    && !(value instanceof Integer)
-                    && !(value instanceof Long)
-                    && !(value instanceof Double)
-                    && !(value instanceof Boolean)) {
-                throw new IllegalArgumentException(
-                        "Trainer Feature detail values must be scalar: " + key
-                );
-            }
-            copied.put(key.strip(), value);
+            copied.put(key.strip(), immutableDetailValue(key, entry.getValue()));
         }
         return Collections.unmodifiableMap(copied);
+    }
+
+    private static Object immutableDetailValue(String key, Object value) {
+        if (isScalar(value)) return value;
+        if (value instanceof List<?> list) {
+            ArrayList<Object> copied = new ArrayList<>(list.size());
+            for (Object item : list) {
+                if (!isScalar(item)) {
+                    throw new IllegalArgumentException(
+                            "Trainer Feature detail list values must be scalar: " + key
+                    );
+                }
+                copied.add(item);
+            }
+            return Collections.unmodifiableList(copied);
+        }
+        throw new IllegalArgumentException(
+                "Trainer Feature detail values must be scalar or scalar lists: " + key
+        );
+    }
+
+    private static boolean isScalar(Object value) {
+        return value == null
+                || value instanceof String
+                || value instanceof Integer
+                || value instanceof Long
+                || value instanceof Double
+                || value instanceof Boolean;
     }
 
     private static String safe(String value) {
