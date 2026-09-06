@@ -186,7 +186,7 @@ public final class BattleRoundController {
             );
         }
 
-        RoundStartResult roundStart = startRoundWithEvents();
+        RoundStartResult roundStart = startRoundPreInitiativeWithEvents();
         accumulatedEvents.addAll(roundStart.events());
         List<String> rebuiltOrder = rebuilder.rebuildOrder(state, round);
         if (rebuiltOrder == null) {
@@ -200,6 +200,7 @@ public final class BattleRoundController {
             requireKnownTurnActor(actorId.strip());
         }
         replaceInitiativeOrder(rebuiltOrder);
+        accumulatedEvents.addAll(resolveRoundStartPostInitiativeHooks());
 
         if (rebuiltOrder.isEmpty()) {
             return InitiativeTurnAdvanceResult.exhausted(-1, accumulatedEvents);
@@ -281,6 +282,13 @@ public final class BattleRoundController {
     public int startRound() { return startRoundWithEvents().round(); }
 
     public RoundStartResult startRoundWithEvents() {
+        RoundStartResult preInitiative = startRoundPreInitiativeWithEvents();
+        ArrayList<BattleEvent> events = new ArrayList<>(preInitiative.events());
+        events.addAll(resolveRoundStartPostInitiativeHooks());
+        return new RoundStartResult(round, List.copyOf(events));
+    }
+
+    private RoundStartResult startRoundPreInitiativeWithEvents() {
         int previousRound = round;
         round += 1;
         state.syncCurrentRoundFromLifecycle(round);
@@ -291,6 +299,22 @@ public final class BattleRoundController {
         );
         turnState.clearToStart();
         return new RoundStartResult(round, result.events());
+    }
+
+    private List<BattleEvent> resolveRoundStartPostInitiativeHooks() {
+        LifecycleHookResult result = lifecycleHooks.resolve(
+                LifecycleHookPoint.ROUND_START_POST_INITIATIVE,
+                new LifecycleHookContext(
+                        state,
+                        damageHistory,
+                        injuryHistory,
+                        LifecycleHookPoint.ROUND_START_POST_INITIATIVE,
+                        round - 1,
+                        round,
+                        ""
+                )
+        );
+        return result.events();
     }
 
     public List<BattleEvent> endTurn() {
