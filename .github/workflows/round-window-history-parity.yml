@@ -36,8 +36,10 @@ jobs:
             --output build/oracle/round-window-history.tsv
           cat build/oracle/round-window-history.tsv
 
-      - name: Compare Java round-window pruning
+      - name: Compare Java round-window pruning and declarative state
         run: |
           gradle test --stacktrace \
             --tests io.autoptu.core.runtime.RoundWindowHistoryPruningTest \
-            --tests io.autoptu.core.runtime.RoundWindowHistoryPruningOracleParityTest
+            --tests io.autoptu.core.runtime.RoundWindowHistoryPruningOracleParityTest \
+            --tests io.autoptu.core.runtime.RoundWindowHistoryStateTest \
+            --tests io.autoptu.core.runtime.RoundWindowHistoryStateOracleParityTest
