@@ -10,6 +10,13 @@ package io.autoptu.core.hook;
 public enum LifecycleHookPoint {
     ROUND_START,
     ROUND_START_POST_INITIATIVE,
+    /**
+     * Python start_round effects that run after initiative/history setup and the round-start
+     * state snapshot boundary, but before the first initiative actor is selected. This is the
+     * shared seam for round-start Trainer Features and abilities such as Air Lock, Arena Trap,
+     * Intimidate and Impostor as those families are ported.
+     */
+    ROUND_START_EFFECTS,
     ROUND_END,
     TURN_START,
     PHASE_CHANGE,
