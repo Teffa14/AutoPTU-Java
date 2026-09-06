@@ -122,7 +122,7 @@ public final class BuiltinTurnEndEffects {
                 "telekinesis_tick",
                 Map.of(
                         "target", combatantId,
-                        "amount", damage.hpDamage(),
+                        "amount", tick,
                         "targetHp", damage.hpAfter()
                 )
         )));
