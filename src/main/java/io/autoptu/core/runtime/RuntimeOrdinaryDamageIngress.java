@@ -5,7 +5,7 @@ package io.autoptu.core.runtime;
  *
  * <p>This boundary deliberately owns only the state transition already frozen against the
  * Python oracle: clamp pending damage, absorb with temporary HP, then apply the remainder to
- * canonical HP. Substitute, prevention/reactions, injuries, faint handling, history rotation,
+ * canonical HP. Substitute, prevention/reactions, injuries, faint prevention, history rotation,
  * semantic events, and source attribution remain separate pipeline stages and must compose
  * around this boundary rather than being duplicated by lifecycle/status/content hooks.</p>
  */
@@ -69,6 +69,11 @@ public final class RuntimeOrdinaryDamageIngress {
             if (absorbedDamage + hpDamage > pendingDamage) {
                 throw new IllegalArgumentException("applied damage cannot exceed pending damage");
             }
+        }
+
+        /** Shared post-damage classification for lifecycle and semantic-event ordering. */
+        public RuntimePostDamageOutcomeResolution.Result postDamageOutcome() {
+            return RuntimePostDamageOutcomeResolution.resolve(hpBefore, hpAfter);
         }
     }
 }
