@@ -51,8 +51,9 @@ def _run_case(source_root: Path, case: str, *, hp: int | None = None, temp_hp: i
     target = _pokemon(source_root, controller="target")
     if hp is not None:
         target.hp = int(hp)
+    if fainted:
+        target.hp = 0
     target.temp_hp = int(temp_hp)
-    target.fainted = bool(fainted)
     if lifted:
         target.statuses.append({"name": "Lifted"})
     for source_id in bindings:
