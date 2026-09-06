@@ -6,6 +6,7 @@ import io.autoptu.core.runtime.DelayedHitRoundLifecycleHook;
 import io.autoptu.core.runtime.FieldRoundLifecycleHook;
 import io.autoptu.core.runtime.HeldItemRuleCatalog;
 import io.autoptu.core.runtime.RoundTemporaryEffectExpiryHook;
+import io.autoptu.core.runtime.RoundWindowHistoryLifecycleHook;
 import io.autoptu.core.runtime.TrainerRuntimeState;
 
 import java.util.List;
@@ -138,6 +139,13 @@ public final class BuiltinLifecycleHooks {
                             context.injuryHistory().rotateForNewRound();
                             return LifecycleHookResult.empty();
                         }
+                )
+                .register(
+                        "round-window-history-pruning",
+                        HookSource.SYSTEM,
+                        LifecycleHookPoint.ROUND_START_POST_INITIATIVE,
+                        720,
+                        new RoundWindowHistoryLifecycleHook()
                 )
                 .register(
                         "combatant-turn-start-effects",

@@ -28,6 +28,7 @@ public final class BattleRuntimeState {
     private final LinkedHashMap<String, String> controllerByCombatant = new LinkedHashMap<>();
     private final RoundDamageHistoryState damageHistory = new RoundDamageHistoryState();
     private final RoundInjuryHistoryState injuryHistory = new RoundInjuryHistoryState();
+    private final RoundWindowHistoryState roundWindowHistories = RoundWindowHistoryState.pythonMoveHistories();
     private final InitiativeProgressState initiativeProgress = new InitiativeProgressState();
     private final BattleDelayedHitState delayedHits;
     private final DeclaredActionState declaredActions = new DeclaredActionState();
@@ -321,6 +322,11 @@ public final class BattleRuntimeState {
     /** Server-owned current injury counts and round snapshots shared by runtime hooks and lifecycle. */
     public RoundInjuryHistoryState injuryHistory() {
         return injuryHistory;
+    }
+
+    /** Server-owned declarative round-window histories shared by move execution and lifecycle. */
+    public RoundWindowHistoryState roundWindowHistories() {
+        return roundWindowHistories;
     }
 
     /** Server-owned initiative order/cursor shared by lifecycle and stateful ability hooks. */
