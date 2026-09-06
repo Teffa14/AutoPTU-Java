@@ -5,7 +5,7 @@ package io.autoptu.core.event;
  *
  * Minecraft must render these events without recalculating PTU rules.
  */
-public sealed interface BattleEvent permits AbilityEvent, MoveResolvedEvent, ShiftResolvedEvent, StatusSkipEvent, TrainerFeatureEvent, RuleEffectEvent, FieldEffectEndedEvent, TerrainHazardEvent, PhaseChangedEvent, TurnStartedEvent, TurnEndedEvent {
+public sealed interface BattleEvent permits AbilityEvent, MoveResolvedEvent, ShiftResolvedEvent, StatusSkipEvent, TrainerFeatureEvent, RuleEffectEvent, FieldEffectEndedEvent, TerrainHazardEvent, PhaseChangedEvent, TurnStartedEvent, BorrowMoveEndedEvent, TurnEndedEvent {
     BattleEventKind kind();
 
     String stableKey();
