@@ -122,7 +122,7 @@ public final class BuiltinLifecycleHooks {
                 .register(
                         "round-damage-history-rotation",
                         HookSource.SYSTEM,
-                        LifecycleHookPoint.ROUND_START,
+                        LifecycleHookPoint.ROUND_START_POST_INITIATIVE,
                         700,
                         context -> {
                             context.damageHistory().rotateForNewRound();
@@ -132,7 +132,7 @@ public final class BuiltinLifecycleHooks {
                 .register(
                         "round-injury-history-rotation",
                         HookSource.SYSTEM,
-                        LifecycleHookPoint.ROUND_START,
+                        LifecycleHookPoint.ROUND_START_POST_INITIATIVE,
                         710,
                         context -> {
                             context.injuryHistory().rotateForNewRound();
