@@ -447,6 +447,14 @@ public final class RuntimeCombatantState {
         return gained;
     }
 
+    /** Runtime-package mutation boundary for server-owned damage pipeline composition. */
+    void replaceTempHpFromRuntime(int nextTempHp) {
+        if (nextTempHp < 0) {
+            throw new IllegalArgumentException("temporary HP cannot be negative");
+        }
+        tempHp = nextTempHp;
+    }
+
     private static List<String> normalizeNames(List<String> values) {
         if (values == null || values.isEmpty()) {
             return List.of();
