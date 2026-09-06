@@ -9,6 +9,7 @@ package io.autoptu.core.hook;
  */
 public enum LifecycleHookPoint {
     ROUND_START,
+    ROUND_START_POST_INITIATIVE,
     ROUND_END,
     TURN_START,
     PHASE_CHANGE,
