@@ -465,6 +465,12 @@ public final class BattleRuntimeState {
         return movesByCombatant.getOrDefault(combatantId, List.of());
     }
 
+    /** Runtime-package mutation boundary for canonical moveset effects such as Psionic Sponge expiry. */
+    void replaceMoveOptionsFromRuntime(String combatantId, Collection<MoveOption> moves) {
+        requireKnownCombatant(combatantId, "combatant moveset");
+        movesByCombatant.put(combatantId, copyMoveOptions(moves));
+    }
+
     /** True when this snapshot explicitly owns the combatant's held-item state, including an empty list. */
     public boolean hasCanonicalHeldItems(String combatantId) {
         requireCombatant(combatantId);
