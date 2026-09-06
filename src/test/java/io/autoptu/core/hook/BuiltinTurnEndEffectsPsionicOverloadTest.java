@@ -85,7 +85,7 @@ class BuiltinTurnEndEffectsPsionicOverloadTest {
     }
 
     @Test
-    void lethalTickReportsClampedHpDamageAndZeroTargetHp() {
+    void lethalTickReportsRequestedTickAndZeroTargetHp() {
         RuntimeCombatantState target = combatant("target", 2, 40);
         target.temporaryEffects().add("psionic_overload_telekinesis", Map.of("source_id", "trainer-a"));
         BattleRuntimeState state = state(List.of(target), Map.of("target", List.of("Lifted")));
@@ -94,7 +94,7 @@ class BuiltinTurnEndEffectsPsionicOverloadTest {
 
         assertEquals(0, target.hp());
         TrainerFeatureEvent event = assertInstanceOf(TrainerFeatureEvent.class, result.events().get(0));
-        assertEquals(2, event.amount());
+        assertEquals(4, event.amount());
         assertEquals(0, event.targetHp());
     }
 
