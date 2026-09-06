@@ -52,13 +52,19 @@ final class RuntimeOrdinaryDamageIngressOracleParityTest {
             RuntimeOrdinaryDamageIngress.Result actual =
                     RuntimeOrdinaryDamageIngress.apply(state, "actor", incomingDamage);
 
+            int expectedHpAfter = Integer.parseInt(fields[7]);
             assertEquals(Integer.parseInt(fields[4]), actual.pendingDamage(), caseName + " pending damage");
             assertEquals(Integer.parseInt(fields[5]), actual.absorbedDamage(), caseName + " absorbed damage");
             assertEquals(Integer.parseInt(fields[6]), actual.hpDamage(), caseName + " HP damage");
-            assertEquals(Integer.parseInt(fields[7]), actual.hpAfter(), caseName + " HP after");
+            assertEquals(expectedHpAfter, actual.hpAfter(), caseName + " HP after");
             assertEquals(Integer.parseInt(fields[8]), actual.tempHpAfter(), caseName + " temporary HP after");
             assertEquals(actual.hpAfter(), combatant.hp(), caseName + " persisted HP");
             assertEquals(actual.tempHpAfter(), combatant.tempHp(), caseName + " persisted temporary HP");
+
+            RuntimePostDamageOutcomeResolution.Result outcome = actual.postDamageOutcome();
+            assertEquals(hpBefore == 0, outcome.faintedBefore(), caseName + " fainted before");
+            assertEquals(expectedHpAfter == 0, outcome.faintedAfter(), caseName + " fainted after");
+            assertEquals(hpBefore > 0 && expectedHpAfter == 0, outcome.transitionedToFainted(), caseName + " faint transition");
         }
     }
 }
