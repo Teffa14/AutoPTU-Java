@@ -179,11 +179,12 @@ class TurnEndEffectRegistryTest {
     void builtinTurnEndEffectCatalogMatchesPythonFamilyOrder() {
         assertEquals(List.of(
                         "adaptive-geography-terrain-alias-cleanup",
-                        "psionic-sponge-borrowed-move-cleanup"
+                        "psionic-sponge-borrowed-move-cleanup",
+                        "psionic-overload-telekinesis-tick"
                 ), BuiltinTurnEndEffects.registry().registrations().stream()
                         .map(TurnEndEffectRegistry.Registration::id)
                         .toList());
-        assertEquals(List.of(10, 20),
+        assertEquals(List.of(10, 20, 30),
                 BuiltinTurnEndEffects.registry().registrations().stream()
                         .map(TurnEndEffectRegistry.Registration::order)
                         .toList());
