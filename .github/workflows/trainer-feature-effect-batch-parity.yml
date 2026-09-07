@@ -1,0 +1,43 @@
+name: Trainer Feature Effect Batch Parity
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  trainer-feature-effect-batch:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Freeze Python Trainer Feature effect batch
+        run: |
+          python3 -m py_compile tools/python/export_trainer_feature_effect_batch_fixture.py
+          python3 tools/python/export_trainer_feature_effect_batch_fixture.py \
+            --source-root python-oracle \
+            --output build/oracle/trainer-feature-effect-batch.tsv
+          cat build/oracle/trainer-feature-effect-batch.tsv
+
+      - name: Run Trainer Feature effect batch differential
+        run: gradle test --stacktrace --tests io.autoptu.core.runtime.TrainerFeatureEffectBatchOracleParityTest
+
+      - name: Re-run transactional Trainer Feature contract
+        run: gradle test --stacktrace --tests io.autoptu.core.rules.TrainerFeatureExecutionServiceTest
