@@ -1,0 +1,44 @@
+name: Round Start Event Parity
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  round-start-event:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Freeze Python round-start event
+        run: |
+          python3 -m py_compile tools/python/export_round_start_event_fixture.py
+          python3 tools/python/export_round_start_event_fixture.py \
+            --source-root python-oracle \
+            --output build/oracle/round-start-event.tsv
+          cat build/oracle/round-start-event.tsv
+
+      - name: Compare Java semantic payload and lifecycle ordering
+        run: |
+          gradle test --stacktrace \
+            --tests io.autoptu.core.runtime.RoundStartedEventOracleParityTest \
+            --tests io.autoptu.core.runtime.AuthoritativeInitiativeRoundRebuilderTest \
+            --tests io.autoptu.core.runtime.RoundStartEffectsLifecycleTest
