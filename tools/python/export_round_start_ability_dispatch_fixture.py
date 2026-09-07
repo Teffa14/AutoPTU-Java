@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze round-start ability orchestration from the pinned Python PhaseController."""
+"""Freeze round-start ability orchestration and Air Lock effect parity from pinned Python."""
 from __future__ import annotations
 
 import argparse
@@ -19,6 +19,7 @@ def main() -> None:
     from auto_ptu.rules.controllers.phase_controller import PhaseController
 
     timeline: list[str] = []
+    air_lock_events: list[dict] = []
 
     class FakePokemon:
         def __init__(self, *, active: bool, fainted: bool) -> None:
@@ -78,7 +79,7 @@ def main() -> None:
         echoed_voice_rounds=[],
         fusion_bolt_rounds=[],
         fusion_flare_rounds=[],
-        weather=" Rain ",
+        weather="Rain",
         trainer_feature_dispatcher=FeatureDispatcher(),
     )
 
@@ -96,6 +97,7 @@ def main() -> None:
             timeline.append("round_start_event")
         elif event.get("type") == "ability" and event.get("ability") == "Air Lock":
             timeline.append(f"air_lock:{event.get('actor')}")
+            air_lock_events.append(dict(event))
 
     battle.log_event = log_event
 
@@ -126,6 +128,28 @@ def main() -> None:
     ]
     if timeline != expected_timeline:
         raise AssertionError(f"unexpected round-start ability timeline: {timeline!r}")
+    expected_events = [
+        {
+            "type": "ability",
+            "actor": "air-two",
+            "ability": "Air Lock",
+            "effect": "weather_suppress",
+            "weather": "Rain",
+            "description": "Air Lock suppresses the active weather.",
+        },
+        {
+            "type": "ability",
+            "actor": "air-one",
+            "ability": "Air Lock",
+            "effect": "weather_suppress",
+            "weather": "Rain",
+            "description": "Air Lock suppresses the active weather.",
+        },
+    ]
+    if air_lock_events != expected_events:
+        raise AssertionError(f"unexpected Air Lock events: {air_lock_events!r}")
+    if battle.weather != "Rain":
+        raise AssertionError(f"Air Lock unexpectedly mutated weather: {battle.weather!r}")
 
     invocations = [
         "air_lock|ABILITY_HOLDER|air-two",
@@ -136,9 +160,21 @@ def main() -> None:
         "intimidate|ACTIVE_ACTOR|actor-a",
         "impostor|ACTIVE_ACTOR|actor-a",
     ]
+    event_rows = [
+        "|".join([
+            event["actor"],
+            event["ability"],
+            event["effect"],
+            event["weather"],
+            event["description"],
+        ])
+        for event in air_lock_events
+    ]
     rows = [
-        "WEATHER\t Rain ",
+        "WEATHER\tRain",
+        "WEATHER_AFTER\t" + battle.weather,
         "AIR_LOCK_HOLDERS\tair-two,air-one",
+        "AIR_LOCK_EVENTS\t" + ";".join(event_rows),
         "COMBATANTS\tactor-b:true:false;fainted:true:true;bench:false:false;actor-a:true:false",
         "INVOCATIONS\t" + ";".join(invocations),
         "TIMELINE\t" + ",".join(timeline),
