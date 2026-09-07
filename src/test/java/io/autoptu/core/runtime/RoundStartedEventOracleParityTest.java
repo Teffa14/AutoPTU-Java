@@ -37,7 +37,7 @@ class RoundStartedEventOracleParityTest {
         BattleRuntimeState state = new BattleRuntimeState(
                 new MovementGrid(5, 5, Set.of(), Map.of()),
                 List.of(alpha, bench),
-                Map.of("alpha", List.of("Burned"), "bench", List.of()),
+                Map.of(),
                 Map.of(),
                 Map.of(),
                 Map.of(
@@ -45,6 +45,11 @@ class RoundStartedEventOracleParityTest {
                         "bench", new CombatantAffiliationState("team-a", false)
                 )
         );
+        state.replaceStatusEntries("alpha", List.of(
+                new StatusEntry("Burned"),
+                new StatusEntry("Confused"),
+                new StatusEntry("Burned")
+        ));
         state.syncEnvironmentFromRuntime(new BattleEnvironmentState(
                 expected.weather(), "", Set.of(), Map.of()
         ));
