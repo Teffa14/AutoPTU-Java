@@ -17,7 +17,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -77,8 +76,9 @@ class RoundStartedEventOracleParityTest {
         assertEquals(expected.weather(), actual.weather());
         assertEquals(expected.initiative(), actual.initiative());
         assertEquals(expected.combatants(), actual.initialStates());
-        assertEquals(-1, state.initiativeProgress().cursor() < 0 ? state.initiativeProgress().cursor() : -1,
-                "cursor advanced only after semantic event creation");
+        assertTrue(result.hasActor());
+        assertEquals("alpha", result.actorId());
+        assertEquals(0, state.initiativeProgress().cursor());
     }
 
     private static RuntimeCombatantState combatant(String id, int hp, int maxHp, List<String> abilities) {
