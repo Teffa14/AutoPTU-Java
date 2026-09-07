@@ -41,32 +41,31 @@ public final class ArenaTrapTargetingContract {
         }
     }
 
-    /** Regular Arena Trap is global in the pinned Python oracle. */
+    /** Regular Arena Trap reaches eligible foes within 5 meters in the pinned Python oracle. */
     public static List<String> regularTargets(String holderTeamId, List<Candidate> candidates) {
-        String team = holderTeamId == null ? "" : holderTeamId.strip();
-        ArrayList<String> targets = new ArrayList<>();
-        for (Candidate candidate : safe(candidates)) {
-            if (eligible(team, candidate, false)) targets.add(candidate.actorId());
-        }
-        return List.copyOf(targets);
+        return eligibleTargets(holderTeamId, candidates);
     }
 
-    /** Arena Trap [Errata] uses the same immunity family but only reaches foes within 5 meters. */
+    /** Arena Trap [Errata] uses the same target family while its temporary flag is active. */
     public static List<String> errataTargets(String holderTeamId, boolean errataActive, List<Candidate> candidates) {
         if (!errataActive) return List.of();
+        return eligibleTargets(holderTeamId, candidates);
+    }
+
+    private static List<String> eligibleTargets(String holderTeamId, List<Candidate> candidates) {
         String team = holderTeamId == null ? "" : holderTeamId.strip();
         ArrayList<String> targets = new ArrayList<>();
         for (Candidate candidate : safe(candidates)) {
-            if (eligible(team, candidate, true)) targets.add(candidate.actorId());
+            if (eligible(team, candidate)) targets.add(candidate.actorId());
         }
         return List.copyOf(targets);
     }
 
-    private static boolean eligible(String holderTeamId, Candidate candidate, boolean rangeLimited) {
+    private static boolean eligible(String holderTeamId, Candidate candidate) {
         Objects.requireNonNull(candidate, "candidate");
         if (!candidate.active() || candidate.fainted()) return false;
         if (candidate.teamId().equals(holderTeamId)) return false;
-        if (rangeLimited && candidate.distance() > 5) return false;
+        if (candidate.distance() > 5) return false;
         return !immune(candidate);
     }
 
