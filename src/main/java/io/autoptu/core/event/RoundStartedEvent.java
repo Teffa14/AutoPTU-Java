@@ -3,6 +3,7 @@ package io.autoptu.core.event;
 import io.autoptu.core.model.InitiativeEntry;
 import io.autoptu.core.runtime.BattleRuntimeState;
 import io.autoptu.core.runtime.RuntimeCombatantState;
+import io.autoptu.core.runtime.StatusEntry;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,11 +39,14 @@ public record RoundStartedEvent(
         ArrayList<CombatantSnapshot> combatants = new ArrayList<>();
         for (String actorId : state.combatantIds()) {
             RuntimeCombatantState actor = state.requireCombatant(actorId);
+            List<String> statuses = state.statusEntries(actorId).stream()
+                    .map(StatusEntry::name)
+                    .toList();
             combatants.add(new CombatantSnapshot(
                     actorId,
                     actor.hp(),
                     actor.maxHp(),
-                    List.copyOf(state.statuses(actorId)),
+                    statuses,
                     actor.abilities(),
                     state.isActive(actorId)
             ));
