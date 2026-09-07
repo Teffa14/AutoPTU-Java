@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -19,8 +18,7 @@ class InitiativeEntryDouble:
             "total": total,
         }
 
-    def to_dict(self):
-        return dict(self.payload)
+    def to_dict(self): return dict(self.payload)
 
 
 class PokemonDouble:
@@ -89,6 +87,9 @@ class BattleDouble:
     def _trigger_impostor(self, _actor): pass
 
 
+def encode_list(values): return ",".join(str(value) for value in values)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
@@ -104,9 +105,22 @@ def main() -> int:
         raise AssertionError(f"expected one round_start event, got {len(events)}")
     event = events[0]
 
+    lines = [f"ROUND_START\t{event['round']}\t{event['weather']}"]
+    for entry in event["initiative"]:
+        lines.append("\t".join([
+            "INITIATIVE", entry["actor"], entry["controller"], str(entry["speed"]),
+            str(entry["trainer_modifier"]), str(entry["roll"]), str(entry["total"]),
+        ]))
+    for entry in event["initial_states"]:
+        lines.append("\t".join([
+            "COMBATANT", entry["actor"], str(entry["hp"]), str(entry["max_hp"]),
+            encode_list(entry["statuses"]), encode_list(entry["abilities"]),
+            "true" if entry["active"] else "false",
+        ]))
+
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(event, separators=(",", ":"), ensure_ascii=False) + "\n", encoding="utf-8")
+    output.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(output.read_text(encoding="utf-8"), end="")
     return 0
 
