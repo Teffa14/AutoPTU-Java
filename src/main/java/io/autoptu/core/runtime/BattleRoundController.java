@@ -205,11 +205,15 @@ public final class BattleRoundController {
 
     public int startRound() { return startRoundWithEvents().round(); }
 
+    /**
+     * Transitional pre-rebuild boundary retained for existing callers. It cannot emit the Python
+     * round_start snapshot because Python constructs that event only after rebuilding initiative.
+     * Production rollover callers use advanceInitiativeTurnWithRollover().
+     */
     public RoundStartResult startRoundWithEvents() {
         RoundStartResult preInitiative = startRoundPreInitiativeWithEvents();
         ArrayList<BattleEvent> events = new ArrayList<>(preInitiative.events());
         events.addAll(resolveRoundStartPostInitiativeHooks());
-        addRoundStartedEventIfDetailed(events);
         events.addAll(resolveRoundStartEffectsHooks());
         return new RoundStartResult(round, List.copyOf(events));
     }
