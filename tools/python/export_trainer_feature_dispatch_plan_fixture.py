@@ -72,6 +72,7 @@ def main() -> None:
     fixture = {"trigger": " Round_Start ", "invocations": dispatcher.applied}
     expected = [
         {"trainer_id": "trainer-b", "feature_id": "alpha", "runtime_kind": "feature"},
+        {"trainer_id": "trainer-b", "feature_id": "duplicate", "runtime_kind": "feature"},
         {"trainer_id": "trainer-b", "feature_id": "edge-hit", "runtime_kind": "edge"},
         {"trainer_id": "trainer-b", "feature_id": "known-hit", "runtime_kind": "feature"},
         {"trainer_id": "trainer-a", "feature_id": "named-feature", "runtime_kind": "feature"},
