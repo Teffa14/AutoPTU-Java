@@ -41,6 +41,7 @@ class TrainerFeatureEventDispatchPlanTest {
         assertEquals(
                 List.of(
                         new TrainerFeatureEventDispatchPlan.Invocation("trainer-b", "alpha", "feature"),
+                        new TrainerFeatureEventDispatchPlan.Invocation("trainer-b", "duplicate", "feature"),
                         new TrainerFeatureEventDispatchPlan.Invocation("trainer-b", "edge-hit", "edge"),
                         new TrainerFeatureEventDispatchPlan.Invocation("trainer-b", "known-hit", "feature"),
                         new TrainerFeatureEventDispatchPlan.Invocation("trainer-a", "named-feature", "feature")
