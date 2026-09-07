@@ -151,25 +151,14 @@ public final class BattleRoundController {
         return InitiativeTurnAdvanceResult.exhausted(order.size());
     }
 
-    /**
-     * Default rollover path for production callers. The controller rebuilds initiative only from
-     * canonical BattleRuntimeState via the authoritative rebuilder; adapters never provide an
-     * initiative order or a rebuilder implementation.
-     */
+    /** Default rollover path for production callers. */
     public InitiativeTurnAdvanceResult advanceInitiativeTurnWithRollover() {
         return advanceInitiativeTurnWithRollover(InitiativeRoundRebuilder.authoritative());
     }
 
-    /**
-     * Python advance_turn() calls start_round() when the initiative cursor reaches the end,
-     * rebuilds initiative as part of that round transition, and then continues selecting the
-     * next actor. This overload remains injectable for parity tests and migration only; normal
-     * runtime callers should use {@link #advanceInitiativeTurnWithRollover()}.
-     */
+    /** Python-compatible round rollover; injectable only for migration/parity tests. */
     @Deprecated
-    public InitiativeTurnAdvanceResult advanceInitiativeTurnWithRollover(
-            InitiativeRoundRebuilder rebuilder
-    ) {
+    public InitiativeTurnAdvanceResult advanceInitiativeTurnWithRollover(InitiativeRoundRebuilder rebuilder) {
         Objects.requireNonNull(rebuilder, "rebuilder");
         if (turnState.currentActorId() != null) {
             throw new IllegalStateException("End the active turn before advancing initiative.");
@@ -179,20 +168,13 @@ public final class BattleRoundController {
         InitiativeTurnAdvanceResult current = advanceInitiativeTurn();
         accumulatedEvents.addAll(current.events());
         if (current.hasActor()) {
-            return InitiativeTurnAdvanceResult.actor(
-                    current.actorId(),
-                    current.initiativeIndex(),
-                    accumulatedEvents
-            );
+            return InitiativeTurnAdvanceResult.actor(current.actorId(), current.initiativeIndex(), accumulatedEvents);
         }
 
         RoundStartResult roundStart = startRoundPreInitiativeWithEvents();
         accumulatedEvents.addAll(roundStart.events());
         List<String> rebuiltOrder = rebuilder.rebuildOrder(state, round);
-        if (rebuiltOrder == null) {
-            throw new IllegalStateException("initiative rebuilder returned null order");
-        }
-
+        if (rebuiltOrder == null) throw new IllegalStateException("initiative rebuilder returned null order");
         for (String actorId : rebuiltOrder) {
             if (actorId == null || actorId.isBlank()) {
                 throw new IllegalArgumentException("initiative rebuilder returned blank actor id");
@@ -201,24 +183,16 @@ public final class BattleRoundController {
         }
         replaceInitiativeOrder(rebuiltOrder);
         accumulatedEvents.addAll(resolveRoundStartPostInitiativeHooks());
+        accumulatedEvents.addAll(resolveRoundStartEffectsHooks());
 
-        if (rebuiltOrder.isEmpty()) {
-            return InitiativeTurnAdvanceResult.exhausted(-1, accumulatedEvents);
-        }
+        if (rebuiltOrder.isEmpty()) return InitiativeTurnAdvanceResult.exhausted(-1, accumulatedEvents);
 
         InitiativeTurnAdvanceResult nextRound = advanceInitiativeTurn();
         accumulatedEvents.addAll(nextRound.events());
         if (nextRound.hasActor()) {
-            return InitiativeTurnAdvanceResult.actor(
-                    nextRound.actorId(),
-                    nextRound.initiativeIndex(),
-                    accumulatedEvents
-            );
+            return InitiativeTurnAdvanceResult.actor(nextRound.actorId(), nextRound.initiativeIndex(), accumulatedEvents);
         }
-        return InitiativeTurnAdvanceResult.exhausted(
-                nextRound.initiativeIndex(),
-                accumulatedEvents
-        );
+        return InitiativeTurnAdvanceResult.exhausted(nextRound.initiativeIndex(), accumulatedEvents);
     }
 
     public void beginTurn(String actorId) {
@@ -229,11 +203,7 @@ public final class BattleRoundController {
     /** Transitional direct setter; adapters should prefer advancePhase(). */
     public void setPhase(TurnPhase phase) { turnState.setPhase(phase); }
 
-    /**
-     * Advance START -> COMMAND -> ACTION -> END using the server-owned actor and phase.
-     * END is terminal until endTurn() clears the turn. Pokemon phase hooks remain the
-     * authoritative gameplay path; Trainer phase-specific rules are a separate parity slice.
-     */
+    /** Advance START -> COMMAND -> ACTION -> END using the server-owned actor and phase. */
     public List<BattleEvent> advancePhase() {
         String actorId = turnState.currentActorId();
         if (actorId == null) throw new IllegalStateException("No active actor to advance phase for.");
@@ -254,27 +224,12 @@ public final class BattleRoundController {
         events.add(new PhaseChangedEvent(actorId, round, next));
         LifecycleHookResult hookResult = lifecycleHooks.resolve(
                 LifecycleHookPoint.PHASE_CHANGE,
-                new LifecycleHookContext(
-                        state,
-                        damageHistory,
-                        injuryHistory,
-                        LifecycleHookPoint.PHASE_CHANGE,
-                        round,
-                        round,
-                        actorId,
-                        next
-                )
+                new LifecycleHookContext(state, damageHistory, injuryHistory, LifecycleHookPoint.PHASE_CHANGE, round, round, actorId, next)
         );
         events.addAll(hookResult.events());
         PendingStatusSkipRequest pending = hookResult.pendingStatusSkip();
         if (pending != null) {
-            events.addAll(BattleRuntime.applyStatusSkip(
-                    state,
-                    actorId,
-                    pending.status(),
-                    pending.phase(),
-                    pending.reason()
-            ).events());
+            events.addAll(BattleRuntime.applyStatusSkip(state, actorId, pending.status(), pending.phase(), pending.reason()).events());
         }
         return List.copyOf(events);
     }
@@ -285,6 +240,7 @@ public final class BattleRoundController {
         RoundStartResult preInitiative = startRoundPreInitiativeWithEvents();
         ArrayList<BattleEvent> events = new ArrayList<>(preInitiative.events());
         events.addAll(resolveRoundStartPostInitiativeHooks());
+        events.addAll(resolveRoundStartEffectsHooks());
         return new RoundStartResult(round, List.copyOf(events));
     }
 
@@ -304,15 +260,15 @@ public final class BattleRoundController {
     private List<BattleEvent> resolveRoundStartPostInitiativeHooks() {
         LifecycleHookResult result = lifecycleHooks.resolve(
                 LifecycleHookPoint.ROUND_START_POST_INITIATIVE,
-                new LifecycleHookContext(
-                        state,
-                        damageHistory,
-                        injuryHistory,
-                        LifecycleHookPoint.ROUND_START_POST_INITIATIVE,
-                        round - 1,
-                        round,
-                        ""
-                )
+                new LifecycleHookContext(state, damageHistory, injuryHistory, LifecycleHookPoint.ROUND_START_POST_INITIATIVE, round - 1, round, "")
+        );
+        return result.events();
+    }
+
+    private List<BattleEvent> resolveRoundStartEffectsHooks() {
+        LifecycleHookResult result = lifecycleHooks.resolve(
+                LifecycleHookPoint.ROUND_START_EFFECTS,
+                new LifecycleHookContext(state, damageHistory, injuryHistory, LifecycleHookPoint.ROUND_START_EFFECTS, round - 1, round, "")
         );
         return result.events();
     }
@@ -346,21 +302,14 @@ public final class BattleRoundController {
     }
 
     private TrainerRuntimeState trainerOrNull(String actorId) {
-        try {
-            return state.requireTrainer(actorId);
-        } catch (IllegalArgumentException ignored) {
-            return null;
-        }
+        try { return state.requireTrainer(actorId); }
+        catch (IllegalArgumentException ignored) { return null; }
     }
 
     private void requireKnownTurnActor(String actorId) {
-        if (actorId == null || actorId.isBlank()) {
-            throw new IllegalArgumentException("actorId is required");
-        }
+        if (actorId == null || actorId.isBlank()) throw new IllegalArgumentException("actorId is required");
         String canonical = actorId.strip();
-        if (state.combatants().containsKey(canonical) || trainerOrNull(canonical) != null) {
-            return;
-        }
+        if (state.combatants().containsKey(canonical) || trainerOrNull(canonical) != null) return;
         throw new IllegalArgumentException("unknown Pokemon/Trainer actor: " + canonical);
     }
 
