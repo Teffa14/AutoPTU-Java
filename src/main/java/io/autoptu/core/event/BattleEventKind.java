@@ -11,6 +11,7 @@ public enum BattleEventKind {
     FIELD_EFFECT("field_effect"),
     TERRAIN_HAZARD("terrain_hazard"),
     PHASE_CHANGE("phase"),
+    ROUND_START("round_start"),
     TURN_START("turn_start"),
     BORROW_MOVE_END("borrow_move_end"),
     TURN_END("turn_end");
