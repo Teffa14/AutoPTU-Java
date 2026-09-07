@@ -53,8 +53,6 @@ public final class InitiativeAssemblyInstaller {
                     throw new IllegalArgumentException("initiative cleanup family is required");
                 }
             }
-            // Deliberately touch the actor during validation so unknown identities fail
-            // before any later cleanup is applied.
             actor.combatantId();
         }
 
@@ -65,7 +63,7 @@ public final class InitiativeAssemblyInstaller {
             }
         }
 
-        state.initiativeProgress().replaceOrderFromLifecycle(orderedActorIds);
+        state.initiativeProgress().replaceDetailedOrderFromLifecycle(assembly.orderedEntries());
         return orderedActorIds;
     }
 
