@@ -33,7 +33,7 @@ class PokemonDouble:
 
     def max_hp(self): return self._max_hp
     def ability_names(self): return list(self._abilities)
-    def _normalized_status_name(self, entry): return str(entry).strip()
+    def _normalized_status_name(self, entry): return str(entry).strip().lower()
     def remove_temporary_effect(self, _family): return False
     def add_temporary_effect(self, _family, **_payload): pass
     def is_trainer_combatant(self): return False
@@ -47,7 +47,7 @@ class BattleDouble:
         self.fainted_history = []
         self.trainers = {}
         self.pokemon = {
-            "alpha": PokemonDouble(31, 40, ["Burned"], ["Static", "Sprint"], True, 1),
+            "alpha": PokemonDouble(31, 40, ["Burned", "Confused", "Burned"], ["Static", "Sprint"], True, 1),
             "bench": PokemonDouble(22, 35, [], ["Run Away"], False, 0),
         }
         self.declared_actions = []
