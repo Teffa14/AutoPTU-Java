@@ -2,6 +2,7 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.event.PhaseChangedEvent;
+import io.autoptu.core.event.RoundStartedEvent;
 import io.autoptu.core.event.TurnEndedEvent;
 import io.autoptu.core.event.TurnStartedEvent;
 import io.autoptu.core.hook.BuiltinLifecycleHooks;
@@ -67,14 +68,7 @@ public final class BattleRoundController {
         state.initiativeProgress().setCursorFromLifecycle(cursor);
     }
 
-    /**
-     * Advance the canonical initiative cursor to the next executable Pokemon or Trainer slot.
-     *
-     * Python identifies Trainer entries by actor_id membership in BattleState.trainers. A Trainer
-     * slot resets TrainerState.actions_taken, becomes current_actor_id, enters START, emits
-     * turn_start, and returns immediately. Pokemon slots then follow their existing active/HP
-     * guards and START-effect pipeline. Minecraft/Cobblemon never decides the slot kind.
-     */
+    /** Advance the canonical initiative cursor to the next executable Pokemon or Trainer slot. */
     public InitiativeTurnAdvanceResult advanceInitiativeTurn() {
         if (turnState.currentActorId() != null) {
             throw new IllegalStateException("End the active turn before advancing initiative.");
@@ -109,42 +103,18 @@ public final class BattleRoundController {
             actor.actionBudget().resetConsumedActions();
             turnState.beginTurn(actorId);
             ArrayList<BattleEvent> events = new ArrayList<>();
-            events.add(new TurnStartedEvent(
-                    actorId,
-                    round,
-                    TurnPhase.START,
-                    progress.cursor()
-            ));
+            events.add(new TurnStartedEvent(actorId, round, TurnPhase.START, progress.cursor()));
 
             LifecycleHookResult startResult = lifecycleHooks.resolve(
                     LifecycleHookPoint.TURN_START,
-                    new LifecycleHookContext(
-                            state,
-                            damageHistory,
-                            injuryHistory,
-                            LifecycleHookPoint.TURN_START,
-                            round,
-                            round,
-                            actorId,
-                            TurnPhase.START
-                    )
+                    new LifecycleHookContext(state, damageHistory, injuryHistory, LifecycleHookPoint.TURN_START, round, round, actorId, TurnPhase.START)
             );
             events.addAll(startResult.events());
             PendingStatusSkipRequest pending = startResult.pendingStatusSkip();
             if (pending != null) {
-                events.addAll(BattleRuntime.applyStatusSkip(
-                        state,
-                        actorId,
-                        pending.status(),
-                        pending.phase(),
-                        pending.reason()
-                ).events());
+                events.addAll(BattleRuntime.applyStatusSkip(state, actorId, pending.status(), pending.phase(), pending.reason()).events());
             }
-            return InitiativeTurnAdvanceResult.actor(
-                    actorId,
-                    progress.cursor(),
-                    List.copyOf(events)
-            );
+            return InitiativeTurnAdvanceResult.actor(actorId, progress.cursor(), List.copyOf(events));
         }
 
         progress.setCursorFromLifecycle(order.size());
@@ -176,13 +146,12 @@ public final class BattleRoundController {
         List<String> rebuiltOrder = rebuilder.rebuildOrder(state, round);
         if (rebuiltOrder == null) throw new IllegalStateException("initiative rebuilder returned null order");
         for (String actorId : rebuiltOrder) {
-            if (actorId == null || actorId.isBlank()) {
-                throw new IllegalArgumentException("initiative rebuilder returned blank actor id");
-            }
+            if (actorId == null || actorId.isBlank()) throw new IllegalArgumentException("initiative rebuilder returned blank actor id");
             requireKnownTurnActor(actorId.strip());
         }
         replaceInitiativeOrder(rebuiltOrder);
         accumulatedEvents.addAll(resolveRoundStartPostInitiativeHooks());
+        addRoundStartedEventIfDetailed(accumulatedEvents);
         accumulatedEvents.addAll(resolveRoundStartEffectsHooks());
 
         if (rebuiltOrder.isEmpty()) return InitiativeTurnAdvanceResult.exhausted(-1, accumulatedEvents);
@@ -240,6 +209,7 @@ public final class BattleRoundController {
         RoundStartResult preInitiative = startRoundPreInitiativeWithEvents();
         ArrayList<BattleEvent> events = new ArrayList<>(preInitiative.events());
         events.addAll(resolveRoundStartPostInitiativeHooks());
+        addRoundStartedEventIfDetailed(events);
         events.addAll(resolveRoundStartEffectsHooks());
         return new RoundStartResult(round, List.copyOf(events));
     }
@@ -263,6 +233,12 @@ public final class BattleRoundController {
                 new LifecycleHookContext(state, damageHistory, injuryHistory, LifecycleHookPoint.ROUND_START_POST_INITIATIVE, round - 1, round, "")
         );
         return result.events();
+    }
+
+    private void addRoundStartedEventIfDetailed(List<BattleEvent> events) {
+        if (state.initiativeProgress().hasDetailedOrder()) {
+            events.add(RoundStartedEvent.fromState(state, round));
+        }
     }
 
     private List<BattleEvent> resolveRoundStartEffectsHooks() {
