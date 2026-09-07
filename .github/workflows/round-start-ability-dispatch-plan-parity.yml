@@ -28,7 +28,7 @@ jobs:
           "$JAVA_HOME_21_X64/bin/java" -version
           gradle --version
 
-      - name: Freeze Python round-start ability orchestration
+      - name: Freeze Python round-start ability orchestration and Air Lock effect
         run: |
           python3 -m py_compile tools/python/export_round_start_ability_dispatch_fixture.py
           python3 tools/python/export_round_start_ability_dispatch_fixture.py \
@@ -36,10 +36,12 @@ jobs:
             --output build/oracle/round-start-ability-dispatch.tsv
           cat build/oracle/round-start-ability-dispatch.tsv
 
-      - name: Compare Java round-start ability dispatch plan
+      - name: Compare Java round-start ability dispatch and Air Lock effect
         run: |
           gradle test --stacktrace \
             --tests io.autoptu.core.runtime.RoundStartAbilityDispatchPlanTest \
             --tests io.autoptu.core.runtime.RoundStartAbilityDispatchPlanOracleParityTest \
+            --tests io.autoptu.core.runtime.RoundStartAbilityInvocationExecutorTest \
+            --tests io.autoptu.core.runtime.RoundStartAirLockEffectOracleParityTest \
             --tests io.autoptu.core.runtime.RoundStartTrainerFeatureLifecycleOracleParityTest \
             --tests io.autoptu.core.runtime.RoundStartEffectsLifecycleTest
