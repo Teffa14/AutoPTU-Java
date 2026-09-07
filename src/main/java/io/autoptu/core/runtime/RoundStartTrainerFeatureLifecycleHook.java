@@ -37,7 +37,7 @@ public final class RoundStartTrainerFeatureLifecycleHook implements LifecycleHoo
     @Override
     public LifecycleHookResult apply(LifecycleHookContext context) {
         Objects.requireNonNull(context, "context");
-        if (context.hookPoint() != LifecycleHookPoint.ROUND_START_EFFECTS) {
+        if (context.point() != LifecycleHookPoint.ROUND_START_EFFECTS) {
             throw new IllegalArgumentException("RoundStartTrainerFeatureLifecycleHook requires ROUND_START_EFFECTS");
         }
         if (trainers.isEmpty()) return LifecycleHookResult.empty();
