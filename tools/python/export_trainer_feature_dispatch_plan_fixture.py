@@ -1,54 +1,52 @@
 #!/usr/bin/env python3
-"""Freeze TrainerFeatureDispatcher traversal behavior from the pinned Python oracle.
-
-This fixture exercises the real dispatcher. Expensive gates/effects are replaced with spies so the
-output isolates collection, de-duplication, enabled filtering, trigger normalization, and trainer
-insertion order.
-"""
+"""Freeze TrainerFeatureDispatcher traversal behavior from the pinned Python oracle."""
 from __future__ import annotations
 
+import argparse
 import json
+import sys
 from collections import OrderedDict
 from pathlib import Path
 from types import SimpleNamespace
 
-from auto_ptu.rules.trainer_features import TrainerFeatureDispatcher, _feature_identifier
 
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source-root", required=True)
+    parser.add_argument("--output", required=True)
+    args = parser.parse_args()
 
-class SpyDispatcher(TrainerFeatureDispatcher):
-    def __post_init__(self):
-        self.applied = []
+    sys.path.insert(0, str(Path(args.source_root).resolve()))
+    from auto_ptu.rules.trainer_features import TrainerFeatureDispatcher, _feature_identifier
 
-    def _feature_prerequisites_met(self, **kwargs):
-        return True
+    class SpyDispatcher(TrainerFeatureDispatcher):
+        def _feature_prerequisites_met(self, **kwargs):
+            return True
 
-    def _feature_matches_context(self, **kwargs):
-        return True
+        def _feature_matches_context(self, **kwargs):
+            return True
 
-    def _feature_is_available(self, trainer, feature):
-        return True
+        def _feature_is_available(self, trainer, feature):
+            return True
 
-    def _feature_has_resources(self, trainer, feature):
-        return True
+        def _feature_has_resources(self, trainer, feature):
+            return True
 
-    def _apply_feature(self, *, trainer_id, trainer, feature, actor_id, payload):
-        self.applied.append({
-            "trainer_id": trainer_id,
-            "feature_id": _feature_identifier(feature),
-            "runtime_kind": feature.get("runtime_kind", ""),
-        })
-        return False
+        def _apply_feature(self, *, trainer_id, trainer, feature, actor_id, payload):
+            self.applied.append({
+                "trainer_id": trainer_id,
+                "feature_id": _feature_identifier(feature),
+                "runtime_kind": feature.get("runtime_kind", ""),
+            })
+            return False
 
+    def trainer(features=None, edges=None, known=None):
+        return SimpleNamespace(
+            features=list(features or []),
+            edges=list(edges or []),
+            trainer_class={"known_features": list(known or [])},
+        )
 
-def trainer(features=None, edges=None, known=None):
-    return SimpleNamespace(
-        features=list(features or []),
-        edges=list(edges or []),
-        trainer_class={"known_features": list(known or [])},
-    )
-
-
-def main():
     battle = SimpleNamespace(trainers=OrderedDict([
         ("trainer-b", trainer(
             features=[
@@ -71,10 +69,7 @@ def main():
     dispatcher.applied = []
     dispatcher.trigger(" Round_Start ")
 
-    fixture = {
-        "trigger": " Round_Start ",
-        "invocations": dispatcher.applied,
-    }
+    fixture = {"trigger": " Round_Start ", "invocations": dispatcher.applied}
     expected = [
         {"trainer_id": "trainer-b", "feature_id": "alpha", "runtime_kind": "feature"},
         {"trainer_id": "trainer-b", "feature_id": "edge-hit", "runtime_kind": "edge"},
@@ -84,7 +79,7 @@ def main():
     if fixture["invocations"] != expected:
         raise AssertionError(f"unexpected Trainer Feature traversal: {fixture['invocations']!r}")
 
-    output = Path("build/python-oracle/trainer-feature-dispatch-plan.json")
+    output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(fixture, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(output)
