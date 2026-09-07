@@ -48,30 +48,31 @@ public final class TrainerFeatureEffectBatch {
     ) {
         Objects.requireNonNull(registry, "registry");
         Objects.requireNonNull(context, "context");
+        ArrayList<TrainerFeatureEffectRegistry.EffectResult> results = new ArrayList<>();
+        for (Map<String, Object> effect : effects(context.feature())) {
+            results.add(registry.apply(context, effect));
+        }
+        return aggregate(results);
+    }
 
+    /** Mirrors the aggregation portion of Python TrainerFeatureDispatcher._apply_feature(). */
+    public static BatchResult aggregate(List<TrainerFeatureEffectRegistry.EffectResult> results) {
         ArrayList<String> appliedTypes = new ArrayList<>();
         LinkedHashSet<String> targets = new LinkedHashSet<>();
         ArrayList<Map<String, Object>> details = new ArrayList<>();
-
-        for (Map<String, Object> effect : effects(context.feature())) {
-            TrainerFeatureEffectRegistry.EffectResult result = registry.apply(context, effect);
-            if (!result.applied()) continue;
-            appliedTypes.add(result.effectType().isBlank() ? "log_only" : result.effectType());
-            targets.addAll(result.targets());
-            if (!result.details().isEmpty()) details.add(result.details());
+        if (results != null) {
+            for (TrainerFeatureEffectRegistry.EffectResult result : results) {
+                if (result == null || !result.applied()) continue;
+                appliedTypes.add(result.effectType().isBlank() ? "log_only" : result.effectType());
+                targets.addAll(result.targets());
+                if (!result.details().isEmpty()) details.add(result.details());
+            }
         }
-
         boolean applied = !appliedTypes.isEmpty();
         String aggregateType = !applied
                 ? ""
                 : (appliedTypes.size() == 1 ? appliedTypes.get(0) : "multi");
-        return new BatchResult(
-                applied,
-                aggregateType,
-                appliedTypes,
-                new ArrayList<>(targets),
-                details
-        );
+        return new BatchResult(applied, aggregateType, appliedTypes, new ArrayList<>(targets), details);
     }
 
     /** Mirrors Python TrainerFeatureDispatcher._feature_effects(). */
