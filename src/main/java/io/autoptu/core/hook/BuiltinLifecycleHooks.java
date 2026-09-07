@@ -5,8 +5,11 @@ import io.autoptu.core.runtime.DeclaredActionRoundLifecycleHook;
 import io.autoptu.core.runtime.DelayedHitRoundLifecycleHook;
 import io.autoptu.core.runtime.FieldRoundLifecycleHook;
 import io.autoptu.core.runtime.HeldItemRuleCatalog;
+import io.autoptu.core.runtime.RoundStartTrainerFeatureLifecycleHook;
 import io.autoptu.core.runtime.RoundTemporaryEffectExpiryHook;
 import io.autoptu.core.runtime.RoundWindowHistoryLifecycleHook;
+import io.autoptu.core.runtime.TrainerFeatureDispatchCatalog;
+import io.autoptu.core.runtime.TrainerFeatureEffectRegistry;
 import io.autoptu.core.runtime.TrainerRuntimeState;
 
 import java.util.List;
@@ -32,7 +35,23 @@ public final class BuiltinLifecycleHooks {
      * The default registry remains compatibility-safe until canonical item content is materialized.
      */
     public static LifecycleHookRegistry registry(HeldItemRuleCatalog heldItemRuleCatalog) {
+        return registry(heldItemRuleCatalog, List.of(), new TrainerFeatureEffectRegistry());
+    }
+
+    /**
+     * Lifecycle registry with canonical Trainer Feature content injected by the authoritative core.
+     * Empty Trainer Feature content preserves compatibility for callers that have not materialized
+     * the content catalog yet; adapters never supply or interpret these rule definitions.
+     */
+    public static LifecycleHookRegistry registry(
+            HeldItemRuleCatalog heldItemRuleCatalog,
+            List<TrainerFeatureDispatchCatalog.TrainerSpec> trainerFeatures,
+            TrainerFeatureEffectRegistry trainerFeatureEffects
+    ) {
         if (heldItemRuleCatalog == null) throw new IllegalArgumentException("heldItemRuleCatalog is required");
+        if (trainerFeatureEffects == null) throw new IllegalArgumentException("trainerFeatureEffects is required");
+        List<TrainerFeatureDispatchCatalog.TrainerSpec> safeTrainerFeatures =
+                trainerFeatures == null ? List.of() : List.copyOf(trainerFeatures);
 
         CombatantPhaseEffectDispatcher phaseDispatcher = CombatantPhaseEffectDispatcher.builder()
                 .family(
@@ -146,6 +165,13 @@ public final class BuiltinLifecycleHooks {
                         LifecycleHookPoint.ROUND_START_POST_INITIATIVE,
                         720,
                         new RoundWindowHistoryLifecycleHook()
+                )
+                .register(
+                        "round-trainer-feature-dispatch",
+                        HookSource.TRAINER_FEATURE,
+                        LifecycleHookPoint.ROUND_START_EFFECTS,
+                        100,
+                        new RoundStartTrainerFeatureLifecycleHook(safeTrainerFeatures, trainerFeatureEffects)
                 )
                 .register(
                         "combatant-turn-start-effects",
