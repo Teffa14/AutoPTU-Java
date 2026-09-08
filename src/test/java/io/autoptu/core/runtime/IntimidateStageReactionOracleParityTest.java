@@ -3,6 +3,7 @@ package io.autoptu.core.runtime;
 import io.autoptu.core.event.AbilityEvent;
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.event.CombatStageChangedEvent;
+import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.model.CombatStageStat;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
@@ -25,13 +26,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IntimidateStageReactionOracleParityTest {
     @Test
-    void defiantAndCompetitiveMatchPinnedPythonFinalStateAndEventOrder() throws IOException {
+    void defiantCompetitiveAndSimpleMatchPinnedPythonFinalStateAndEventOrder() throws IOException {
         Path fixture = Path.of("build/oracle/intimidate-stage-reactions.tsv");
         Assumptions.assumeTrue(Files.exists(fixture));
         List<String> oracle = Files.readAllLines(fixture).stream().filter(line -> !line.isBlank()).toList();
 
         ArrayList<String> actual = new ArrayList<>();
-        for (String ability : List.of("Defiant", "Competitive")) {
+        for (String ability : List.of("Defiant", "Competitive", "Simple")) {
             BattleRuntimeState state = new BattleRuntimeState(
                     new MovementGrid(10, 10, Set.of(), Map.of()),
                     List.of(
@@ -69,6 +70,10 @@ class IntimidateStageReactionOracleParityTest {
                             "STAGE", stage.actorId(), stage.targetId(), stage.moveId(),
                             stage.stat().name().toLowerCase(Locale.ROOT), stage.effect(),
                             Integer.toString(stage.amount()), Integer.toString(stage.newStage())));
+                } else if (event instanceof RuleEffectEvent reaction && "Simple".equals(reaction.sourceName())) {
+                    actual.add(String.join("\t",
+                            "REACTION", reaction.actorId(), reaction.targetId(), reaction.sourceName(), reaction.moveId(),
+                            reaction.effect(), "atk", integerAmount(reaction.amount())));
                 } else if (event instanceof AbilityEvent eventAbility && "Intimidate".equals(eventAbility.ability())) {
                     actual.add(String.join("\t",
                             "INTIMIDATE", eventAbility.actorId(), eventAbility.target(), eventAbility.effect(),
@@ -79,6 +84,10 @@ class IntimidateStageReactionOracleParityTest {
         }
 
         assertEquals(oracle, actual);
+    }
+
+    private static String integerAmount(double amount) {
+        return Integer.toString((int) amount);
     }
 
     private static RuntimeCombatantState combatant(String id, GridCoord position, List<String> abilities) {
