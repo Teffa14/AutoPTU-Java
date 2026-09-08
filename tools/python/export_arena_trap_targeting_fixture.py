@@ -19,7 +19,7 @@ def main() -> None:
     from auto_ptu.data_models import PokemonSpec
     from auto_ptu.rules import BattleState, GridState, PokemonState, TrainerState
 
-    def spec(name: str, *, types=None, ability=None, movement=None) -> PokemonSpec:
+    def spec(name: str, *, types=None, ability=None, capabilities=None, movement=None) -> PokemonSpec:
         abilities = [{"name": ability}] if ability else []
         return PokemonSpec(
             species=name,
@@ -33,6 +33,7 @@ def main() -> None:
             spd=10,
             moves=[],
             abilities=abilities,
+            capabilities=list(capabilities or []),
             movement=dict(movement or {"overland": 4}),
         )
 
@@ -46,6 +47,12 @@ def main() -> None:
         "far": PokemonState(spec=spec("Far"), controller_id="b", position=(9, 9), active=True),
         "flying": PokemonState(spec=spec("Flying", types=["Flying"]), controller_id="b", position=(2, 4), active=True),
         "levitate": PokemonState(spec=spec("Levitate", ability="Levitate"), controller_id="b", position=(2, 5), active=True),
+        "capability_levitate": PokemonState(
+            spec=spec("CapabilityLevitate", capabilities=[{"name": "Levitate"}]),
+            controller_id="b",
+            position=(3, 5),
+            active=True,
+        ),
         "sky4": PokemonState(spec=spec("Sky4", movement={"overland": 4, "sky": 4}), controller_id="b", position=(3, 2), active=True),
         "burrow4": PokemonState(spec=spec("Burrow4", movement={"overland": 4, "burrow": 4}), controller_id="b", position=(3, 3), active=True),
         "inactive": PokemonState(spec=spec("Inactive"), controller_id="b", position=None, active=False),
