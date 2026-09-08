@@ -32,15 +32,20 @@ jobs:
         run: |
           python3 -m py_compile \
             tools/python/export_round_start_ability_dispatch_fixture.py \
-            tools/python/export_arena_trap_targeting_fixture.py
+            tools/python/export_arena_trap_targeting_fixture.py \
+            tools/python/export_active_ability_holders_fixture.py
           python3 tools/python/export_round_start_ability_dispatch_fixture.py \
             --source-root python-oracle \
             --output build/oracle/round-start-ability-dispatch.tsv
           python3 tools/python/export_arena_trap_targeting_fixture.py \
             --source-root python-oracle \
             --output build/oracle/arena-trap-targeting.tsv
+          python3 tools/python/export_active_ability_holders_fixture.py \
+            --source-root python-oracle \
+            --output build/oracle/active-ability-holders.tsv
           cat build/oracle/round-start-ability-dispatch.tsv
           cat build/oracle/arena-trap-targeting.tsv
+          cat build/oracle/active-ability-holders.tsv
 
       - name: Compare Java round-start ability behavior
         run: |
@@ -54,5 +59,6 @@ jobs:
             --tests io.autoptu.core.runtime.ArenaTrapEffectPlanTest \
             --tests io.autoptu.core.runtime.StatusEffectMutationExecutorTest \
             --tests io.autoptu.core.runtime.ArenaTrapEffectMutationOracleParityTest \
+            --tests io.autoptu.core.runtime.ActiveAbilityHolderResolverOracleParityTest \
             --tests io.autoptu.core.runtime.RoundStartTrainerFeatureLifecycleOracleParityTest \
             --tests io.autoptu.core.runtime.RoundStartEffectsLifecycleTest
