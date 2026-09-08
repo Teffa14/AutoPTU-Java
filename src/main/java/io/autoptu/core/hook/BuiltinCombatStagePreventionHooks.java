@@ -140,7 +140,7 @@ public final class BuiltinCombatStagePreventionHooks {
             events.add(new CombatStageChangedEvent(
                     context.targetId(),
                     context.attackerId(),
-                    "Mirror Armor",
+                    context.moveId(),
                     context.stat(),
                     "mirror_armor",
                     Math.abs(reflected.baseAppliedDelta()),
