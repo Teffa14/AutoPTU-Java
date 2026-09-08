@@ -41,6 +41,19 @@ public final class ArenaTrapEffectPlan {
             description = required(description, "description");
             if (durationRounds <= 0) throw new IllegalArgumentException("durationRounds must be positive");
         }
+
+        public StatusEffectInstruction toStatusInstruction() {
+            return new StatusEffectInstruction(
+                    targetId,
+                    status,
+                    durationRounds,
+                    source,
+                    sourceId,
+                    ability,
+                    action,
+                    description
+            );
+        }
     }
 
     public static List<Effect> forTargets(String holderId, List<String> targetIds) {
@@ -59,6 +72,15 @@ public final class ArenaTrapEffectPlan {
             ));
         }
         return List.copyOf(effects);
+    }
+
+    public static List<StatusEffectInstruction> statusInstructionsForTargets(
+            String holderId,
+            List<String> targetIds
+    ) {
+        return forTargets(holderId, targetIds).stream()
+                .map(Effect::toStatusInstruction)
+                .toList();
     }
 
     private static String required(String value, String field) {
