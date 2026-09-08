@@ -7,6 +7,7 @@ public enum BattleEventKind {
     STATUS_SKIP("status_skip"),
     TRAINER_FEATURE("trainer_feature"),
     ABILITY("ability"),
+    COMBAT_STAGE("combat_stage"),
     RULE_EFFECT("rule_effect"),
     FIELD_EFFECT("field_effect"),
     TERRAIN_HAZARD("terrain_hazard"),
