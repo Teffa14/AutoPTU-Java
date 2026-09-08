@@ -49,11 +49,15 @@ def main() -> None:
 
     battle._trigger_intimidate("holder")
 
+    used = any(
+        int(entry.get("round", 0) or 0) == battle.round
+        for entry in pokemon["holder"].get_temporary_effects("intimidate_used")
+    )
     rows = ["\t".join([
         "STATE",
         str(int(pokemon["holder"].combat_stages.get("atk", 0) or 0)),
         str(int(pokemon["target"].combat_stages.get("atk", 0) or 0)),
-        str(int(pokemon["holder"].has_temporary_effect("intimidate_used", round=battle.round))),
+        "1" if used else "0",
     ])]
     for event in battle.log:
         if event.get("effect") == "reflect":
