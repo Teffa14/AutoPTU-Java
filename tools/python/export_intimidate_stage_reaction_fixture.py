@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze Intimidate interactions with Defiant and Competitive from the pinned Python oracle."""
+"""Freeze Intimidate interactions with Defiant, Competitive, and Simple from the pinned Python oracle."""
 from __future__ import annotations
 
 import argparse
@@ -34,7 +34,7 @@ def main() -> None:
         )
 
     rows: list[str] = []
-    for ability in ("Defiant", "Competitive"):
+    for ability in ("Defiant", "Competitive", "Simple"):
         trainers = {
             "a": TrainerState(identifier="a", name="A", team="players"),
             "b": TrainerState(identifier="b", name="B", team="foes"),
@@ -73,6 +73,17 @@ def main() -> None:
                     str(event.get("effect") or ""),
                     str(event.get("amount") or 0),
                     str(event.get("new_stage") or 0),
+                ]))
+            elif event.get("type") == "ability" and event.get("ability") == "Simple":
+                rows.append("\t".join([
+                    "REACTION",
+                    str(event.get("actor") or ""),
+                    str(event.get("target") or ""),
+                    str(event.get("ability") or ""),
+                    str(event.get("move") or ""),
+                    str(event.get("effect") or ""),
+                    str(event.get("stat") or ""),
+                    str(event.get("amount") or 0),
                 ]))
             elif event.get("type") == "ability" and event.get("ability") == "Intimidate":
                 rows.append("\t".join([
