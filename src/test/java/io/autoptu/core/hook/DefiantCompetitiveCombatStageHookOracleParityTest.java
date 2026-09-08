@@ -1,5 +1,6 @@
 package io.autoptu.core.hook;
 
+import io.autoptu.core.event.CombatStageChangedEvent;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.runtime.BattleRuntimeState;
@@ -51,7 +52,16 @@ class DefiantCompetitiveCombatStageHookOracleParityTest {
             );
 
             CombatStageHookResult result = BuiltinCombatStageHooks.registry().apply(CombatStageHookPhase.POST_APPLY, context);
-            assertEquals(0, result.events().size(), scenario);
+            assertEquals(recursiveCalls, result.events().size(), scenario);
+            if (recursiveCalls == 1) {
+                CombatStageChangedEvent event = (CombatStageChangedEvent) result.events().get(0);
+                assertEquals(targetId, event.actorId(), scenario);
+                assertEquals(targetId, event.targetId(), scenario);
+                assertEquals(recursiveMove, event.moveId(), scenario);
+                assertEquals(reaction, event.effect(), scenario);
+                assertEquals(Math.abs(recursiveDelta), event.amount(), scenario);
+                assertEquals(recursiveDelta, event.newStage(), scenario);
+            }
 
             int expectedAtk = recursiveCalls == 1 && recursiveStat.equals("atk") ? recursiveDelta : 0;
             int expectedSpAtk = recursiveCalls == 1 && recursiveStat.equals("spatk") ? recursiveDelta : 0;

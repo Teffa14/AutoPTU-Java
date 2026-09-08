@@ -46,7 +46,6 @@ public final class IntimidateEffectExecutor {
                     "intimidate"
             );
 
-            events.addAll(mutation.events());
             if (mutation.baseAppliedDelta() != 0) {
                 events.add(new CombatStageChangedEvent(
                         holderId,
@@ -61,6 +60,11 @@ public final class IntimidateEffectExecutor {
                         round,
                         "start"
                 ));
+                // Python records the committed base mutation before POST_APPLY reaction traces.
+                events.addAll(mutation.events());
+            } else {
+                // PRE_APPLY blockers/reflections own the complete trace when no base mutation commits.
+                events.addAll(mutation.events());
             }
             events.add(new AbilityEvent(
                     holderId,
