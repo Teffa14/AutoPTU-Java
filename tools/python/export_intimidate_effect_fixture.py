@@ -44,6 +44,8 @@ def main() -> None:
         "near-second": PokemonState(spec=spec("NearSecond"), controller_id="b", position=(3, 3), active=True),
         "far": PokemonState(spec=spec("Far"), controller_id="b", position=(4, 2), active=True),
     }
+    for mon in pokemon.values():
+        mon.hp = 20
     battle = BattleState(trainers=trainers, pokemon=pokemon, grid=GridState(width=8, height=8))
     battle.round = 3
     pokemon["holder"].add_temporary_effect("joined_round", round=battle.round)
