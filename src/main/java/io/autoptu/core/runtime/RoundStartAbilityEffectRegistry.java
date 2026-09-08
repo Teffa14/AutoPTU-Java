@@ -54,11 +54,28 @@ public final class RoundStartAbilityEffectRegistry {
         return List.copyOf(copied);
     }
 
-    /** First frozen Python family: Air Lock emits suppression events without mutating weather. */
+    /** Frozen Python families that need only battle state. */
     public static RoundStartAbilityEffectRegistry pythonParityBuiltins() {
         return new RoundStartAbilityEffectRegistry().register(
                 RoundStartAbilityDispatchPlan.AIR_LOCK,
                 RoundStartAbilityEffectRegistry::applyAirLock
+        );
+    }
+
+    /**
+     * Frozen Python families with access to canonical server-owned rule content.
+     *
+     * <p>Arena Trap needs generic PTU capabilities in addition to battle state. The supplied
+     * context is captured by the registry rather than threaded through Minecraft/Cobblemon or
+     * added as an ability-specific controller parameter.</p>
+     */
+    public static RoundStartAbilityEffectRegistry pythonParityBuiltins(
+            RoundStartAbilityExecutionContext context
+    ) {
+        Objects.requireNonNull(context, "context");
+        return pythonParityBuiltins().register(
+                RoundStartAbilityDispatchPlan.ARENA_TRAP,
+                (invocation, state) -> applyArenaTrap(invocation, state, context)
         );
     }
 
@@ -79,6 +96,38 @@ public final class RoundStartAbilityEffectRegistry {
                         "description", "Air Lock suppresses the active weather."
                 )
         ));
+    }
+
+    private static List<BattleEvent> applyArenaTrap(
+            RoundStartAbilityDispatchPlan.Invocation invocation,
+            BattleRuntimeState state,
+            RoundStartAbilityExecutionContext context
+    ) {
+        if (invocation.scope() != RoundStartAbilityDispatchPlan.Scope.GLOBAL) {
+            throw new IllegalArgumentException("Arena Trap requires GLOBAL scope");
+        }
+        if (context.state() != state) {
+            throw new IllegalArgumentException("Arena Trap execution context must own the supplied battle state");
+        }
+
+        ArrayList<BattleEvent> events = new ArrayList<>();
+        for (String holderId : ActiveAbilityHolderResolver.resolve(state, ArenaTrapEffectPlan.ABILITY)) {
+            List<ArenaTrapTargetingContract.Candidate> candidates =
+                    ArenaTrapRuntimeCandidateProjection.candidatesForHolder(
+                            state,
+                            context.ruleContent(),
+                            holderId
+                    );
+            List<String> targets = ArenaTrapTargetingContract.regularTargets(
+                    state.teamId(holderId),
+                    candidates
+            );
+            events.addAll(StatusEffectMutationExecutor.apply(
+                    state,
+                    ArenaTrapEffectPlan.statusInstructionsForTargets(holderId, targets)
+            ));
+        }
+        return List.copyOf(events);
     }
 
     private static String normalizeFamily(String family) {
