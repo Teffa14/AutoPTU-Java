@@ -1,5 +1,6 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.event.CombatStageChangedEvent;
 import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.model.CombatStageStat;
 import io.autoptu.core.model.CombatStat;
@@ -50,13 +51,24 @@ class MirrorArmorCombatStageOracleParityTest {
         assertEquals(0, state.requireCombatant("target").combatStages().get(CombatStat.ATK));
         assertEquals(-1, state.requireCombatant("attacker").combatStages().get(CombatStat.ATK));
         assertEquals(0, result.baseAppliedDelta());
-        assertEquals(1, result.events().size());
-        RuleEffectEvent event = (RuleEffectEvent) result.events().getFirst();
-        assertEquals("Mirror Armor", event.sourceName());
-        assertEquals("target", event.actorId());
-        assertEquals("attacker", event.targetId());
-        assertEquals("reflect", event.effect());
-        assertEquals(-1, event.amount());
+        assertEquals(2, result.events().size());
+
+        RuleEffectEvent reflect = (RuleEffectEvent) result.events().get(0);
+        assertEquals("Mirror Armor", reflect.sourceName());
+        assertEquals("target", reflect.actorId());
+        assertEquals("attacker", reflect.targetId());
+        assertEquals("Growl", reflect.moveId());
+        assertEquals("reflect", reflect.effect());
+        assertEquals(-1, reflect.amount());
+
+        CombatStageChangedEvent reflectedStage = (CombatStageChangedEvent) result.events().get(1);
+        assertEquals("target", reflectedStage.actorId());
+        assertEquals("attacker", reflectedStage.targetId());
+        assertEquals("Growl", reflectedStage.moveId());
+        assertEquals(CombatStageStat.ATK, reflectedStage.stat());
+        assertEquals("mirror_armor", reflectedStage.effect());
+        assertEquals(1, reflectedStage.amount());
+        assertEquals(-1, reflectedStage.newStage());
     }
 
     @Test
