@@ -51,5 +51,8 @@ jobs:
             --tests io.autoptu.core.runtime.RoundStartAirLockEffectOracleParityTest \
             --tests io.autoptu.core.runtime.ArenaTrapTargetingContractOracleParityTest \
             --tests io.autoptu.core.runtime.ArenaTrapRuntimeCandidateProjectionOracleParityTest \
+            --tests io.autoptu.core.runtime.ArenaTrapEffectPlanTest \
+            --tests io.autoptu.core.runtime.StatusEffectMutationExecutorTest \
+            --tests io.autoptu.core.runtime.ArenaTrapEffectMutationOracleParityTest \
             --tests io.autoptu.core.runtime.RoundStartTrainerFeatureLifecycleOracleParityTest \
             --tests io.autoptu.core.runtime.RoundStartEffectsLifecycleTest
