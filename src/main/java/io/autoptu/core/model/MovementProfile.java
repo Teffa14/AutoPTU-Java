@@ -11,6 +11,7 @@ public record MovementProfile(
         int overland,
         int swimSpeed,
         int skySpeed,
+        int burrowSpeed,
         double sprintMultiplier,
         boolean canFly,
         boolean canSwim,
@@ -27,14 +28,55 @@ public record MovementProfile(
         overland = Math.max(0, overland);
         swimSpeed = Math.max(0, swimSpeed);
         skySpeed = Math.max(0, skySpeed);
+        burrowSpeed = Math.max(0, burrowSpeed);
         sprintMultiplier = sprintMultiplier <= 0 ? 1.0 : sprintMultiplier;
+        canBurrow = canBurrow || burrowSpeed > 0;
         wallrunnerLimit = Math.max(0, wallrunnerLimit);
+    }
+
+    /**
+     * Compatibility constructor for callers that only know whether Burrow is available.
+     *
+     * <p>Legacy boolean capability data maps to speed 1. New authoritative projections should
+     * use the canonical constructor so PTU rules can distinguish thresholds such as Burrow 3
+     * versus Burrow 4.</p>
+     */
+    public MovementProfile(
+            GridCoord position,
+            int overland,
+            int swimSpeed,
+            int skySpeed,
+            double sprintMultiplier,
+            boolean canFly,
+            boolean canSwim,
+            boolean canBurrow,
+            boolean canPhase,
+            boolean liquefied,
+            boolean ignoresRoughTerrain,
+            int wallrunnerLimit
+    ) {
+        this(
+                position,
+                overland,
+                swimSpeed,
+                skySpeed,
+                canBurrow ? 1 : 0,
+                sprintMultiplier,
+                canFly,
+                canSwim,
+                canBurrow,
+                canPhase,
+                liquefied,
+                ignoresRoughTerrain,
+                wallrunnerLimit
+        );
     }
 
     public static MovementProfile walking(GridCoord position, int overland) {
         return new MovementProfile(
                 position,
                 overland,
+                0,
                 0,
                 0,
                 1.0,
@@ -55,6 +97,7 @@ public record MovementProfile(
                 overland,
                 swimSpeed,
                 skySpeed,
+                burrowSpeed,
                 sprintMultiplier,
                 canFly,
                 canSwim,
