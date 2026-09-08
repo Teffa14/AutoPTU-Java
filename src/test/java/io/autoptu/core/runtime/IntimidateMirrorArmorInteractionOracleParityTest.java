@@ -51,13 +51,16 @@ class IntimidateMirrorArmorInteractionOracleParityTest {
 
         IntimidateTriggerContract.Plan plan = IntimidateTriggerContract.plan(state, "holder");
         List<BattleEvent> events = IntimidateEffectExecutor.apply(state, "holder", plan);
+        boolean used = state.requireCombatant("holder").temporaryEffects()
+                .getAll(IntimidateTriggerContract.USED).stream()
+                .anyMatch(entry -> entry.payload().get("round") instanceof Number number && number.intValue() == 3);
 
         ArrayList<String> actual = new ArrayList<>();
         actual.add(String.join("\t",
                 "STATE",
                 Integer.toString(state.requireCombatant("holder").combatStages().get(CombatStageStat.ATK)),
                 Integer.toString(state.requireCombatant("target").combatStages().get(CombatStageStat.ATK)),
-                state.requireCombatant("holder").temporaryEffects().has(IntimidateTriggerContract.USED, Map.of("round", 3)) ? "1" : "0"
+                used ? "1" : "0"
         ));
         for (BattleEvent event : events) {
             if (event instanceof RuleEffectEvent rule && "reflect".equals(rule.effect())) {
