@@ -1,6 +1,7 @@
 package io.autoptu.core.hook;
 
 import io.autoptu.core.event.BattleEvent;
+import io.autoptu.core.event.CombatStageChangedEvent;
 import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.rules.AbilityIdentityResolution;
 import io.autoptu.core.rules.CombatStageAbilityPreventionResolution;
@@ -134,6 +135,22 @@ public final class BuiltinCombatStagePreventionHooks {
         );
         ArrayList<BattleEvent> events = new ArrayList<>();
         events.add(reflectEvent);
+        if (reflected.baseAppliedDelta() != 0) {
+            RuntimeCombatantState reflectedTarget = context.state().requireCombatant(context.attackerId());
+            events.add(new CombatStageChangedEvent(
+                    context.targetId(),
+                    context.attackerId(),
+                    "Mirror Armor",
+                    context.stat(),
+                    "mirror_armor",
+                    Math.abs(reflected.baseAppliedDelta()),
+                    reflected.baseStage(),
+                    "Mirror Armor reflects the combat stage drop.",
+                    reflectedTarget.hp(),
+                    context.state().currentRound(),
+                    ""
+            ));
+        }
         events.addAll(reflected.events());
         return CombatStagePreventionResult.block(events);
     }
