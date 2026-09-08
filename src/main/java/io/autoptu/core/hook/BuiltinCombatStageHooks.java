@@ -1,6 +1,7 @@
 package io.autoptu.core.hook;
 
 import io.autoptu.core.event.BattleEvent;
+import io.autoptu.core.event.CombatStageChangedEvent;
 import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.runtime.CombatStageMutationOptions;
@@ -154,7 +155,14 @@ public final class BuiltinCombatStageHooks {
                 bonus,
                 "defiant"
         );
-        return CombatStageHookResult.events(nested.events());
+        return CombatStageHookResult.events(committedNestedStageEvents(
+                context,
+                nested,
+                "Defiant",
+                CombatStat.ATK,
+                "defiant",
+                "Defiant raises Attack by +2 CS."
+        ));
     }
 
     private static CombatStageHookResult competitiveRaisesSpecialAttackAfterExternalDrop(CombatStageHookContext context) {
@@ -171,7 +179,43 @@ public final class BuiltinCombatStageHooks {
                 2,
                 "competitive"
         );
-        return CombatStageHookResult.events(nested.events());
+        return CombatStageHookResult.events(committedNestedStageEvents(
+                context,
+                nested,
+                "Competitive",
+                CombatStat.SPATK,
+                "competitive",
+                "Competitive raises Special Attack by +2 CS."
+        ));
+    }
+
+    private static List<BattleEvent> committedNestedStageEvents(
+            CombatStageHookContext context,
+            CombatStageMutationResult nested,
+            String moveId,
+            CombatStat stat,
+            String effect,
+            String description
+    ) {
+        ArrayList<BattleEvent> events = new ArrayList<>();
+        if (nested.baseAppliedDelta() != 0) {
+            RuntimeCombatantState target = context.state().requireCombatant(context.targetId());
+            events.add(new CombatStageChangedEvent(
+                    context.targetId(),
+                    context.targetId(),
+                    moveId,
+                    io.autoptu.core.model.CombatStageStat.fromCombatStat(stat),
+                    effect,
+                    Math.abs(nested.baseAppliedDelta()),
+                    nested.baseStage(),
+                    description,
+                    target.hp(),
+                    context.state().currentRound(),
+                    ""
+            ));
+        }
+        events.addAll(nested.events());
+        return List.copyOf(events);
     }
 
     private static CombatStageHookResult simpleDoublesAppliedStageChange(CombatStageHookContext context) {
