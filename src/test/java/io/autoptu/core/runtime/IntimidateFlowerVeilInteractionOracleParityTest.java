@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -104,7 +105,7 @@ class IntimidateFlowerVeilInteractionOracleParityTest {
             } else if (event instanceof CombatStageChangedEvent stage && "target".equals(stage.targetId())) {
                 rows.add(String.join("\t",
                         "STAGE", scenario, stage.actorId(), stage.targetId(), stage.moveId(),
-                        stage.stat().id(), stage.effect(), Integer.toString(stage.newStage())));
+                        stage.stat().name().toLowerCase(Locale.ROOT), stage.effect(), Integer.toString(stage.newStage())));
             } else if (event instanceof AbilityEvent ability
                     && "Intimidate".equals(ability.ability())
                     && "target".equals(ability.target())) {
