@@ -38,7 +38,8 @@ jobs:
             tools/python/export_intimidate_effect_fixture.py \
             tools/python/export_intimidate_prevention_fixture.py \
             tools/python/export_intimidate_flower_veil_fixture.py \
-            tools/python/export_intimidate_mirror_armor_fixture.py
+            tools/python/export_intimidate_mirror_armor_fixture.py \
+            tools/python/export_intimidate_stage_reaction_fixture.py
           python3 tools/python/export_round_start_ability_dispatch_fixture.py \
             --source-root python-oracle \
             --output build/oracle/round-start-ability-dispatch.tsv
@@ -63,6 +64,9 @@ jobs:
           python3 tools/python/export_intimidate_mirror_armor_fixture.py \
             --source-root python-oracle \
             --output build/oracle/intimidate-mirror-armor.tsv
+          python3 tools/python/export_intimidate_stage_reaction_fixture.py \
+            --source-root python-oracle \
+            --output build/oracle/intimidate-stage-reactions.tsv
           cat build/oracle/round-start-ability-dispatch.tsv
           cat build/oracle/arena-trap-targeting.tsv
           cat build/oracle/active-ability-holders.tsv
@@ -71,6 +75,7 @@ jobs:
           cat build/oracle/intimidate-prevention.tsv
           cat build/oracle/intimidate-flower-veil.tsv
           cat build/oracle/intimidate-mirror-armor.tsv
+          cat build/oracle/intimidate-stage-reactions.tsv
 
       - name: Compare Java round-start ability behavior
         run: |
@@ -91,5 +96,6 @@ jobs:
             --tests io.autoptu.core.runtime.IntimidatePreventionInteractionOracleParityTest \
             --tests io.autoptu.core.runtime.IntimidateFlowerVeilInteractionOracleParityTest \
             --tests io.autoptu.core.runtime.IntimidateMirrorArmorInteractionOracleParityTest \
+            --tests io.autoptu.core.runtime.IntimidateStageReactionOracleParityTest \
             --tests io.autoptu.core.runtime.RoundStartTrainerFeatureLifecycleOracleParityTest \
             --tests io.autoptu.core.runtime.RoundStartEffectsLifecycleTest
