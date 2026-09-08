@@ -36,7 +36,8 @@ jobs:
             tools/python/export_active_ability_holders_fixture.py \
             tools/python/export_intimidate_trigger_fixture.py \
             tools/python/export_intimidate_effect_fixture.py \
-            tools/python/export_intimidate_prevention_fixture.py
+            tools/python/export_intimidate_prevention_fixture.py \
+            tools/python/export_intimidate_flower_veil_fixture.py
           python3 tools/python/export_round_start_ability_dispatch_fixture.py \
             --source-root python-oracle \
             --output build/oracle/round-start-ability-dispatch.tsv
@@ -55,12 +56,16 @@ jobs:
           python3 tools/python/export_intimidate_prevention_fixture.py \
             --source-root python-oracle \
             --output build/oracle/intimidate-prevention.tsv
+          python3 tools/python/export_intimidate_flower_veil_fixture.py \
+            --source-root python-oracle \
+            --output build/oracle/intimidate-flower-veil.tsv
           cat build/oracle/round-start-ability-dispatch.tsv
           cat build/oracle/arena-trap-targeting.tsv
           cat build/oracle/active-ability-holders.tsv
           cat build/oracle/intimidate-trigger.tsv
           cat build/oracle/intimidate-effect.tsv
           cat build/oracle/intimidate-prevention.tsv
+          cat build/oracle/intimidate-flower-veil.tsv
 
       - name: Compare Java round-start ability behavior
         run: |
@@ -79,5 +84,6 @@ jobs:
             --tests io.autoptu.core.runtime.IntimidateTriggerContractOracleParityTest \
             --tests io.autoptu.core.runtime.IntimidateEffectExecutionOracleParityTest \
             --tests io.autoptu.core.runtime.IntimidatePreventionInteractionOracleParityTest \
+            --tests io.autoptu.core.runtime.IntimidateFlowerVeilInteractionOracleParityTest \
             --tests io.autoptu.core.runtime.RoundStartTrainerFeatureLifecycleOracleParityTest \
             --tests io.autoptu.core.runtime.RoundStartEffectsLifecycleTest
