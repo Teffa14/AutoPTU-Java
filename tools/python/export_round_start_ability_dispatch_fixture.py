@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze round-start ability orchestration and Air Lock effect parity from pinned Python."""
+"""Freeze round-start ability orchestration, rollover state, and Intimidate trace parity."""
 from __future__ import annotations
 
 import argparse
@@ -16,6 +16,8 @@ def main() -> None:
     args = parser.parse_args()
 
     sys.path.insert(0, str(Path(args.source_root).resolve()))
+    from auto_ptu.data_models import PokemonSpec
+    from auto_ptu.rules import BattleState, GridState, PokemonState, TrainerState
     from auto_ptu.rules.controllers.phase_controller import PhaseController
 
     timeline: list[str] = []
@@ -181,6 +183,83 @@ def main() -> None:
         ])
         for event in air_lock_events
     ]
+
+    def real_spec(name: str, *, ability: str | None = None, speed: int = 10) -> PokemonSpec:
+        return PokemonSpec(
+            species=name,
+            level=20,
+            types=["Normal"],
+            hp_stat=10,
+            atk=12,
+            defense=10,
+            spatk=12,
+            spdef=10,
+            spd=speed,
+            moves=[],
+            abilities=[{"name": ability}] if ability else [],
+            movement={"overland": 4},
+        )
+
+    real_trainers = {
+        "players": TrainerState(identifier="players", name="Players", team="players"),
+        "foes": TrainerState(identifier="foes", name="Foes", team="foes"),
+    }
+    real_pokemon = OrderedDict([
+        (
+            "holder",
+            PokemonState(
+                spec=real_spec("Holder", ability="Intimidate", speed=20),
+                controller_id="players",
+                position=(2, 2),
+                active=True,
+            ),
+        ),
+        (
+            "target",
+            PokemonState(
+                spec=real_spec("Target", speed=10),
+                controller_id="foes",
+                position=(2, 3),
+                active=True,
+            ),
+        ),
+    ])
+    for mon in real_pokemon.values():
+        mon.hp = 20
+    real_battle = BattleState(
+        trainers=real_trainers,
+        pokemon=real_pokemon,
+        grid=GridState(width=6, height=6),
+    )
+    real_pokemon["holder"].add_temporary_effect("joined_round", round=1)
+    PhaseController(real_battle).start_round()
+
+    intimidate_used = any(
+        int(entry.get("round", 0) or 0) == real_battle.round
+        for entry in real_pokemon["holder"].get_temporary_effects("intimidate_used")
+    )
+    real_trace: list[str] = []
+    for event in real_battle.log:
+        if event.get("type") == "combat_stage" and event.get("move") == "Intimidate":
+            real_trace.append("|".join([
+                "STAGE",
+                str(event.get("actor") or ""),
+                str(event.get("target") or ""),
+                str(event.get("move") or ""),
+                str(event.get("stat") or ""),
+                str(event.get("effect") or ""),
+                str(event.get("amount") or 0),
+                str(event.get("new_stage") or 0),
+            ]))
+        elif event.get("type") == "ability" and event.get("ability") == "Intimidate":
+            real_trace.append("|".join([
+                "INTIMIDATE",
+                str(event.get("actor") or ""),
+                str(event.get("target") or ""),
+                str(event.get("effect") or ""),
+                str(event.get("move") or ""),
+            ]))
+
     rows = [
         "ROUND_AFTER\t" + str(battle.round),
         "INITIATIVE_ORDER_AFTER\t" + ",".join(entry.actor_id for entry in battle.initiative_order),
@@ -192,6 +271,10 @@ def main() -> None:
         "COMBATANTS\tactor-b:true:false;fainted:true:true;bench:false:false;actor-a:true:false",
         "INVOCATIONS\t" + ";".join(invocations),
         "TIMELINE\t" + ",".join(timeline),
+        "ROLLOVER_INTIMIDATE_ROUND\t" + str(real_battle.round),
+        "ROLLOVER_INTIMIDATE_TARGET_ATK\t" + str(int(real_pokemon["target"].combat_stages.get("atk", 0) or 0)),
+        "ROLLOVER_INTIMIDATE_USED\t" + ("1" if intimidate_used else "0"),
+        "ROLLOVER_INTIMIDATE_TRACE\t" + ";".join(real_trace),
     ]
 
     output = Path(args.output)
