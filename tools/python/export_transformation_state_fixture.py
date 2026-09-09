@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Freeze pinned Python Transform/Impostor state-copy and target-selection behavior."""
+"""Freeze pinned Python Transform/Impostor state-copy, target-selection, and RNG behavior."""
 from __future__ import annotations
 
 import argparse
+import random
 import sys
 from collections import OrderedDict
 from pathlib import Path
@@ -19,7 +20,8 @@ def main() -> None:
     from auto_ptu.rules import BattleState, GridState, PokemonState, TrainerState
     from auto_ptu.rules.controllers.phase_controller import PhaseController
 
-    def spec(name: str, ability: str, speed: int) -> PokemonSpec:
+    def spec(name: str, ability, speed: int) -> PokemonSpec:
+        ability_names = ability if isinstance(ability, list) else [ability]
         return PokemonSpec(
             species=name,
             level=20,
@@ -31,11 +33,11 @@ def main() -> None:
             spdef=10,
             spd=speed,
             moves=[],
-            abilities=[{"name": ability}],
+            abilities=[{"name": ability_name} for ability_name in ability_names],
             movement={"overland": 4},
         )
 
-    def pokemon(name: str, ability: str, controller: str, position: tuple[int, int], speed: int = 10) -> PokemonState:
+    def pokemon(name: str, ability, controller: str, position: tuple[int, int], speed: int = 10) -> PokemonState:
         state = PokemonState(
             spec=spec(name, ability, speed),
             controller_id=controller,
@@ -129,6 +131,30 @@ def main() -> None:
         and event.get("actor") == "selector"
     )
 
+    # A third scenario freezes random.choice(target_abilities) and stream consumption.
+    # Speeds differ, so round-start initiative construction does not consume RNG here.
+    rng_seed = 42
+    rng_holder = pokemon("RNG Holder", "Impostor", "players", (2, 2), 20)
+    rng_target_abilities = ["Levitate", "Pressure", "Blaze"]
+    rng_target = pokemon("RNG Target", rng_target_abilities, "foes", (2, 3), 10)
+    rng_battle = BattleState(
+        trainers={
+            "players": TrainerState(identifier="players", name="Players", team="players"),
+            "foes": TrainerState(identifier="foes", name="Foes", team="foes"),
+        },
+        pokemon=OrderedDict([("rng-holder", rng_holder), ("rng-target", rng_target)]),
+        grid=GridState(width=6, height=6),
+    )
+    rng_battle.rng = random.Random(rng_seed)
+    PhaseController(rng_battle).start_round()
+    rng_event = next(
+        event for event in rng_battle.log
+        if event.get("type") == "ability"
+        and event.get("ability") == "Impostor"
+        and event.get("actor") == "rng-holder"
+    )
+    rng_next_random = rng_battle.rng.random()
+
     rows = [
         "COPIED_STAGES\t" + ("1" if bool(event.get("copied_stages")) else "0"),
         "ACTOR_STAGES\t" + stage_snapshot,
@@ -148,6 +174,10 @@ def main() -> None:
         "SELECTION_TARGET\t" + str(selection_event.get("target") or ""),
         "SELECTION_DISTANCE\t1",
         "SELECTION_CANDIDATES\ttarget-b,target-a,target-far,target-down,ally",
+        "RNG_SEED\t" + str(rng_seed),
+        "RNG_TARGET_ABILITIES\t" + ",".join(rng_target_abilities),
+        "RNG_ABILITY_ASSIGNED\t" + str(rng_event.get("ability_assigned") or ""),
+        "RNG_NEXT_RANDOM\t" + repr(rng_next_random),
     ]
 
     output = Path(args.output)
