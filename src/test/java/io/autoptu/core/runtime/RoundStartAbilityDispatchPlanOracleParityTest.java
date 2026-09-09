@@ -1,5 +1,11 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.model.CombatStat;
+import io.autoptu.core.model.CombatantStatProfile;
+import io.autoptu.core.model.GridCoord;
+import io.autoptu.core.model.MovementGrid;
+import io.autoptu.core.model.MovementProfile;
+import io.autoptu.core.rules.ActionBudget;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
@@ -10,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -33,6 +40,46 @@ class RoundStartAbilityDispatchPlanOracleParityTest {
                 "round_start_event,trainer_feature:round_start,ability_query:Air Lock,air_lock:air-two,air_lock:air-one,arena_trap,intimidate:actor-b,impostor:actor-b,intimidate:actor-a,impostor:actor-a",
                 expected.get("TIMELINE"),
                 "Python must keep round-start abilities after Trainer Features and preserve family/actor order"
+        );
+    }
+
+    @Test
+    void authoritativeRolloverMatchesPinnedPythonRoundAndInitiativeState() throws IOException {
+        Path fixture = Path.of("build/oracle/round-start-ability-dispatch.tsv");
+        Assumptions.assumeTrue(Files.exists(fixture));
+        Map<String, String> expected = parse(Files.readAllLines(fixture));
+
+        RuntimeCombatantState actorB = combatant("actor-b", 20);
+        RuntimeCombatantState actorA = combatant("actor-a", 10);
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(actorB, actorA)
+        );
+        BattleRoundController controller = new BattleRoundController(state, 0);
+
+        InitiativeTurnAdvanceResult result = controller.advanceInitiativeTurnWithRollover();
+
+        assertEquals(Integer.parseInt(expected.get("ROUND_AFTER")), controller.round());
+        assertEquals(splitNonBlank(expected.get("INITIATIVE_ORDER_AFTER"), ","), state.initiativeProgress().orderedActorIds());
+        assertEquals(Integer.parseInt(expected.get("INITIATIVE_INDEX_AFTER")), state.initiativeProgress().cursor());
+        assertEquals(splitNonBlank(expected.get("INITIATIVE_ORDER_AFTER"), ",").get(0), result.actorId());
+        assertEquals(result.actorId(), controller.turnState().currentActorId());
+    }
+
+    private static RuntimeCombatantState combatant(String id, int speed) {
+        CombatantStatProfile stats = new CombatantStatProfile(
+                Map.of(CombatStat.SPD, speed),
+                Map.of(),
+                Map.of(),
+                Set.of()
+        );
+        return new RuntimeCombatantState(
+                id,
+                MovementProfile.walking(new GridCoord(1, 1), 4),
+                20,
+                20,
+                new ActionBudget(),
+                stats
         );
     }
 
