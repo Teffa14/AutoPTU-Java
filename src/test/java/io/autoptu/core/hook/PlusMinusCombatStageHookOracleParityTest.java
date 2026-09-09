@@ -1,5 +1,6 @@
 package io.autoptu.core.hook;
 
+import io.autoptu.core.event.CombatStageChangedEvent;
 import io.autoptu.core.event.RuleEffectEvent;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.model.GridCoord;
@@ -43,6 +44,8 @@ class PlusMinusCombatStageHookOracleParityTest {
             int appliedDelta = Integer.parseInt(fields[2]);
             String attackerId = fields[9];
             int recursiveCalls = Integer.parseInt(fields[13]);
+            String recursiveMove = fields[14];
+            String recursiveStat = fields[15];
             int recursiveDelta = Integer.parseInt(fields[16]);
             String expectedHolder = fields[17];
             int expectedRadius = Integer.parseInt(fields[20]);
@@ -76,7 +79,17 @@ class PlusMinusCombatStageHookOracleParityTest {
             }
             assertEquals(recursiveCalls == 1 ? recursiveDelta : 0,
                     state.requireCombatant("target").combatStages().get(CombatStat.DEF), scenario + " / stage");
-            assertEquals(expectedEventCount, result.events().size(), scenario + " / events");
+            assertEquals(expectedEventCount + recursiveCalls, result.events().size(), scenario + " / events");
+            if (recursiveCalls == 1) {
+                CombatStageChangedEvent stage = (CombatStageChangedEvent) result.events().getFirst();
+                assertEquals(expectedHolder, stage.actorId(), scenario + " / nested stage actor");
+                assertEquals("target", stage.targetId(), scenario + " / nested stage target");
+                assertEquals(recursiveMove, stage.moveId(), scenario + " / nested stage move");
+                assertEquals(recursiveStat, stage.stat().name().toLowerCase(), scenario + " / nested stage stat");
+                assertEquals(reaction + "_swsh", stage.effect(), scenario + " / nested stage effect");
+                assertEquals(Math.abs(recursiveDelta), stage.amount(), scenario + " / nested stage amount");
+                assertEquals(recursiveDelta, stage.newStage(), scenario + " / nested stage final");
+            }
             if (expectedEventCount > 0) {
                 RuleEffectEvent event = (RuleEffectEvent) result.events().getLast();
                 assertEquals(expectedHolder, event.actorId(), scenario + " / holder");
