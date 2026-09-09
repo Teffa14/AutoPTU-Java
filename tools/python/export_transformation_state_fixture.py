@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze the reusable state-copy portion of pinned Python Impostor/Transform behavior."""
+"""Freeze the reusable state-copy portion of pinned Python Impostor behavior."""
 from __future__ import annotations
 
 import argparse
@@ -68,9 +68,6 @@ def main() -> None:
         "accuracy": 2,
         "evasion": -1,
     })
-    holder.add_temporary_effect("joined_round", round=1)
-    holder.add_temporary_effect("entrained_ability", ability="Overgrow", source="fixture-old")
-    holder.add_temporary_effect("entrained_ability", ability="Blaze", source="fixture-old")
 
     battle = BattleState(
         trainers={
@@ -80,13 +77,16 @@ def main() -> None:
         pokemon=OrderedDict([("holder", holder), ("target", target)]),
         grid=GridState(width=6, height=6),
     )
+    # start_round() itself marks active round-one combatants as joined. Do not preload an
+    # entrained ability here: Python treats that copied ability as the effective ability,
+    # which correctly makes the native Impostor trigger ineligible for another transform.
     PhaseController(battle).start_round()
 
     stage_order = ("atk", "def", "spatk", "spdef", "spd", "accuracy", "evasion")
     stage_snapshot = ",".join(f"{key}:{int(holder.combat_stages.get(key, 0) or 0)}" for key in stage_order)
     entrained = holder.get_temporary_effects("entrained_ability")
     if len(entrained) != 1:
-        raise AssertionError(f"expected one replacement entrained_ability, got {entrained!r}")
+        raise AssertionError(f"expected one copied entrained_ability, got {entrained!r}")
     assigned = entrained[0].get("ability")
     source = entrained[0].get("source")
     used = any(
