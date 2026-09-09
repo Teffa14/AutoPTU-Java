@@ -89,17 +89,28 @@ class ImpostorNegativeGuardOracleParityTest {
         InitiativeTurnAdvanceResult repeatResult = new BattleRoundController(repeated, 0)
                 .advanceInitiativeTurnWithRollover();
         int beforeEvents = impostorEventCount(repeatResult.events(), "holder");
-        var rng = repeated.delayedHitStateFromRuntime().randomFromRuntime();
-        double expectedNext = rng.random();
-
         List<BattleEvent> secondEvents = ImpostorEffectExecutor.apply(repeated, "holder");
-        double actualNext = rng.random();
+        double repeatedNextRandom = repeated.delayedHitStateFromRuntime().randomFromRuntime().random();
+
+        RuntimeCombatantState controlHolder = combatant("holder", 20, List.of("Impostor"));
+        RuntimeCombatantState controlTarget = combatant("target", 10, List.of("Levitate", "Pressure", "Blaze"));
+        BattleRuntimeState control = state(
+                List.of(controlHolder, controlTarget),
+                Map.of(
+                        "holder", CombatantAffiliationState.active("players"),
+                        "target", CombatantAffiliationState.active("foes")
+                ),
+                42L
+        );
+        new BattleRoundController(control, 0).advanceInitiativeTurnWithRollover();
+        double controlNextRandom = control.delayedHitStateFromRuntime().randomFromRuntime().random();
 
         assertEquals(Integer.parseInt(expected.get("REPEAT_EVENT_DELTA")), impostorEventCount(secondEvents, "holder"));
         assertEquals(1, beforeEvents);
         assertEquals(Integer.parseInt(expected.get("REPEAT_USED_COUNT")), roundEffectCount(repeatHolder, ImpostorEffectExecutor.USED, 1));
         assertEquals(Integer.parseInt(expected.get("REPEAT_ENTRAINED_COUNT")), repeatHolder.temporaryEffects().getAll(TransformationStateResolver.ENTRAINED_ABILITY).size());
-        assertEquals("1".equals(expected.get("REPEAT_RNG_UNCHANGED")), expectedNext != actualNext);
+        assertEquals(true, "1".equals(expected.get("REPEAT_RNG_UNCHANGED")));
+        assertEquals(controlNextRandom, repeatedNextRandom);
     }
 
     private static BattleRuntimeState state(
