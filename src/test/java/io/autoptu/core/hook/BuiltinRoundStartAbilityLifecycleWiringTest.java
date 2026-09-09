@@ -31,8 +31,8 @@ class BuiltinRoundStartAbilityLifecycleWiringTest {
                 effects.stream().map(LifecycleHookRegistry.Registration::id).toList());
         assertEquals(HookSource.TRAINER_FEATURE, effects.get(0).source());
         assertEquals(HookSource.ABILITY, effects.get(1).source());
-        assertEquals(100, effects.get(0).priority());
-        assertEquals(110, effects.get(1).priority());
+        assertEquals(100, effects.get(0).order());
+        assertEquals(110, effects.get(1).order());
         assertInstanceOf(RoundStartAbilityLifecycleHook.class, effects.get(1).hook());
     }
 }
