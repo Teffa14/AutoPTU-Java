@@ -3,6 +3,7 @@ package io.autoptu.core.hook;
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.event.CombatStageChangedEvent;
 import io.autoptu.core.event.RuleEffectEvent;
+import io.autoptu.core.model.CombatStageStat;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.runtime.CombatStageMutationOptions;
 import io.autoptu.core.runtime.CombatStageMutationResult;
@@ -78,7 +79,7 @@ public final class BuiltinCombatStageHooks {
                 .orElse(null);
         if (holder == null) return CombatStageHookResult.empty();
 
-        CombatStageMutationResult nested = new CombatStageMutationService(context.state(), registry()).apply(
+        CombatStageMutationResult nested = CombatStageMutationService.authoritative(context.state()).apply(
                 holder,
                 context.targetId(),
                 "Minus [SwSh]",
@@ -87,7 +88,16 @@ public final class BuiltinCombatStageHooks {
                 "minus_swsh",
                 context.options().suppressing(MINUS_SWSH_HOOK_ID)
         );
-        ArrayList<BattleEvent> events = new ArrayList<>(nested.events());
+        ArrayList<BattleEvent> events = new ArrayList<>(committedNestedStageEvents(
+                context,
+                nested,
+                holder,
+                context.targetId(),
+                "Minus [SwSh]",
+                context.stat(),
+                "minus_swsh",
+                "Minus [SwSh] intensifies the stat drop."
+        ));
         events.add(new RuleEffectEvent(
                 "ability",
                 "Minus [SwSh]",
@@ -117,7 +127,7 @@ public final class BuiltinCombatStageHooks {
                 .orElse(null);
         if (holder == null) return CombatStageHookResult.empty();
 
-        CombatStageMutationResult nested = new CombatStageMutationService(context.state(), registry()).apply(
+        CombatStageMutationResult nested = CombatStageMutationService.authoritative(context.state()).apply(
                 holder,
                 context.targetId(),
                 "Plus [SwSh]",
@@ -126,7 +136,16 @@ public final class BuiltinCombatStageHooks {
                 "plus_swsh",
                 context.options().suppressing(PLUS_SWSH_HOOK_ID)
         );
-        ArrayList<BattleEvent> events = new ArrayList<>(nested.events());
+        ArrayList<BattleEvent> events = new ArrayList<>(committedNestedStageEvents(
+                context,
+                nested,
+                holder,
+                context.targetId(),
+                "Plus [SwSh]",
+                context.stat(),
+                "plus_swsh",
+                "Plus [SwSh] intensifies the stat raise."
+        ));
         events.add(new RuleEffectEvent(
                 "ability",
                 "Plus [SwSh]",
@@ -147,7 +166,7 @@ public final class BuiltinCombatStageHooks {
         if (!context.target().hasAbilityExact("Defiant")) return CombatStageHookResult.empty();
 
         int bonus = 2 + Math.abs(context.appliedDelta());
-        CombatStageMutationResult nested = new CombatStageMutationService(context.state(), registry()).apply(
+        CombatStageMutationResult nested = CombatStageMutationService.authoritative(context.state()).apply(
                 context.targetId(),
                 context.targetId(),
                 "Defiant",
@@ -158,8 +177,10 @@ public final class BuiltinCombatStageHooks {
         return CombatStageHookResult.events(committedNestedStageEvents(
                 context,
                 nested,
+                context.targetId(),
+                context.targetId(),
                 "Defiant",
-                CombatStat.ATK,
+                CombatStageStat.fromCombatStat(CombatStat.ATK),
                 "defiant",
                 "Defiant raises Attack by +2 CS."
         ));
@@ -171,7 +192,7 @@ public final class BuiltinCombatStageHooks {
         if (context.targetId().equals(context.attackerId())) return CombatStageHookResult.empty();
         if (!context.target().hasAbilityExact("Competitive")) return CombatStageHookResult.empty();
 
-        CombatStageMutationResult nested = new CombatStageMutationService(context.state(), registry()).apply(
+        CombatStageMutationResult nested = CombatStageMutationService.authoritative(context.state()).apply(
                 context.targetId(),
                 context.targetId(),
                 "Competitive",
@@ -182,8 +203,10 @@ public final class BuiltinCombatStageHooks {
         return CombatStageHookResult.events(committedNestedStageEvents(
                 context,
                 nested,
+                context.targetId(),
+                context.targetId(),
                 "Competitive",
-                CombatStat.SPATK,
+                CombatStageStat.fromCombatStat(CombatStat.SPATK),
                 "competitive",
                 "Competitive raises Special Attack by +2 CS."
         ));
@@ -192,19 +215,21 @@ public final class BuiltinCombatStageHooks {
     private static List<BattleEvent> committedNestedStageEvents(
             CombatStageHookContext context,
             CombatStageMutationResult nested,
+            String actorId,
+            String targetId,
             String moveId,
-            CombatStat stat,
+            CombatStageStat stat,
             String effect,
             String description
     ) {
         ArrayList<BattleEvent> events = new ArrayList<>();
         if (nested.baseAppliedDelta() != 0) {
-            RuntimeCombatantState target = context.state().requireCombatant(context.targetId());
+            RuntimeCombatantState target = context.state().requireCombatant(targetId);
             events.add(new CombatStageChangedEvent(
-                    context.targetId(),
-                    context.targetId(),
+                    actorId,
+                    targetId,
                     moveId,
-                    io.autoptu.core.model.CombatStageStat.fromCombatStat(stat),
+                    stat,
                     effect,
                     Math.abs(nested.baseAppliedDelta()),
                     nested.baseStage(),

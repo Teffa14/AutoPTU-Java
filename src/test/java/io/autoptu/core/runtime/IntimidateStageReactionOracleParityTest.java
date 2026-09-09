@@ -26,24 +26,39 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IntimidateStageReactionOracleParityTest {
     @Test
-    void defiantCompetitiveAndSimpleMatchPinnedPythonFinalStateAndEventOrder() throws IOException {
+    void stageReactionsMatchPinnedPythonFinalStateAndEventOrder() throws IOException {
         Path fixture = Path.of("build/oracle/intimidate-stage-reactions.tsv");
         Assumptions.assumeTrue(Files.exists(fixture));
         List<String> oracle = Files.readAllLines(fixture).stream().filter(line -> !line.isBlank()).toList();
 
         ArrayList<String> actual = new ArrayList<>();
-        for (String ability : List.of("Defiant", "Competitive", "Simple")) {
-            BattleRuntimeState state = new BattleRuntimeState(
-                    new MovementGrid(10, 10, Set.of(), Map.of()),
-                    List.of(
-                            combatant("holder", new GridCoord(2, 2), List.of("Intimidate")),
-                            combatant("target", new GridCoord(2, 3), List.of(ability))
-                    ),
-                    Map.of(), Map.of(), Map.of(),
-                    Map.of(
+        for (String ability : List.of("Defiant", "Competitive", "Simple", "Minus [SwSh]")) {
+            ArrayList<RuntimeCombatantState> combatants = new ArrayList<>();
+            combatants.add(combatant("holder", new GridCoord(2, 2), List.of("Intimidate")));
+            combatants.add(combatant(
+                    "target",
+                    new GridCoord(2, 3),
+                    "Minus [SwSh]".equals(ability) ? List.of() : List.of(ability)
+            ));
+            if ("Minus [SwSh]".equals(ability)) {
+                combatants.add(combatant("minus-holder", new GridCoord(2, 4), List.of("Minus [SwSh]")));
+            }
+
+            Map<String, CombatantAffiliationState> affiliations = "Minus [SwSh]".equals(ability)
+                    ? Map.of(
+                            "holder", CombatantAffiliationState.active("players"),
+                            "target", CombatantAffiliationState.active("foes"),
+                            "minus-holder", CombatantAffiliationState.active("players")
+                    )
+                    : Map.of(
                             "holder", CombatantAffiliationState.active("players"),
                             "target", CombatantAffiliationState.active("foes")
-                    )
+                    );
+            BattleRuntimeState state = new BattleRuntimeState(
+                    new MovementGrid(10, 10, Set.of(), Map.of()),
+                    combatants,
+                    Map.of(), Map.of(), Map.of(),
+                    affiliations
             );
             state.syncCurrentRoundFromLifecycle(3);
             state.requireCombatant("holder").temporaryEffects().add(
@@ -70,7 +85,8 @@ class IntimidateStageReactionOracleParityTest {
                             "STAGE", stage.actorId(), stage.targetId(), stage.moveId(),
                             stage.stat().name().toLowerCase(Locale.ROOT), stage.effect(),
                             Integer.toString(stage.amount()), Integer.toString(stage.newStage())));
-                } else if (event instanceof RuleEffectEvent reaction && "Simple".equals(reaction.sourceName())) {
+                } else if (event instanceof RuleEffectEvent reaction
+                        && ("Simple".equals(reaction.sourceName()) || "Minus [SwSh]".equals(reaction.sourceName()))) {
                     actual.add(String.join("\t",
                             "REACTION", reaction.actorId(), reaction.targetId(), reaction.sourceName(), reaction.moveId(),
                             reaction.effect(), "atk", integerAmount(reaction.amount())));
