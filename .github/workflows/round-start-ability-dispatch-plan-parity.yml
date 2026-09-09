@@ -33,6 +33,7 @@ jobs:
           python3 -m py_compile \
             tools/python/export_round_start_ability_dispatch_fixture.py \
             tools/python/export_transformation_state_fixture.py \
+            tools/python/export_impostor_negative_guard_fixture.py \
             tools/python/export_arena_trap_targeting_fixture.py \
             tools/python/export_active_ability_holders_fixture.py \
             tools/python/export_intimidate_trigger_fixture.py \
@@ -47,6 +48,9 @@ jobs:
           python3 tools/python/export_transformation_state_fixture.py \
             --source-root python-oracle \
             --output build/oracle/transformation-state.tsv
+          python3 tools/python/export_impostor_negative_guard_fixture.py \
+            --source-root python-oracle \
+            --output build/oracle/impostor-negative-guards.tsv
           python3 tools/python/export_arena_trap_targeting_fixture.py \
             --source-root python-oracle \
             --output build/oracle/arena-trap-targeting.tsv
@@ -73,6 +77,7 @@ jobs:
             --output build/oracle/intimidate-stage-reactions.tsv
           cat build/oracle/round-start-ability-dispatch.tsv
           cat build/oracle/transformation-state.tsv
+          cat build/oracle/impostor-negative-guards.tsv
           cat build/oracle/arena-trap-targeting.tsv
           cat build/oracle/active-ability-holders.tsv
           cat build/oracle/intimidate-trigger.tsv
@@ -89,6 +94,7 @@ jobs:
             --tests io.autoptu.core.runtime.RoundStartAbilityDispatchPlanOracleParityTest \
             --tests io.autoptu.core.runtime.TransformationStateResolverOracleParityTest \
             --tests io.autoptu.core.runtime.ImpostorRandomChoiceOracleParityTest \
+            --tests io.autoptu.core.runtime.ImpostorNegativeGuardOracleParityTest \
             --tests io.autoptu.core.runtime.RoundStartAbilityInvocationExecutorTest \
             --tests io.autoptu.core.runtime.RoundStartAirLockEffectOracleParityTest \
             --tests io.autoptu.core.runtime.ArenaTrapTargetingContractOracleParityTest \
