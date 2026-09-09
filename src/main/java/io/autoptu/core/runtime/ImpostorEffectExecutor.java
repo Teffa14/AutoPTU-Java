@@ -36,7 +36,7 @@ public final class ImpostorEffectExecutor {
             return List.of();
         }
 
-        NearestActiveOpponentResolver.Match match = NearestActiveOpponentResolver.resolve(
+        NearestActiveOpponentResolver.Selection match = NearestActiveOpponentResolver.resolve(
                 state,
                 holderId,
                 state.combatantIds()
