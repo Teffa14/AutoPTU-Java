@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze Intimidate interactions with Defiant, Competitive, and Simple from the pinned Python oracle."""
+"""Freeze Intimidate interactions with combat-stage reactions from the pinned Python oracle."""
 from __future__ import annotations
 
 import argparse
@@ -34,15 +34,23 @@ def main() -> None:
         )
 
     rows: list[str] = []
-    for ability in ("Defiant", "Competitive", "Simple"):
+    for ability in ("Defiant", "Competitive", "Simple", "Minus [SwSh]"):
         trainers = {
             "a": TrainerState(identifier="a", name="A", team="players"),
             "b": TrainerState(identifier="b", name="B", team="foes"),
         }
+        target_ability = None if ability == "Minus [SwSh]" else ability
         pokemon = {
             "holder": PokemonState(spec=spec("Holder", "Intimidate"), controller_id="a", position=(2, 2), active=True),
-            "target": PokemonState(spec=spec("Target", ability), controller_id="b", position=(2, 3), active=True),
+            "target": PokemonState(spec=spec("Target", target_ability), controller_id="b", position=(2, 3), active=True),
         }
+        if ability == "Minus [SwSh]":
+            pokemon["minus-holder"] = PokemonState(
+                spec=spec("MinusHolder", "Minus [SwSh]"),
+                controller_id="a",
+                position=(2, 4),
+                active=True,
+            )
         for mon in pokemon.values():
             mon.hp = 20
         battle = BattleState(trainers=trainers, pokemon=pokemon, grid=GridState(width=10, height=10))
@@ -74,7 +82,7 @@ def main() -> None:
                     str(event.get("amount") or 0),
                     str(event.get("new_stage") or 0),
                 ]))
-            elif event.get("type") == "ability" and event.get("ability") == "Simple":
+            elif event.get("type") == "ability" and event.get("ability") in {"Simple", "Minus [SwSh]"}:
                 rows.append("\t".join([
                     "REACTION",
                     str(event.get("actor") or ""),
