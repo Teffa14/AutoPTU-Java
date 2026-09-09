@@ -138,6 +138,80 @@ class RoundStartAbilityDispatchPlanOracleParityTest {
         assertEquals(expected.get("ROLLOVER_INTIMIDATE_TRACE"), String.join(";", trace));
     }
 
+    @Test
+    void authoritativeRolloverExecutesImpostorWithPinnedPythonStateTraceAndRng() throws IOException {
+        Path fixture = Path.of("build/oracle/transformation-state.tsv");
+        Assumptions.assumeTrue(Files.exists(fixture));
+        Map<String, String> expected = parse(Files.readAllLines(fixture));
+
+        long seed = Long.parseLong(expected.get("RNG_SEED"));
+        RuntimeCombatantState holder = combatant(
+                "rng-holder", 20, new GridCoord(2, 2), List.of("Impostor")
+        );
+        RuntimeCombatantState target = combatant(
+                "rng-target", 10, new GridCoord(2, 3), splitNonBlank(expected.get("RNG_TARGET_ABILITIES"), ",")
+        );
+        applyStageSnapshot(target, Map.of(
+                CombatStageStat.ATK, 2,
+                CombatStageStat.DEF, -1,
+                CombatStageStat.SPATK, 3,
+                CombatStageStat.SPDEF, -2,
+                CombatStageStat.SPD, 1,
+                CombatStageStat.ACCURACY, 2,
+                CombatStageStat.EVASION, -1
+        ));
+
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(holder, target),
+                Map.of(), Map.of(), Map.of(),
+                Map.of(
+                        "rng-holder", CombatantAffiliationState.active("players"),
+                        "rng-target", CombatantAffiliationState.active("foes")
+                ),
+                Map.of(), Map.of(), seed
+        );
+        holder.temporaryEffects().add(ImpostorEffectExecutor.JOINED_ROUND, Map.of("round", 1));
+        BattleRoundController controller = new BattleRoundController(state, 0);
+
+        InitiativeTurnAdvanceResult result = controller.advanceInitiativeTurnWithRollover();
+
+        TemporaryEffectEntry copied = holder.temporaryEffects()
+                .getAll(TransformationStateResolver.ENTRAINED_ABILITY)
+                .get(0);
+        boolean used = holder.temporaryEffects().getAll(ImpostorEffectExecutor.USED).stream()
+                .anyMatch(entry -> entry.payload().get("round") instanceof Number number
+                        && number.intValue() == controller.round());
+        AbilityEvent transform = result.events().stream()
+                .filter(AbilityEvent.class::isInstance)
+                .map(AbilityEvent.class::cast)
+                .filter(event -> "Impostor".equals(event.ability()))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(expected.get("RNG_ABILITY_ASSIGNED"), copied.payload().get("ability"));
+        assertEquals("Impostor", copied.payload().get("source"));
+        assertEquals(true, used);
+        assertEquals("rng-target", transform.target());
+        assertEquals("transform", transform.effect());
+        assertEquals(expected.get("RNG_ABILITY_ASSIGNED"), transform.details().get("ability_assigned"));
+        assertEquals(true, transform.details().get("copied_stages"));
+        assertEquals(target.combatStages().fullSnapshot(), holder.combatStages().fullSnapshot());
+        assertEquals(
+                Double.parseDouble(expected.get("RNG_NEXT_RANDOM")),
+                state.delayedHitStateFromRuntime().randomFromRuntime().random()
+        );
+    }
+
+    private static void applyStageSnapshot(
+            RuntimeCombatantState combatant,
+            Map<CombatStageStat, Integer> stages
+    ) {
+        for (Map.Entry<CombatStageStat, Integer> entry : stages.entrySet()) {
+            combatant.combatStages().set(entry.getKey(), entry.getValue());
+        }
+    }
+
     private static RuntimeCombatantState combatant(String id, int speed) {
         return combatant(id, speed, new GridCoord(1, 1), List.of());
     }
