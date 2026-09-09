@@ -64,6 +64,10 @@ public final class RoundStartAbilityEffectRegistry {
                 .register(
                         RoundStartAbilityDispatchPlan.INTIMIDATE,
                         RoundStartAbilityEffectRegistry::applyIntimidate
+                )
+                .register(
+                        RoundStartAbilityDispatchPlan.IMPOSTOR,
+                        RoundStartAbilityEffectRegistry::applyImpostor
                 );
     }
 
@@ -115,6 +119,16 @@ public final class RoundStartAbilityEffectRegistry {
                 invocation.actorId(),
                 IntimidateTriggerContract.plan(state, invocation.actorId())
         );
+    }
+
+    private static List<BattleEvent> applyImpostor(
+            RoundStartAbilityDispatchPlan.Invocation invocation,
+            BattleRuntimeState state
+    ) {
+        if (invocation.scope() != RoundStartAbilityDispatchPlan.Scope.ACTIVE_ACTOR) {
+            throw new IllegalArgumentException("Impostor requires ACTIVE_ACTOR scope");
+        }
+        return ImpostorEffectExecutor.apply(state, invocation.actorId());
     }
 
     private static List<BattleEvent> applyArenaTrap(
