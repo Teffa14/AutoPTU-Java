@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze the reusable state-copy portion of pinned Python Impostor behavior."""
+"""Freeze pinned Python Transform/Impostor state-copy and target-selection behavior."""
 from __future__ import annotations
 
 import argparse
@@ -35,20 +35,18 @@ def main() -> None:
             movement={"overland": 4},
         )
 
-    holder = PokemonState(
-        spec=spec("Holder", "Impostor", 20),
-        controller_id="players",
-        position=(2, 2),
-        active=True,
-    )
-    target = PokemonState(
-        spec=spec("Target", "Levitate", 10),
-        controller_id="foes",
-        position=(2, 3),
-        active=True,
-    )
-    holder.hp = 20
-    target.hp = 20
+    def pokemon(name: str, ability: str, controller: str, position: tuple[int, int], speed: int = 10) -> PokemonState:
+        state = PokemonState(
+            spec=spec(name, ability, speed),
+            controller_id=controller,
+            position=position,
+            active=True,
+        )
+        state.hp = 20
+        return state
+
+    holder = pokemon("Holder", "Impostor", "players", (2, 2), 20)
+    target = pokemon("Target", "Levitate", "foes", (2, 3), 10)
 
     holder.combat_stages.update({
         "atk": -4,
@@ -98,6 +96,39 @@ def main() -> None:
         if event.get("type") == "ability" and event.get("ability") == "Impostor"
     )
 
+    # Separate scenario freezes candidate filtering and the Python sort key. target-b is
+    # inserted first, but target-a must win the equal Chebyshev-distance tie by combatant id.
+    selector = pokemon("Selector", "Impostor", "players", (2, 2), 20)
+    target_b = pokemon("Target B", "Blaze", "foes", (3, 2))
+    target_a = pokemon("Target A", "Levitate", "foes", (2, 3))
+    target_far = pokemon("Target Far", "Overgrow", "foes", (5, 5))
+    target_unconscious = pokemon("Target Down", "Torrent", "foes", (2, 2))
+    target_unconscious.hp = 0
+    ally = pokemon("Ally", "Pressure", "players", (2, 1))
+
+    selection_battle = BattleState(
+        trainers={
+            "players": TrainerState(identifier="players", name="Players", team="players"),
+            "foes": TrainerState(identifier="foes", name="Foes", team="foes"),
+        },
+        pokemon=OrderedDict([
+            ("selector", selector),
+            ("target-b", target_b),
+            ("target-a", target_a),
+            ("target-far", target_far),
+            ("target-down", target_unconscious),
+            ("ally", ally),
+        ]),
+        grid=GridState(width=7, height=7),
+    )
+    PhaseController(selection_battle).start_round()
+    selection_event = next(
+        event for event in selection_battle.log
+        if event.get("type") == "ability"
+        and event.get("ability") == "Impostor"
+        and event.get("actor") == "selector"
+    )
+
     rows = [
         "COPIED_STAGES\t" + ("1" if bool(event.get("copied_stages")) else "0"),
         "ACTOR_STAGES\t" + stage_snapshot,
@@ -113,6 +144,10 @@ def main() -> None:
             "1" if bool(event.get("copied_stages")) else "0",
             str(event.get("ability_assigned") or ""),
         ]),
+        "SELECTION_ACTOR\tselector",
+        "SELECTION_TARGET\t" + str(selection_event.get("target") or ""),
+        "SELECTION_DISTANCE\t1",
+        "SELECTION_CANDIDATES\ttarget-b,target-a,target-far,target-down,ally",
     ]
 
     output = Path(args.output)
