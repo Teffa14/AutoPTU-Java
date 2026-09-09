@@ -162,7 +162,6 @@ class RoundStartAbilityDispatchPlanOracleParityTest {
                 new ActionBudget(),
                 stats,
                 null,
-                null,
                 0,
                 false,
                 false,
