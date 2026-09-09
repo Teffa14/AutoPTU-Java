@@ -1,10 +1,12 @@
 package io.autoptu.core.hook;
 
 import io.autoptu.core.runtime.BattleRuntime;
+import io.autoptu.core.runtime.CombatantRuleContentRegistry;
 import io.autoptu.core.runtime.DeclaredActionRoundLifecycleHook;
 import io.autoptu.core.runtime.DelayedHitRoundLifecycleHook;
 import io.autoptu.core.runtime.FieldRoundLifecycleHook;
 import io.autoptu.core.runtime.HeldItemRuleCatalog;
+import io.autoptu.core.runtime.RoundStartAbilityLifecycleHook;
 import io.autoptu.core.runtime.RoundStartTrainerFeatureLifecycleHook;
 import io.autoptu.core.runtime.RoundTemporaryEffectExpiryHook;
 import io.autoptu.core.runtime.RoundWindowHistoryLifecycleHook;
@@ -40,16 +42,35 @@ public final class BuiltinLifecycleHooks {
 
     /**
      * Lifecycle registry with canonical Trainer Feature content injected by the authoritative core.
-     * Empty Trainer Feature content preserves compatibility for callers that have not materialized
-     * the content catalog yet; adapters never supply or interpret these rule definitions.
+     * Empty Trainer Feature and combatant rule content preserve compatibility for callers that have
+     * not materialized those catalogs yet; adapters never supply or interpret these definitions.
      */
     public static LifecycleHookRegistry registry(
             HeldItemRuleCatalog heldItemRuleCatalog,
             List<TrainerFeatureDispatchCatalog.TrainerSpec> trainerFeatures,
             TrainerFeatureEffectRegistry trainerFeatureEffects
     ) {
+        return registry(
+                heldItemRuleCatalog,
+                trainerFeatures,
+                trainerFeatureEffects,
+                CombatantRuleContentRegistry.empty()
+        );
+    }
+
+    /**
+     * Lifecycle registry with canonical PTU combatant content injected by the authoritative core.
+     * Round-start abilities use this same snapshot for capability-dependent effects such as Arena Trap.
+     */
+    public static LifecycleHookRegistry registry(
+            HeldItemRuleCatalog heldItemRuleCatalog,
+            List<TrainerFeatureDispatchCatalog.TrainerSpec> trainerFeatures,
+            TrainerFeatureEffectRegistry trainerFeatureEffects,
+            CombatantRuleContentRegistry combatantRuleContent
+    ) {
         if (heldItemRuleCatalog == null) throw new IllegalArgumentException("heldItemRuleCatalog is required");
         if (trainerFeatureEffects == null) throw new IllegalArgumentException("trainerFeatureEffects is required");
+        if (combatantRuleContent == null) throw new IllegalArgumentException("combatantRuleContent is required");
         List<TrainerFeatureDispatchCatalog.TrainerSpec> safeTrainerFeatures =
                 trainerFeatures == null ? List.of() : List.copyOf(trainerFeatures);
 
@@ -172,6 +193,13 @@ public final class BuiltinLifecycleHooks {
                         LifecycleHookPoint.ROUND_START_EFFECTS,
                         100,
                         new RoundStartTrainerFeatureLifecycleHook(safeTrainerFeatures, trainerFeatureEffects)
+                )
+                .register(
+                        "round-ability-dispatch",
+                        HookSource.ABILITY,
+                        LifecycleHookPoint.ROUND_START_EFFECTS,
+                        110,
+                        new RoundStartAbilityLifecycleHook(combatantRuleContent)
                 )
                 .register(
                         "combatant-turn-start-effects",
