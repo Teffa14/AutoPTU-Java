@@ -44,6 +44,14 @@ def main() -> None:
         def ability_names(self):
             return []
 
+    class FakeInitiativeEntry:
+        def __init__(self, actor_id: str, score: int) -> None:
+            self.actor_id = actor_id
+            self.score = score
+
+        def to_dict(self):
+            return {"actor_id": self.actor_id, "score": self.score}
+
     class FeatureDispatcher:
         def trigger(self, trigger, **_kwargs):
             timeline.append(f"trainer_feature:{trigger}")
@@ -90,7 +98,10 @@ def main() -> None:
     battle._clear_expired_follow_me = lambda: None
     battle._clear_expired_foresight = lambda: None
     battle._apply_send_out_trainer_feature_effects = lambda *_args, **_kwargs: None
-    battle._build_initiative_order = lambda: ["actor-b", "actor-a"]
+    battle._build_initiative_order = lambda: [
+        FakeInitiativeEntry("actor-b", 20),
+        FakeInitiativeEntry("actor-a", 10),
+    ]
 
     def log_event(event):
         if event.get("type") == "round_start":
@@ -172,7 +183,7 @@ def main() -> None:
     ]
     rows = [
         "ROUND_AFTER\t" + str(battle.round),
-        "INITIATIVE_ORDER_AFTER\t" + ",".join(battle.initiative_order),
+        "INITIATIVE_ORDER_AFTER\t" + ",".join(entry.actor_id for entry in battle.initiative_order),
         "INITIATIVE_INDEX_AFTER\t" + str(battle._initiative_index),
         "WEATHER\tRain",
         "WEATHER_AFTER\t" + battle.weather,
