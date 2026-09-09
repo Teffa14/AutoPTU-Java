@@ -90,7 +90,7 @@ def main() -> None:
     battle._clear_expired_follow_me = lambda: None
     battle._clear_expired_foresight = lambda: None
     battle._apply_send_out_trainer_feature_effects = lambda *_args, **_kwargs: None
-    battle._build_initiative_order = lambda: []
+    battle._build_initiative_order = lambda: ["actor-b", "actor-a"]
 
     def log_event(event):
         if event.get("type") == "round_start":
@@ -171,6 +171,9 @@ def main() -> None:
         for event in air_lock_events
     ]
     rows = [
+        "ROUND_AFTER\t" + str(battle.round),
+        "INITIATIVE_ORDER_AFTER\t" + ",".join(battle.initiative_order),
+        "INITIATIVE_INDEX_AFTER\t" + str(battle._initiative_index),
         "WEATHER\tRain",
         "WEATHER_AFTER\t" + battle.weather,
         "AIR_LOCK_HOLDERS\tair-two,air-one",
