@@ -59,10 +59,15 @@ class RoundStartAbilityDispatchPlanOracleParityTest {
 
         InitiativeTurnAdvanceResult result = controller.advanceInitiativeTurnWithRollover();
 
+        List<String> expectedOrder = splitNonBlank(expected.get("INITIATIVE_ORDER_AFTER"), ",");
+        int pythonStartRoundCursor = Integer.parseInt(expected.get("INITIATIVE_INDEX_AFTER_START_ROUND"));
+        int expectedFirstActorCursor = pythonStartRoundCursor + 1;
+
         assertEquals(Integer.parseInt(expected.get("ROUND_AFTER")), controller.round());
-        assertEquals(splitNonBlank(expected.get("INITIATIVE_ORDER_AFTER"), ","), state.initiativeProgress().orderedActorIds());
-        assertEquals(Integer.parseInt(expected.get("INITIATIVE_INDEX_AFTER")), state.initiativeProgress().cursor());
-        assertEquals(splitNonBlank(expected.get("INITIATIVE_ORDER_AFTER"), ",").get(0), result.actorId());
+        assertEquals(expectedOrder, state.initiativeProgress().orderedActorIds());
+        assertEquals(expectedFirstActorCursor, state.initiativeProgress().cursor());
+        assertEquals(expectedFirstActorCursor, result.initiativeIndex());
+        assertEquals(expectedOrder.get(expectedFirstActorCursor), result.actorId());
         assertEquals(result.actorId(), controller.turnState().currentActorId());
     }
 
