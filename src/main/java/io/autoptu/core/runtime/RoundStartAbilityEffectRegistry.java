@@ -56,10 +56,15 @@ public final class RoundStartAbilityEffectRegistry {
 
     /** Frozen Python families that need only battle state. */
     public static RoundStartAbilityEffectRegistry pythonParityBuiltins() {
-        return new RoundStartAbilityEffectRegistry().register(
-                RoundStartAbilityDispatchPlan.AIR_LOCK,
-                RoundStartAbilityEffectRegistry::applyAirLock
-        );
+        return new RoundStartAbilityEffectRegistry()
+                .register(
+                        RoundStartAbilityDispatchPlan.AIR_LOCK,
+                        RoundStartAbilityEffectRegistry::applyAirLock
+                )
+                .register(
+                        RoundStartAbilityDispatchPlan.INTIMIDATE,
+                        RoundStartAbilityEffectRegistry::applyIntimidate
+                );
     }
 
     /**
@@ -96,6 +101,20 @@ public final class RoundStartAbilityEffectRegistry {
                         "description", "Air Lock suppresses the active weather."
                 )
         ));
+    }
+
+    private static List<BattleEvent> applyIntimidate(
+            RoundStartAbilityDispatchPlan.Invocation invocation,
+            BattleRuntimeState state
+    ) {
+        if (invocation.scope() != RoundStartAbilityDispatchPlan.Scope.ACTIVE_ACTOR) {
+            throw new IllegalArgumentException("Intimidate requires ACTIVE_ACTOR scope");
+        }
+        return IntimidateEffectExecutor.apply(
+                state,
+                invocation.actorId(),
+                IntimidateTriggerContract.plan(state, invocation.actorId())
+        );
     }
 
     private static List<BattleEvent> applyArenaTrap(
