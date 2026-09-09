@@ -184,7 +184,7 @@ def main() -> None:
     rows = [
         "ROUND_AFTER\t" + str(battle.round),
         "INITIATIVE_ORDER_AFTER\t" + ",".join(entry.actor_id for entry in battle.initiative_order),
-        "INITIATIVE_INDEX_AFTER\t" + str(battle._initiative_index),
+        "INITIATIVE_INDEX_AFTER_START_ROUND\t" + str(battle._initiative_index),
         "WEATHER\tRain",
         "WEATHER_AFTER\t" + battle.weather,
         "AIR_LOCK_HOLDERS\tair-two,air-one",
