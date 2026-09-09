@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 final class TransformationStateResolverOracleParityTest {
     @Test
-    void copiesPinnedPythonStageSnapshotAndReplacesEntrainedAbilityFamily() throws IOException {
+    void copiesPinnedPythonStageSnapshotAndCopiedAbility() throws IOException {
         Path fixture = Path.of("build/oracle/transformation-state.tsv");
         Assumptions.assumeTrue(Files.exists(fixture));
         Map<String, String> expected = parse(Files.readAllLines(fixture));
@@ -27,20 +27,12 @@ final class TransformationStateResolverOracleParityTest {
         RuntimeCombatantState target = combatant("target", new GridCoord(2, 3));
         setStages(actor, -4, 4, -4, 4, -4, -3, 3);
         setStages(target, 2, -1, 3, -2, 1, 2, -1);
-        actor.temporaryEffects().add(
-                TransformationStateResolver.ENTRAINED_ABILITY,
-                Map.of("ability", "Overgrow", "source", "fixture-old")
-        );
-        actor.temporaryEffects().add(
-                TransformationStateResolver.ENTRAINED_ABILITY,
-                Map.of("ability", "Blaze", "source", "fixture-old")
-        );
 
         TransformationStateResolver.Result result = TransformationStateResolver.apply(
                 actor,
                 target,
                 "Levitate",
-                "Impostor"
+                "impostor"
         );
 
         assertEquals("1".equals(expected.get("COPIED_STAGES")), result.copiedStages());
@@ -55,6 +47,29 @@ final class TransformationStateResolverOracleParityTest {
     }
 
     @Test
+    void replacesEntireEntrainedAbilityFamily() {
+        RuntimeCombatantState actor = combatant("holder", new GridCoord(2, 2));
+        RuntimeCombatantState target = combatant("target", new GridCoord(2, 3));
+        actor.temporaryEffects().add(
+                TransformationStateResolver.ENTRAINED_ABILITY,
+                Map.of("ability", "Overgrow", "source", "fixture-old")
+        );
+        actor.temporaryEffects().add(
+                TransformationStateResolver.ENTRAINED_ABILITY,
+                Map.of("ability", "Blaze", "source", "fixture-old")
+        );
+
+        TransformationStateResolver.apply(actor, target, "Levitate", "impostor");
+
+        List<TemporaryEffectEntry> entrained = actor.temporaryEffects().getAll(
+                TransformationStateResolver.ENTRAINED_ABILITY
+        );
+        assertEquals(1, entrained.size());
+        assertEquals("Levitate", entrained.getFirst().payload().get("ability"));
+        assertEquals("impostor", entrained.getFirst().payload().get("source"));
+    }
+
+    @Test
     void leavesActorStagesUntouchedWhenTargetHasNoModifiedStage() {
         RuntimeCombatantState actor = combatant("holder", new GridCoord(2, 2));
         RuntimeCombatantState target = combatant("target", new GridCoord(2, 3));
@@ -64,7 +79,7 @@ final class TransformationStateResolverOracleParityTest {
                 actor,
                 target,
                 null,
-                "Transform"
+                "transform"
         );
 
         assertEquals(false, result.copiedStages());
