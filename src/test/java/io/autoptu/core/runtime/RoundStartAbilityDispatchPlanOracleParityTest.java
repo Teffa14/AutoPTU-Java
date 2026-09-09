@@ -1,5 +1,9 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.event.AbilityEvent;
+import io.autoptu.core.event.BattleEvent;
+import io.autoptu.core.event.CombatStageChangedEvent;
+import io.autoptu.core.model.CombatStageStat;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.model.CombatantStatProfile;
 import io.autoptu.core.model.GridCoord;
@@ -15,6 +19,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -71,7 +76,78 @@ class RoundStartAbilityDispatchPlanOracleParityTest {
         assertEquals(result.actorId(), controller.turnState().currentActorId());
     }
 
+    @Test
+    void authoritativeRolloverExecutesIntimidateWithPinnedPythonStateAndTrace() throws IOException {
+        Path fixture = Path.of("build/oracle/round-start-ability-dispatch.tsv");
+        Assumptions.assumeTrue(Files.exists(fixture));
+        Map<String, String> expected = parse(Files.readAllLines(fixture));
+
+        RuntimeCombatantState holder = combatant(
+                "holder", 20, new GridCoord(2, 2), List.of("Intimidate")
+        );
+        RuntimeCombatantState target = combatant(
+                "target", 10, new GridCoord(2, 3), List.of()
+        );
+        BattleRuntimeState state = new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(holder, target),
+                Map.of(), Map.of(), Map.of(),
+                Map.of(
+                        "holder", CombatantAffiliationState.active("players"),
+                        "target", CombatantAffiliationState.active("foes")
+                )
+        );
+        holder.temporaryEffects().add(IntimidateTriggerContract.JOINED_ROUND, Map.of("round", 1));
+        BattleRoundController controller = new BattleRoundController(state, 0);
+
+        InitiativeTurnAdvanceResult result = controller.advanceInitiativeTurnWithRollover();
+
+        boolean used = holder.temporaryEffects().getAll(IntimidateTriggerContract.USED).stream()
+                .anyMatch(entry -> entry.payload().get("round") instanceof Number number
+                        && number.intValue() == controller.round());
+        ArrayList<String> trace = new ArrayList<>();
+        for (BattleEvent event : result.events()) {
+            if (event instanceof CombatStageChangedEvent stage && "Intimidate".equals(stage.moveId())) {
+                trace.add(String.join("|",
+                        "STAGE",
+                        stage.actorId(),
+                        stage.targetId(),
+                        stage.moveId(),
+                        stage.stat().name().toLowerCase(Locale.ROOT),
+                        stage.effect(),
+                        Integer.toString(stage.amount()),
+                        Integer.toString(stage.newStage())
+                ));
+            } else if (event instanceof AbilityEvent ability && "Intimidate".equals(ability.ability())) {
+                trace.add(String.join("|",
+                        "INTIMIDATE",
+                        ability.actorId(),
+                        ability.target(),
+                        ability.effect(),
+                        String.valueOf(ability.details().getOrDefault("move", ""))
+                ));
+            }
+        }
+
+        assertEquals(Integer.parseInt(expected.get("ROLLOVER_INTIMIDATE_ROUND")), controller.round());
+        assertEquals(
+                Integer.parseInt(expected.get("ROLLOVER_INTIMIDATE_TARGET_ATK")),
+                target.combatStages().get(CombatStageStat.ATK)
+        );
+        assertEquals("1".equals(expected.get("ROLLOVER_INTIMIDATE_USED")), used);
+        assertEquals(expected.get("ROLLOVER_INTIMIDATE_TRACE"), String.join(";", trace));
+    }
+
     private static RuntimeCombatantState combatant(String id, int speed) {
+        return combatant(id, speed, new GridCoord(1, 1), List.of());
+    }
+
+    private static RuntimeCombatantState combatant(
+            String id,
+            int speed,
+            GridCoord position,
+            List<String> abilities
+    ) {
         CombatantStatProfile stats = new CombatantStatProfile(
                 Map.of(CombatStat.SPD, speed),
                 Map.of(),
@@ -80,11 +156,21 @@ class RoundStartAbilityDispatchPlanOracleParityTest {
         );
         return new RuntimeCombatantState(
                 id,
-                MovementProfile.walking(new GridCoord(1, 1), 4),
+                MovementProfile.walking(position, 4),
                 20,
                 20,
                 new ActionBudget(),
-                stats
+                stats,
+                null,
+                null,
+                0,
+                false,
+                false,
+                false,
+                false,
+                List.of("Normal"),
+                List.of(),
+                abilities
         );
     }
 
