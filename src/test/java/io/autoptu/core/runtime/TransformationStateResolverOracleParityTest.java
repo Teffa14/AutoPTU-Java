@@ -32,7 +32,7 @@ final class TransformationStateResolverOracleParityTest {
                 actor,
                 target,
                 "Levitate",
-                "impostor"
+                "Impostor"
         );
 
         assertEquals("1".equals(expected.get("COPIED_STAGES")), result.copiedStages());
