@@ -47,6 +47,16 @@ def main() -> None:
         state.hp = 20
         return state
 
+    copied_stage_values = {
+        "atk": 2,
+        "def": -1,
+        "spatk": 3,
+        "spdef": -2,
+        "spd": 1,
+        "accuracy": 2,
+        "evasion": -1,
+    }
+
     holder = pokemon("Holder", "Impostor", "players", (2, 2), 20)
     target = pokemon("Target", "Levitate", "foes", (2, 3), 10)
 
@@ -59,15 +69,7 @@ def main() -> None:
         "accuracy": -3,
         "evasion": 3,
     })
-    target.combat_stages.update({
-        "atk": 2,
-        "def": -1,
-        "spatk": 3,
-        "spdef": -2,
-        "spd": 1,
-        "accuracy": 2,
-        "evasion": -1,
-    })
+    target.combat_stages.update(copied_stage_values)
 
     battle = BattleState(
         trainers={
@@ -131,12 +133,14 @@ def main() -> None:
         and event.get("actor") == "selector"
     )
 
-    # A third scenario freezes random.choice(target_abilities) and stream consumption.
-    # Speeds differ, so round-start initiative construction does not consume RNG here.
+    # A third scenario freezes random.choice(target_abilities), transformation state, and stream
+    # consumption in one real start_round() execution. Speeds differ, so initiative does not
+    # consume RNG before Impostor chooses the copied ability.
     rng_seed = 42
     rng_holder = pokemon("RNG Holder", "Impostor", "players", (2, 2), 20)
     rng_target_abilities = ["Levitate", "Pressure", "Blaze"]
     rng_target = pokemon("RNG Target", rng_target_abilities, "foes", (2, 3), 10)
+    rng_target.combat_stages.update(copied_stage_values)
     rng_battle = BattleState(
         trainers={
             "players": TrainerState(identifier="players", name="Players", team="players"),
@@ -176,6 +180,7 @@ def main() -> None:
         "SELECTION_CANDIDATES\ttarget-b,target-a,target-far,target-down,ally",
         "RNG_SEED\t" + str(rng_seed),
         "RNG_TARGET_ABILITIES\t" + ",".join(rng_target_abilities),
+        "RNG_COPIED_STAGES\t" + ("1" if bool(rng_event.get("copied_stages")) else "0"),
         "RNG_ABILITY_ASSIGNED\t" + str(rng_event.get("ability_assigned") or ""),
         "RNG_NEXT_RANDOM\t" + repr(rng_next_random),
     ]
