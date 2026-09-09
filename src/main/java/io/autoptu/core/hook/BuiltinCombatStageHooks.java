@@ -3,6 +3,7 @@ package io.autoptu.core.hook;
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.event.CombatStageChangedEvent;
 import io.autoptu.core.event.RuleEffectEvent;
+import io.autoptu.core.model.CombatStageStat;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.runtime.CombatStageMutationOptions;
 import io.autoptu.core.runtime.CombatStageMutationResult;
@@ -179,7 +180,7 @@ public final class BuiltinCombatStageHooks {
                 context.targetId(),
                 context.targetId(),
                 "Defiant",
-                CombatStat.ATK,
+                CombatStageStat.fromCombatStat(CombatStat.ATK),
                 "defiant",
                 "Defiant raises Attack by +2 CS."
         ));
@@ -205,7 +206,7 @@ public final class BuiltinCombatStageHooks {
                 context.targetId(),
                 context.targetId(),
                 "Competitive",
-                CombatStat.SPATK,
+                CombatStageStat.fromCombatStat(CombatStat.SPATK),
                 "competitive",
                 "Competitive raises Special Attack by +2 CS."
         ));
@@ -217,7 +218,7 @@ public final class BuiltinCombatStageHooks {
             String actorId,
             String targetId,
             String moveId,
-            CombatStat stat,
+            CombatStageStat stat,
             String effect,
             String description
     ) {
@@ -228,7 +229,7 @@ public final class BuiltinCombatStageHooks {
                     actorId,
                     targetId,
                     moveId,
-                    io.autoptu.core.model.CombatStageStat.fromCombatStat(stat),
+                    stat,
                     effect,
                     Math.abs(nested.baseAppliedDelta()),
                     nested.baseStage(),
