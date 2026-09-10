@@ -1,22 +1,27 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.hook.LifecycleHookContext;
 import io.autoptu.core.hook.LifecycleHookPoint;
 import io.autoptu.core.hook.LifecycleHookRegistry;
 import io.autoptu.core.hook.LifecycleHookResult;
+
+import java.util.function.Consumer;
 
 /**
  * Server-authoritative materializer for the frozen Python switch-entry transaction prefix.
  *
  * <p>The executor validates the complete switch plan and field-presence preconditions before the
  * first mutation. It then applies activity, presence and entry markers in the exact order frozen
- * by {@link CombatantSwitchExecutionPlan}, and only afterwards dispatches the generic
- * {@link LifecycleHookPoint#COMBATANT_ENTRY} seam. Minecraft/Cobblemon/Craftics adapters may request
- * or render a switch but never perform these rule-state mutations themselves.</p>
+ * by {@link CombatantSwitchExecutionPlan}, dispatches the generic
+ * {@link LifecycleHookPoint#COMBATANT_ENTRY} seam, and finally executes the ordered post-entry
+ * stage plan through {@link CombatantSwitchPostEntryDispatcher}. Minecraft/Cobblemon/Craftics
+ * adapters may request or render a switch but never perform these rule-state mutations themselves.</p>
  *
- * <p>Mount/rider synchronization, send-out Trainer Features beyond registered entry hooks,
- * hazards/zones, initiative replacement semantics and action-economy consumption remain outside
- * this bounded prefix until their Python contracts are frozen separately.</p>
+ * <p>Only post-entry families registered in the supplied dispatcher execute. Unported families
+ * remain explicit pending stages. Mount/rider synchronization, hazards/zones, replacement
+ * initiative semantics and action-economy consumption remain outside this bounded transaction
+ * until their Python contracts are frozen separately.</p>
  */
 public final class CombatantSwitchExecutor {
     private CombatantSwitchExecutor() {}
@@ -28,9 +33,31 @@ public final class CombatantSwitchExecutor {
             String outgoingId,
             String replacementId
     ) {
+        return execute(
+                state,
+                fieldPresence,
+                lifecycleHooks,
+                CombatantSwitchPostEntryDispatcher.empty(),
+                event -> {},
+                outgoingId,
+                replacementId
+        );
+    }
+
+    public static ExecutionResult execute(
+            BattleRuntimeState state,
+            CombatantFieldPresenceStore fieldPresence,
+            LifecycleHookRegistry lifecycleHooks,
+            CombatantSwitchPostEntryDispatcher postEntryDispatcher,
+            Consumer<BattleEvent> eventSink,
+            String outgoingId,
+            String replacementId
+    ) {
         if (state == null) throw new IllegalArgumentException("battle state is required");
         if (fieldPresence == null) throw new IllegalArgumentException("field presence store is required");
         if (lifecycleHooks == null) throw new IllegalArgumentException("lifecycle hook registry is required");
+        if (postEntryDispatcher == null) throw new IllegalArgumentException("post-entry dispatcher is required");
+        if (eventSink == null) throw new IllegalArgumentException("event sink is required");
 
         CombatantSwitchExecutionPlan plan = CombatantSwitchExecutionPlan.resolve(state, outgoingId, replacementId);
         CombatantSwitchTransitionPlan transition = plan.transition();
@@ -71,16 +98,34 @@ public final class CombatantSwitchExecutor {
                         transition.replacementId()
                 )
         );
-        return new ExecutionResult(plan, entryResult);
+        for (BattleEvent event : entryResult.events()) {
+            eventSink.accept(event);
+        }
+
+        CombatantSwitchPostEntryDispatcher.DispatchResult postEntryResult = postEntryDispatcher.dispatch(
+                CombatantSwitchPostEntryPlan.pinnedContract(),
+                new CombatantSwitchPostEntryDispatcher.DispatchContext(
+                        state,
+                        transition.replacementId(),
+                        "start",
+                        round
+                ),
+                eventSink
+        );
+        return new ExecutionResult(plan, entryResult, postEntryResult);
     }
 
     public record ExecutionResult(
             CombatantSwitchExecutionPlan plan,
-            LifecycleHookResult entryHookResult
+            LifecycleHookResult entryHookResult,
+            CombatantSwitchPostEntryDispatcher.DispatchResult postEntryDispatchResult
     ) {
         public ExecutionResult {
             if (plan == null) throw new IllegalArgumentException("switch execution plan is required");
             if (entryHookResult == null) throw new IllegalArgumentException("entry hook result is required");
+            if (postEntryDispatchResult == null) {
+                throw new IllegalArgumentException("post-entry dispatch result is required");
+            }
         }
     }
 }
