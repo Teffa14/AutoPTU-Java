@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,10 +27,13 @@ final class CombatantSwitchExecutorOracleParityTest {
     void executorMatchesPinnedPythonSwitchPrefixFinalStateAndOrder() throws IOException {
         Path stateFixture = Path.of("build/oracle/switch-entry-state.tsv");
         Path orderFixture = Path.of("build/oracle/switch-execution-order.tsv");
+        Path postEntryFixture = Path.of("build/oracle/switch-post-entry-calls.tsv");
         Assumptions.assumeTrue(Files.exists(stateFixture));
         Assumptions.assumeTrue(Files.exists(orderFixture));
+        Assumptions.assumeTrue(Files.exists(postEntryFixture));
         Map<String, String> expectedState = parse(Files.readAllLines(stateFixture));
         Map<String, String> expectedOrder = parse(Files.readAllLines(orderFixture));
+        Map<String, String> expectedPostEntry = parse(Files.readAllLines(postEntryFixture));
 
         GridCoord outgoingPosition = new GridCoord(4, 3);
         RuntimeCombatantState outgoing = combatant("a-1", outgoingPosition);
@@ -49,10 +53,30 @@ final class CombatantSwitchExecutorOracleParityTest {
         state.syncCurrentRoundFromLifecycle(Integer.parseInt(expectedState.get("ROUND")));
         CombatantFieldPresenceStore presence = new CombatantFieldPresenceStore(Map.of("a-1", outgoingPosition));
 
+        boolean[] ballFetchStageObserved = {false};
+        CombatantSwitchPostEntryDispatcher dispatcher = CombatantSwitchPostEntryDispatcher.empty()
+                .withHandler(CombatantSwitchPostEntryPlan.Stage.BALL_FETCH, context -> {
+                    ballFetchStageObserved[0] = true;
+                    assertTrue(context.state().isActive("a-2"));
+                    assertEquals(expectedState.get("POSITION"),
+                            context.state().requireCombatant("a-2").position().x() + ","
+                                    + context.state().requireCombatant("a-2").position().y());
+                    assertEquals(expectedState.get("JOINED_COUNT"), Integer.toString(
+                            context.state().requireCombatant("a-2").temporaryEffects()
+                                    .count(CombatantSwitchEntryStatePlan.JOINED_ROUND)));
+                    assertEquals(expectedState.get("RELEASED_COUNT"), Integer.toString(
+                            context.state().requireCombatant("a-2").temporaryEffects()
+                                    .count(CombatantSwitchEntryStatePlan.RELEASED_FROM_BALL)));
+                    return List.of();
+                });
+        ArrayList<io.autoptu.core.event.BattleEvent> eventSink = new ArrayList<>();
+
         CombatantSwitchExecutor.ExecutionResult result = CombatantSwitchExecutor.execute(
                 state,
                 presence,
                 BuiltinLifecycleHooks.registry(),
+                dispatcher,
+                eventSink::add,
                 "a-1",
                 "a-2"
         );
@@ -86,6 +110,23 @@ final class CombatantSwitchExecutorOracleParityTest {
         assertEquals(expectedState.get("RELEASED_ROUND"), payloadRound(replacement, CombatantSwitchEntryStatePlan.RELEASED_FROM_BALL));
         assertEquals(expectedState.get("JOINED_ROUND"), payloadRound(replacement, CombatantSwitchEntryStatePlan.JOINED_ROUND));
         assertTrue(result.entryHookResult().events().isEmpty());
+        assertTrue(ballFetchStageObserved[0]);
+        assertEquals(expectedPostEntry.get("ORDER"), result.postEntryDispatchResult().stages().stream()
+                .map(stage -> stage.stage().name())
+                .collect(java.util.stream.Collectors.joining(",")));
+        assertEquals(
+                List.of(
+                        CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
+                        CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
+                        CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
+                        CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
+                        CombatantSwitchPostEntryDispatcher.StageStatus.PENDING
+                ),
+                result.postEntryDispatchResult().stages().stream()
+                        .map(CombatantSwitchPostEntryDispatcher.StageResult::status)
+                        .toList()
+        );
+        assertTrue(eventSink.isEmpty());
     }
 
     @Test
