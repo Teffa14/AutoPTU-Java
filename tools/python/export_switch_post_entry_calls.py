@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze the top-level helper-call sequence after Impostor in pinned Python _apply_switch."""
+"""Freeze semantic stage order after Impostor in pinned Python _apply_switch."""
 from __future__ import annotations
 
 import argparse
@@ -26,6 +26,12 @@ def call_name(node: ast.Call) -> str | None:
     return None
 
 
+def constant_string(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    return None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True)
@@ -41,26 +47,52 @@ def main() -> None:
     if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
         raise RuntimeError("_apply_switch source did not parse as a function")
 
-    calls: list[tuple[int, str]] = []
+    calls: list[tuple[int, str, ast.Call]] = []
     for node in ast.walk(function):
         if not isinstance(node, ast.Call):
             continue
         name = call_name(node)
         if name:
-            calls.append((node.lineno, name))
-    calls.sort()
+            calls.append((node.lineno, name, node))
+    calls.sort(key=lambda entry: entry[0])
 
-    impostor_lines = [line for line, name in calls if name.endswith("_trigger_impostor")]
+    impostor_lines = [line for line, name, _node in calls if name.endswith("_trigger_impostor")]
     if not impostor_lines:
         raise RuntimeError("pinned _apply_switch no longer calls _trigger_impostor")
     boundary = min(impostor_lines)
-    post = [(line, name) for line, name in calls if line > boundary]
+    post = [(line, name, node) for line, name, node in calls if line > boundary]
+
+    semantic: list[tuple[int, str]] = []
+    for line, name, node in post:
+        if name.endswith("_trigger_ball_fetch"):
+            semantic.append((line, "BALL_FETCH"))
+        elif name.endswith("has_ability") and node.args and constant_string(node.args[0]) == "Curious Medicine":
+            semantic.append((line, "CURIOUS_MEDICINE"))
+        elif name.endswith("_insert_replacement_initiative"):
+            semantic.append((line, "INSERT_REPLACEMENT_INITIATIVE"))
+        elif name.endswith("_maybe_trigger_first_blood"):
+            semantic.append((line, "FIRST_BLOOD"))
+        elif name.endswith("_maybe_trigger_quick_switch"):
+            semantic.append((line, "QUICK_SWITCH"))
+
+    semantic.sort()
+    stages = [stage for _line, stage in semantic]
+    expected = [
+        "BALL_FETCH",
+        "CURIOUS_MEDICINE",
+        "INSERT_REPLACEMENT_INITIATIVE",
+        "FIRST_BLOOD",
+        "QUICK_SWITCH",
+    ]
+    if stages != expected:
+        raise RuntimeError(f"pinned post-entry family order changed: {stages!r}")
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8") as handle:
         handle.write(f"IMPOSTOR_LINE\t{boundary}\n")
-        for line, name in post:
+        handle.write("ORDER\t" + ",".join(stages) + "\n")
+        for line, name, _node in post:
             handle.write(f"CALL\t{line}\t{name}\n")
     print(output)
 
