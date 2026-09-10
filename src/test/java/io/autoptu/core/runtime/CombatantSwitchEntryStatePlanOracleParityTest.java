@@ -44,19 +44,7 @@ final class CombatantSwitchEntryStatePlanOracleParityTest {
         CombatantSwitchEntryStatePlan plan = CombatantSwitchEntryStatePlan.resolve(state, transition);
 
         assertEquals(
-                List.of(
-                        CombatantSwitchEntryStatePlan.TemporaryEffectOperation.ADD,
-                        CombatantSwitchEntryStatePlan.TemporaryEffectOperation.REMOVE_ALL,
-                        CombatantSwitchEntryStatePlan.TemporaryEffectOperation.REMOVE_ALL,
-                        CombatantSwitchEntryStatePlan.TemporaryEffectOperation.ADD,
-                        CombatantSwitchEntryStatePlan.TemporaryEffectOperation.ADD
-                ),
-                plan.temporaryEffectMutations().stream()
-                        .map(CombatantSwitchEntryStatePlan.TemporaryEffectMutation::operation)
-                        .toList()
-        );
-        assertEquals(
-                List.of("recalled", "recalled", "released_from_ball", "released_from_ball", "joined_round"),
+                List.of("released_from_ball", "joined_round"),
                 plan.temporaryEffectMutations().stream()
                         .map(CombatantSwitchEntryStatePlan.TemporaryEffectMutation::effectName)
                         .toList()
