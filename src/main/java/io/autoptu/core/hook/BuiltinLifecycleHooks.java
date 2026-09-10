@@ -6,6 +6,7 @@ import io.autoptu.core.runtime.DeclaredActionRoundLifecycleHook;
 import io.autoptu.core.runtime.DelayedHitRoundLifecycleHook;
 import io.autoptu.core.runtime.FieldRoundLifecycleHook;
 import io.autoptu.core.runtime.HeldItemRuleCatalog;
+import io.autoptu.core.runtime.InitialJoinedRoundLifecycleHook;
 import io.autoptu.core.runtime.RoundStartAbilityLifecycleHook;
 import io.autoptu.core.runtime.RoundStartTrainerFeatureLifecycleHook;
 import io.autoptu.core.runtime.RoundTemporaryEffectExpiryHook;
@@ -186,6 +187,13 @@ public final class BuiltinLifecycleHooks {
                         LifecycleHookPoint.ROUND_START_POST_INITIATIVE,
                         720,
                         new RoundWindowHistoryLifecycleHook()
+                )
+                .register(
+                        "round-initial-joined-state",
+                        HookSource.TEMPORARY_EFFECT,
+                        LifecycleHookPoint.ROUND_START_POST_INITIATIVE,
+                        730,
+                        new InitialJoinedRoundLifecycleHook()
                 )
                 .register(
                         "round-trainer-feature-dispatch",
