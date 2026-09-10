@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze pinned Python Impostor behavior when a combatant enters via switch."""
+"""Freeze pinned Python Impostor behavior and switch state transition."""
 from __future__ import annotations
 
 import argparse
@@ -81,6 +81,9 @@ def main() -> None:
     rows = [
         "EFFECTIVE_BEFORE\t" + ",".join(effective_before),
         "EFFECTIVE_AFTER\t" + ",".join(replacement.ability_names()),
+        "OUTGOING_ACTIVE\t" + ("1" if outgoing.active else "0"),
+        "OUTGOING_POSITION_IS_NONE\t" + ("1" if outgoing.position is None else "0"),
+        "REPLACEMENT_ACTIVE\t" + ("1" if replacement.active else "0"),
         "POSITION\t" + ("" if replacement.position is None else f"{replacement.position[0]},{replacement.position[1]}"),
         "ATK_STAGE\t" + str(replacement.combat_stages.get("atk", 0)),
         "DEF_STAGE\t" + str(replacement.combat_stages.get("def", 0)),
