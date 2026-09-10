@@ -41,14 +41,20 @@ final class AbilityApproachShiftExecutorOracleParityTest {
                 )
         );
 
-        List<AbilityApproachShiftExecutor.ShiftResult> results =
-                AbilityApproachShiftExecutor.execute(state, "Ball Fetch", "replacement");
+        List<AbilityApproachShiftEffectExecutor.EffectResult> results =
+                AbilityApproachShiftEffectExecutor.execute(state, "Ball Fetch", "replacement", "ball_fetch_shift");
 
-        assertEquals(List.of("fetcher", "enemy_fetcher"), results.stream().map(AbilityApproachShiftExecutor.ShiftResult::actorId).toList());
+        assertEquals(List.of("fetcher", "enemy_fetcher"), results.stream().map(AbilityApproachShiftEffectExecutor.EffectResult::actorId).toList());
         assertEquals(oracleEventCount, results.size(), "Python emits one Ball Fetch ability event per successful holder Shift");
+        assertEquals(List.of("replacement", "replacement"), results.stream().map(AbilityApproachShiftEffectExecutor.EffectResult::targetId).toList());
+        assertEquals(List.of("Ball Fetch", "Ball Fetch"), results.stream().map(AbilityApproachShiftEffectExecutor.EffectResult::ability).toList());
         assertEquals(fixture.get("FETCHER_AFTER"), fetcher.position());
         assertEquals(fixture.get("ENEMY_AFTER"), enemyFetcher.position());
         assertEquals(new GridCoord(1, 7), observer.position());
+        assertEquals(1, fetcher.temporaryEffects().count("ball_fetch_shift"));
+        assertEquals(1, enemyFetcher.temporaryEffects().count("ball_fetch_shift"));
+        assertEquals(0, observer.temporaryEffects().count("ball_fetch_shift"));
+        assertEquals(List.of("ball_fetch_shift", "ball_fetch_shift"), results.stream().map(AbilityApproachShiftEffectExecutor.EffectResult::temporaryEffect).toList());
     }
 
     private static RuntimeCombatantState combatant(String id, GridCoord position, List<String> abilities) {
