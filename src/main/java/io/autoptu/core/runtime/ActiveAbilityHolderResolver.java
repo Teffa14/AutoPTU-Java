@@ -3,7 +3,7 @@ package io.autoptu.core.runtime;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Resolves active, conscious holders of one canonical ability in battle insertion order. */
+/** Resolves active, conscious holders of one effective ability in battle insertion order. */
 public final class ActiveAbilityHolderResolver {
     private ActiveAbilityHolderResolver() {}
 
@@ -17,7 +17,7 @@ public final class ActiveAbilityHolderResolver {
             RuntimeCombatantState combatant = state.requireCombatant(combatantId);
             if (!state.isActive(combatantId)) continue;
             if (combatant.hp() <= 0) continue;
-            if (!combatant.hasAbilityExact(abilityName)) continue;
+            if (!EffectiveAbilityResolver.hasExact(combatant, abilityName)) continue;
             holders.add(combatantId);
         }
         return List.copyOf(holders);
