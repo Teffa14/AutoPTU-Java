@@ -4,6 +4,7 @@ import io.autoptu.core.event.AbilityEvent;
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.random.PythonRandom;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -45,10 +46,12 @@ public final class ImpostorEffectExecutor {
 
         RuntimeCombatantState target = state.requireCombatant(match.targetId());
         List<String> targetAbilities = EffectiveAbilityResolver.resolve(target);
-        if (targetAbilities.isEmpty()) return List.of();
+        String copiedAbility = null;
+        if (!targetAbilities.isEmpty()) {
+            PythonRandom random = state.delayedHitStateFromRuntime().randomFromRuntime();
+            copiedAbility = targetAbilities.get(random.choiceIndex(targetAbilities.size()));
+        }
 
-        PythonRandom random = state.delayedHitStateFromRuntime().randomFromRuntime();
-        String copiedAbility = targetAbilities.get(random.choiceIndex(targetAbilities.size()));
         TransformationStateResolver.Result result = TransformationStateResolver.apply(
                 holder,
                 target,
@@ -57,17 +60,18 @@ public final class ImpostorEffectExecutor {
         );
         holder.temporaryEffects().add(USED, Map.of("round", round));
 
+        LinkedHashMap<String, Object> details = new LinkedHashMap<>();
+        details.put("target", match.targetId());
+        details.put("copied_stages", result.copiedStages());
+        details.put("ability_assigned", result.abilityAssigned());
+        details.put("round", round);
+        details.put("phase", "start");
+
         return List.of(new AbilityEvent(
                 holderId,
                 ABILITY,
                 "transform",
-                Map.of(
-                        "target", match.targetId(),
-                        "copied_stages", result.copiedStages(),
-                        "ability_assigned", result.abilityAssigned(),
-                        "round", round,
-                        "phase", "start"
-                )
+                details
         ));
     }
 
