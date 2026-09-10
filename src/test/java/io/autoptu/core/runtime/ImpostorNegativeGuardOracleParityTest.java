@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class ImpostorNegativeGuardOracleParityTest {
     @Test
@@ -57,7 +58,8 @@ class ImpostorNegativeGuardOracleParityTest {
         assertEquals(Integer.parseInt(expected.get("NO_ABILITY_USED_COUNT")), roundEffectCount(noAbilityHolder, ImpostorEffectExecutor.USED, 1));
         List<TemporaryEffectEntry> noAbilityEntrained = noAbilityHolder.temporaryEffects().getAll(TransformationStateResolver.ENTRAINED_ABILITY);
         assertEquals(Integer.parseInt(expected.get("NO_ABILITY_ENTRAINED_COUNT")), noAbilityEntrained.size());
-        assertEquals(expected.get("NO_ABILITY_ASSIGNED"), String.valueOf(noAbilityEntrained.get(0).payload().get("ability")));
+        assertEquals("1", expected.get("NO_ABILITY_ASSIGNED_IS_NONE"));
+        assertNull(noAbilityEntrained.get(0).payload().get("ability"));
 
         RuntimeCombatantState transformedHolder = combatant("holder", 20, List.of("Impostor"));
         transformedHolder.temporaryEffects().add(
