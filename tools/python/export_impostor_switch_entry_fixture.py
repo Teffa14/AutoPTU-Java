@@ -49,6 +49,7 @@ def main() -> None:
     target = PokemonState(spec=spec("Target", ["Pressure"]), controller_id="b", position=(2, 3), active=True)
     target.combat_stages["atk"] = 2
     target.combat_stages["def"] = -1
+    effective_before = replacement.ability_names()
 
     battle = BattleState(
         trainers=trainers,
@@ -78,7 +79,8 @@ def main() -> None:
     used = replacement.get_temporary_effects("impostor_used")
 
     rows = [
-        "EFFECTIVE_ABILITIES\t" + ",".join(replacement.ability_names()),
+        "EFFECTIVE_BEFORE\t" + ",".join(effective_before),
+        "EFFECTIVE_AFTER\t" + ",".join(replacement.ability_names()),
         "POSITION\t" + ("" if replacement.position is None else f"{replacement.position[0]},{replacement.position[1]}"),
         "ATK_STAGE\t" + str(replacement.combat_stages.get("atk", 0)),
         "DEF_STAGE\t" + str(replacement.combat_stages.get("def", 0)),
