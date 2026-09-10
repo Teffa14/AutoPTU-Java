@@ -1,5 +1,7 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.event.AbilityEvent;
+import io.autoptu.core.event.BattleEventKind;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
@@ -18,12 +20,19 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 final class AbilityApproachShiftExecutorOracleParityTest {
+    private static final Map<String, String> ORACLE_TO_JAVA_IDS = Map.of(
+            "a-2", "replacement",
+            "a-3", "fetcher",
+            "b-1", "enemy_fetcher"
+    );
+
     @Test
     void ballFetchHoldersShiftSequentiallyLikePinnedPythonSwitchRuntime() throws IOException {
         Path oracle = Path.of("build/oracle/ball-fetch-switch.tsv");
         Assumptions.assumeTrue(Files.exists(oracle));
         Map<String, GridCoord> fixture = readPositions(oracle);
         int oracleEventCount = readInt(oracle, "BALL_FETCH_EVENT_COUNT");
+        List<OracleAbilityEvent> oracleEvents = readAbilityEvents(oracle);
 
         RuntimeCombatantState replacement = combatant("replacement", fixture.get("REPLACEMENT_POSITION"), List.of());
         RuntimeCombatantState fetcher = combatant("fetcher", fixture.get("FETCHER_BEFORE"), List.of("Ball Fetch"));
@@ -46,6 +55,7 @@ final class AbilityApproachShiftExecutorOracleParityTest {
 
         assertEquals(List.of("fetcher", "enemy_fetcher"), results.stream().map(AbilityApproachShiftEffectExecutor.EffectResult::actorId).toList());
         assertEquals(oracleEventCount, results.size(), "Python emits one Ball Fetch ability event per successful holder Shift");
+        assertEquals(oracleEventCount, oracleEvents.size(), "Structured Python event trace must preserve event cardinality");
         assertEquals(List.of("replacement", "replacement"), results.stream().map(AbilityApproachShiftEffectExecutor.EffectResult::targetId).toList());
         assertEquals(List.of("Ball Fetch", "Ball Fetch"), results.stream().map(AbilityApproachShiftEffectExecutor.EffectResult::ability).toList());
         assertEquals(fixture.get("FETCHER_AFTER"), fetcher.position());
@@ -55,6 +65,31 @@ final class AbilityApproachShiftExecutorOracleParityTest {
         assertEquals(1, enemyFetcher.temporaryEffects().count("ball_fetch_shift"));
         assertEquals(0, observer.temporaryEffects().count("ball_fetch_shift"));
         assertEquals(List.of("ball_fetch_shift", "ball_fetch_shift"), results.stream().map(AbilityApproachShiftEffectExecutor.EffectResult::temporaryEffect).toList());
+
+        for (int index = 0; index < results.size(); index++) {
+            OracleAbilityEvent expected = oracleEvents.get(index);
+            AbilityApproachShiftEffectExecutor.EffectResult effect = results.get(index);
+            AbilityEvent actual = effect.toAbilityEvent(
+                    expected.phase(),
+                    expected.round(),
+                    expected.description(),
+                    expected.targetHp()
+            );
+
+            assertEquals(BattleEventKind.ABILITY, actual.kind());
+            assertEquals(javaId(expected.actorId()), actual.actorId());
+            assertEquals(expected.ability(), actual.ability());
+            assertEquals(expected.effect(), actual.effect());
+            assertEquals(javaId(expected.targetId()), actual.target());
+            assertEquals(expected.description(), actual.description());
+            assertEquals(expected.targetHp(), actual.targetHp());
+            assertEquals(expected.from().x(), actual.details().get("fromX"));
+            assertEquals(expected.from().y(), actual.details().get("fromY"));
+            assertEquals(expected.to().x(), actual.details().get("toX"));
+            assertEquals(expected.to().y(), actual.details().get("toY"));
+            assertEquals(expected.phase(), actual.details().get("phase"));
+            assertEquals(expected.round(), actual.details().get("round"));
+        }
     }
 
     private static RuntimeCombatantState combatant(String id, GridCoord position, List<String> abilities) {
@@ -100,5 +135,49 @@ final class AbilityApproachShiftExecutorOracleParityTest {
             }
         }
         throw new IllegalStateException("Missing oracle key: " + key);
+    }
+
+    private static List<OracleAbilityEvent> readAbilityEvents(Path path) throws IOException {
+        java.util.ArrayList<OracleAbilityEvent> events = new java.util.ArrayList<>();
+        for (String line : Files.readAllLines(path)) {
+            String[] parts = line.split("\\t", -1);
+            if (parts.length != 14 || !parts[0].equals("BALL_FETCH_EVENT_STRUCT")) continue;
+            events.add(new OracleAbilityEvent(
+                    Integer.parseInt(parts[1]),
+                    parts[2],
+                    parts[3],
+                    parts[4],
+                    parts[5],
+                    new GridCoord(Integer.parseInt(parts[6]), Integer.parseInt(parts[7])),
+                    new GridCoord(Integer.parseInt(parts[8]), Integer.parseInt(parts[9])),
+                    parts[10],
+                    Integer.parseInt(parts[11]),
+                    parts[12],
+                    Integer.parseInt(parts[13])
+            ));
+        }
+        events.sort(java.util.Comparator.comparingInt(OracleAbilityEvent::index));
+        return List.copyOf(events);
+    }
+
+    private static String javaId(String oracleId) {
+        String mapped = ORACLE_TO_JAVA_IDS.get(oracleId);
+        if (mapped == null) throw new IllegalStateException("Unmapped oracle combatant id: " + oracleId);
+        return mapped;
+    }
+
+    private record OracleAbilityEvent(
+            int index,
+            String actorId,
+            String targetId,
+            String ability,
+            String effect,
+            GridCoord from,
+            GridCoord to,
+            String description,
+            int targetHp,
+            String phase,
+            int round
+    ) {
     }
 }
