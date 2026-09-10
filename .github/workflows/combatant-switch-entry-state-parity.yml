@@ -45,6 +45,11 @@ jobs:
             --source-root python-oracle \
             --output build/oracle/switch-post-entry-calls.tsv
           cat build/oracle/switch-post-entry-calls.tsv
+          python3 -m py_compile tools/python/export_ball_fetch_switch_fixture.py
+          python3 tools/python/export_ball_fetch_switch_fixture.py \
+            --source-root python-oracle \
+            --output build/oracle/ball-fetch-switch.tsv
+          cat build/oracle/ball-fetch-switch.tsv
 
       - name: Compare Java switch entry state
         run: |
