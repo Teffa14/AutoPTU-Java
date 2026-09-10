@@ -42,9 +42,9 @@ final class CombatantSwitchExecutionPlanOracleParityTest {
         String actual = plan.stages().stream().map(Enum::name).collect(Collectors.joining(","));
 
         assertEquals(expected, actual);
-        assertEquals(CombatantSwitchEntryStatePlan.RELEASED_FROM_BALL,
-                plan.entryState().temporaryEffectMutations().get(0).effectName());
         assertEquals(CombatantSwitchEntryStatePlan.JOINED_ROUND,
+                plan.entryState().temporaryEffectMutations().get(0).effectName());
+        assertEquals(CombatantSwitchEntryStatePlan.RELEASED_FROM_BALL,
                 plan.entryState().temporaryEffectMutations().get(1).effectName());
     }
 
