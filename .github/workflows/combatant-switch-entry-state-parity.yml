@@ -60,4 +60,5 @@ jobs:
             --tests io.autoptu.core.runtime.CombatantSwitchExecutionPlanOracleParityTest \
             --tests io.autoptu.core.runtime.CombatantSwitchExecutorOracleParityTest \
             --tests io.autoptu.core.runtime.CombatantSwitchPostEntryPlanOracleParityTest \
+            --tests io.autoptu.core.runtime.RuntimeApproachShiftDestinationResolverOracleParityTest \
             --tests io.autoptu.core.runtime.ImpostorSwitchEntryOracleParityTest
