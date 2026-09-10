@@ -71,6 +71,9 @@ final class CombatantSwitchExecutorOracleParityTest {
         assertEquals(expectedState.get("POSITION"), presence.position("a-2")
                 .map(position -> position.x() + "," + position.y())
                 .orElse(""));
+        assertEquals(expectedState.get("POSITION"),
+                replacement.position().x() + "," + replacement.position().y(),
+                "server-owned tactical position must match the Python replacement position before post-entry hooks run");
 
         assertEquals(expectedState.get("OUTGOING_RECALLED_COUNT"),
                 Integer.toString(outgoing.temporaryEffects().count(CombatantSwitchEntryStatePlan.RECALLED)));
@@ -86,9 +89,10 @@ final class CombatantSwitchExecutorOracleParityTest {
     }
 
     @Test
-    void validatesPresenceBeforeMutatingAffiliation() {
+    void validatesPresenceBeforeMutatingAffiliationOrRuntimePosition() {
         RuntimeCombatantState outgoing = combatant("a-1", new GridCoord(4, 3));
-        RuntimeCombatantState replacement = combatant("a-2", new GridCoord(0, 0));
+        GridCoord originalReplacementPosition = new GridCoord(0, 0);
+        RuntimeCombatantState replacement = combatant("a-2", originalReplacementPosition);
         BattleRuntimeState state = new BattleRuntimeState(
                 new MovementGrid(10, 10, Set.of(), Map.of()),
                 List.of(outgoing, replacement),
@@ -111,6 +115,7 @@ final class CombatantSwitchExecutorOracleParityTest {
         } catch (IllegalArgumentException expected) {
             assertTrue(state.isActive("a-1"));
             assertFalse(state.isActive("a-2"));
+            assertEquals(originalReplacementPosition, replacement.position());
             return;
         }
         throw new AssertionError("expected invalid field presence to reject switch");

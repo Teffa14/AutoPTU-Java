@@ -49,11 +49,13 @@ public final class CombatantSwitchExecutor {
 
         CombatantAffiliationState outgoingAffiliation = state.affiliation(transition.outgoingId());
         CombatantAffiliationState replacementAffiliation = state.affiliation(transition.replacementId());
+        RuntimeCombatantState replacement = state.requireCombatant(transition.replacementId());
 
         outgoingAffiliation.setActiveFromRuntime(transition.outgoingActiveAfter());
         fieldPresence.removeFromRuntime(transition.outgoingId());
         replacementAffiliation.setActiveFromRuntime(transition.replacementActiveAfter());
         fieldPresence.placeFromRuntime(transition.replacementId(), transition.replacementDestination());
+        replacement.moveTo(transition.replacementDestination());
         plan.entryState().applyTemporaryEffects(state);
 
         int round = state.currentRound();
