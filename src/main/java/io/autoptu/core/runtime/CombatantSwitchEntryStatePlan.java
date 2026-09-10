@@ -8,10 +8,10 @@ import java.util.Map;
 /**
  * Authoritative pre-entry state plan for a successful combatant switch.
  *
- * <p>This contract freezes the Python {@code _apply_switch()} state prefix after legality has
- * produced a {@link CombatantSwitchTransitionPlan}: recall bookkeeping is applied to the outgoing
- * combatant, stale ball-entry markers are cleared from the replacement, and new release/joined
- * markers are materialized before any send-out Feature or ability hook runs.</p>
+ * <p>This contract freezes the Python {@code _apply_switch()} temporary-effect prefix after legality
+ * has produced a {@link CombatantSwitchTransitionPlan}. The pinned oracle preserves any pre-existing
+ * {@code recalled}/{@code released_from_ball} markers and appends a new release marker plus a
+ * round-scoped {@code joined_round} marker before send-out Feature or ability hooks run.</p>
  *
  * <p>Field presence and active-affiliation mutation remain deliberately outside this class until
  * the core owns a first-class off-field placement store. Minecraft/Cobblemon adapters must never
@@ -44,15 +44,6 @@ public record CombatantSwitchEntryStatePlan(
         int round = state.currentRound();
         ArrayList<TemporaryEffectMutation> mutations = new ArrayList<>();
         mutations.add(TemporaryEffectMutation.add(
-                transition.outgoingId(), RECALLED, Map.of("round", round)
-        ));
-        mutations.add(TemporaryEffectMutation.removeAll(
-                transition.replacementId(), RECALLED
-        ));
-        mutations.add(TemporaryEffectMutation.removeAll(
-                transition.replacementId(), RELEASED_FROM_BALL
-        ));
-        mutations.add(TemporaryEffectMutation.add(
                 transition.replacementId(), RELEASED_FROM_BALL, Map.of("round", round)
         ));
         if (round > 0) {
@@ -63,33 +54,18 @@ public record CombatantSwitchEntryStatePlan(
         return new CombatantSwitchEntryStatePlan(transition, mutations);
     }
 
-    /**
-     * Applies only the temporary-effect prefix frozen by this plan.
-     *
-     * <p>The future switch executor will compose this with field-presence mutation and then dispatch
-     * send-out/COMBATANT_ENTRY hooks. Keeping this method narrow prevents callers from mistaking the
-     * current slice for complete switch execution.</p>
-     */
+    /** Applies only the temporary-effect prefix frozen by this plan. */
     void applyTemporaryEffects(BattleRuntimeState state) {
         if (state == null) throw new IllegalArgumentException("battle state is required");
         for (TemporaryEffectMutation mutation : temporaryEffectMutations) {
-            TemporaryEffectStore store = state.requireCombatant(mutation.combatantId()).temporaryEffects();
-            if (mutation.operation() == TemporaryEffectOperation.REMOVE_ALL) {
-                store.removeAll(mutation.effectName());
-            } else {
-                store.add(mutation.effectName(), mutation.payload());
-            }
+            state.requireCombatant(mutation.combatantId())
+                    .temporaryEffects()
+                    .add(mutation.effectName(), mutation.payload());
         }
-    }
-
-    public enum TemporaryEffectOperation {
-        REMOVE_ALL,
-        ADD
     }
 
     public record TemporaryEffectMutation(
             String combatantId,
-            TemporaryEffectOperation operation,
             String effectName,
             Map<String, Object> payload
     ) {
@@ -97,7 +73,6 @@ public record CombatantSwitchEntryStatePlan(
             if (combatantId == null || combatantId.isBlank()) {
                 throw new IllegalArgumentException("combatantId is required");
             }
-            if (operation == null) throw new IllegalArgumentException("operation is required");
             if (effectName == null || effectName.isBlank()) {
                 throw new IllegalArgumentException("effectName is required");
             }
@@ -106,18 +81,10 @@ public record CombatantSwitchEntryStatePlan(
             payload = Map.copyOf(copy);
         }
 
-        static TemporaryEffectMutation removeAll(String combatantId, String effectName) {
-            return new TemporaryEffectMutation(
-                    combatantId, TemporaryEffectOperation.REMOVE_ALL, effectName, Map.of()
-            );
-        }
-
         static TemporaryEffectMutation add(String combatantId, String effectName, Map<String, ?> payload) {
             LinkedHashMap<String, Object> copy = new LinkedHashMap<>();
             if (payload != null) copy.putAll(payload);
-            return new TemporaryEffectMutation(
-                    combatantId, TemporaryEffectOperation.ADD, effectName, copy
-            );
+            return new TemporaryEffectMutation(combatantId, effectName, copy);
         }
     }
 }
