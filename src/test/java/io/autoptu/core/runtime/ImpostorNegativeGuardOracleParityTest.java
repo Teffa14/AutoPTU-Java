@@ -52,9 +52,12 @@ class ImpostorNegativeGuardOracleParityTest {
         );
         InitiativeTurnAdvanceResult noAbilityResult = new BattleRoundController(noAbility, 0)
                 .advanceInitiativeTurnWithRollover();
+        assertEquals(expected.get("NO_ABILITY_TARGET_EFFECTIVE"), String.join(",", EffectiveAbilityResolver.resolve(noAbilityTarget)));
         assertEquals(Integer.parseInt(expected.get("NO_ABILITY_EVENT_COUNT")), impostorEventCount(noAbilityResult.events(), "holder"));
         assertEquals(Integer.parseInt(expected.get("NO_ABILITY_USED_COUNT")), roundEffectCount(noAbilityHolder, ImpostorEffectExecutor.USED, 1));
-        assertEquals(Integer.parseInt(expected.get("NO_ABILITY_ENTRAINED_COUNT")), noAbilityHolder.temporaryEffects().getAll(TransformationStateResolver.ENTRAINED_ABILITY).size());
+        List<TemporaryEffectEntry> noAbilityEntrained = noAbilityHolder.temporaryEffects().getAll(TransformationStateResolver.ENTRAINED_ABILITY);
+        assertEquals(Integer.parseInt(expected.get("NO_ABILITY_ENTRAINED_COUNT")), noAbilityEntrained.size());
+        assertEquals(expected.get("NO_ABILITY_ASSIGNED"), String.valueOf(noAbilityEntrained.get(0).payload().get("ability")));
 
         RuntimeCombatantState transformedHolder = combatant("holder", 20, List.of("Impostor"));
         transformedHolder.temporaryEffects().add(
