@@ -10,8 +10,9 @@ import java.util.Map;
  *
  * <p>This contract freezes the Python {@code _apply_switch()} temporary-effect prefix after legality
  * has produced a {@link CombatantSwitchTransitionPlan}. The pinned oracle preserves any pre-existing
- * {@code recalled}/{@code released_from_ball} markers and appends a new release marker plus a
- * round-scoped {@code joined_round} marker before send-out Feature or ability hooks run.</p>
+ * {@code recalled}/{@code released_from_ball} markers, appends {@code joined_round} when the current
+ * round is positive, then appends the new {@code released_from_ball} marker before send-out Feature
+ * or ability hooks run.</p>
  *
  * <p>Field presence and active-affiliation mutation remain deliberately outside this class until
  * the core owns a first-class off-field placement store. Minecraft/Cobblemon adapters must never
@@ -43,14 +44,14 @@ public record CombatantSwitchEntryStatePlan(
 
         int round = state.currentRound();
         ArrayList<TemporaryEffectMutation> mutations = new ArrayList<>();
-        mutations.add(TemporaryEffectMutation.add(
-                transition.replacementId(), RELEASED_FROM_BALL, Map.of("round", round)
-        ));
         if (round > 0) {
             mutations.add(TemporaryEffectMutation.add(
                     transition.replacementId(), JOINED_ROUND, Map.of("round", round)
             ));
         }
+        mutations.add(TemporaryEffectMutation.add(
+                transition.replacementId(), RELEASED_FROM_BALL, Map.of("round", round)
+        ));
         return new CombatantSwitchEntryStatePlan(transition, mutations);
     }
 
