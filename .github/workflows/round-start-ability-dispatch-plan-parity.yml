@@ -101,6 +101,7 @@ jobs:
             --tests io.autoptu.core.runtime.ImpostorRandomChoiceOracleParityTest \
             --tests io.autoptu.core.runtime.ImpostorNegativeGuardOracleParityTest \
             --tests io.autoptu.core.runtime.ImpostorSwitchEntryOracleParityTest \
+            --tests io.autoptu.core.runtime.CombatantSwitchTransitionPlanOracleParityTest \
             --tests io.autoptu.core.runtime.RoundStartAbilityInvocationExecutorTest \
             --tests io.autoptu.core.runtime.RoundStartAirLockEffectOracleParityTest \
             --tests io.autoptu.core.runtime.ArenaTrapTargetingContractOracleParityTest \
