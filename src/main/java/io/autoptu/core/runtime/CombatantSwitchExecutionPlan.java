@@ -40,8 +40,8 @@ public record CombatantSwitchExecutionPlan(
                         Stage.REMOVE_OUTGOING_PRESENCE,
                         Stage.ACTIVATE_REPLACEMENT,
                         Stage.PLACE_REPLACEMENT,
-                        Stage.ADD_RELEASED_FROM_BALL,
                         Stage.ADD_JOINED_ROUND,
+                        Stage.ADD_RELEASED_FROM_BALL,
                         Stage.DISPATCH_COMBATANT_ENTRY
                 )
         );
@@ -52,8 +52,8 @@ public record CombatantSwitchExecutionPlan(
         REMOVE_OUTGOING_PRESENCE,
         ACTIVATE_REPLACEMENT,
         PLACE_REPLACEMENT,
-        ADD_RELEASED_FROM_BALL,
         ADD_JOINED_ROUND,
+        ADD_RELEASED_FROM_BALL,
         DISPATCH_COMBATANT_ENTRY
     }
 }
