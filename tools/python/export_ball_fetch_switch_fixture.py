@@ -103,6 +103,14 @@ def main() -> None:
         for index, event in enumerate(ball_fetch_events):
             payload = repr(sorted(event.items()))
             handle.write(f"BALL_FETCH_EVENT\t{index}\t{payload}\n")
+            origin = event["from"]
+            destination = event["to"]
+            handle.write(
+                "BALL_FETCH_EVENT_STRUCT\t"
+                f"{index}\t{event['actor']}\t{event['target']}\t{event['ability']}\t{event['effect']}\t"
+                f"{origin[0]}\t{origin[1]}\t{destination[0]}\t{destination[1]}\t"
+                f"{event['description']}\t{event['target_hp']}\t{event['phase']}\t{event['round']}\n"
+            )
     print(output)
 
 

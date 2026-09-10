@@ -1,9 +1,12 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.event.AbilityEvent;
 import io.autoptu.core.model.GridCoord;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Materializes stateful side effects shared by abilities that force their holders to make a legal
@@ -61,6 +64,25 @@ public final class AbilityApproachShiftEffectExecutor {
             if (temporaryEffect == null || temporaryEffect.isBlank()) {
                 throw new IllegalArgumentException("temporaryEffect is required");
             }
+        }
+
+        public AbilityEvent toAbilityEvent(String phase, int round, String description, int targetHp) {
+            if (phase == null || phase.isBlank()) throw new IllegalArgumentException("phase is required");
+            if (round < 0) throw new IllegalArgumentException("round cannot be negative");
+            if (description == null || description.isBlank()) throw new IllegalArgumentException("description is required");
+            if (targetHp < 0) throw new IllegalArgumentException("targetHp cannot be negative");
+
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("target", targetId);
+            details.put("description", description.strip());
+            details.put("targetHp", targetHp);
+            details.put("fromX", from.x());
+            details.put("fromY", from.y());
+            details.put("toX", to.x());
+            details.put("toY", to.y());
+            details.put("phase", phase.strip());
+            details.put("round", round);
+            return new AbilityEvent(actorId, ability, "shift", details);
         }
     }
 }
