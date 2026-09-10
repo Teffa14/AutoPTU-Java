@@ -41,4 +41,5 @@ jobs:
           gradle test --stacktrace \
             --tests io.autoptu.core.runtime.CombatantSwitchTransitionPlanOracleParityTest \
             --tests io.autoptu.core.runtime.CombatantSwitchEntryStatePlanOracleParityTest \
+            --tests io.autoptu.core.runtime.CombatantFieldPresenceStoreOracleParityTest \
             --tests io.autoptu.core.runtime.ImpostorSwitchEntryOracleParityTest
