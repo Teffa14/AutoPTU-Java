@@ -18,6 +18,12 @@ public enum LifecycleHookPoint {
      */
     ROUND_START_EFFECTS,
     ROUND_END,
+    /**
+     * A combatant became active on the authoritative field after initial battle setup, such as
+     * a switch or replacement. Entry abilities and other send-out families share this seam so
+     * switch adapters never implement PTU effects themselves.
+     */
+    COMBATANT_ENTRY,
     TURN_START,
     PHASE_CHANGE,
     TURN_END

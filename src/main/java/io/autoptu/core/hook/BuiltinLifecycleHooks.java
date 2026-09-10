@@ -1,6 +1,7 @@
 package io.autoptu.core.hook;
 
 import io.autoptu.core.runtime.BattleRuntime;
+import io.autoptu.core.runtime.CombatantEntryAbilityLifecycleHook;
 import io.autoptu.core.runtime.CombatantRuleContentRegistry;
 import io.autoptu.core.runtime.DeclaredActionRoundLifecycleHook;
 import io.autoptu.core.runtime.DelayedHitRoundLifecycleHook;
@@ -208,6 +209,13 @@ public final class BuiltinLifecycleHooks {
                         LifecycleHookPoint.ROUND_START_EFFECTS,
                         110,
                         new RoundStartAbilityLifecycleHook(combatantRuleContent)
+                )
+                .register(
+                        "combatant-entry-ability-dispatch",
+                        HookSource.ABILITY,
+                        LifecycleHookPoint.COMBATANT_ENTRY,
+                        100,
+                        new CombatantEntryAbilityLifecycleHook()
                 )
                 .register(
                         "combatant-turn-start-effects",

@@ -18,6 +18,7 @@ import java.util.Objects;
  */
 public final class ImpostorEffectExecutor {
     public static final String ABILITY = "Impostor";
+    public static final String LEGACY_ABILITY = "Imposter";
     public static final String JOINED_ROUND = "joined_round";
     public static final String USED = "impostor_used";
 
@@ -31,7 +32,7 @@ public final class ImpostorEffectExecutor {
 
         if (!state.isActive(holderId)
                 || holder.hp() <= 0
-                || !EffectiveAbilityResolver.hasExact(holder, ABILITY)
+                || !EffectiveAbilityResolver.hasAnyExact(holder, ABILITY, LEGACY_ABILITY)
                 || !hasRoundEffect(holder, JOINED_ROUND, round)
                 || hasRoundEffect(holder, USED, round)) {
             return List.of();

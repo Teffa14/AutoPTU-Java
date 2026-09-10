@@ -37,4 +37,18 @@ public final class EffectiveAbilityResolver {
         }
         return false;
     }
+
+    /**
+     * Matches one effective ability against an explicit set of oracle-equivalent spellings.
+     *
+     * <p>The returned effective ability names remain untouched. This method only widens trigger
+     * identity matching where the pinned Python content/runtime accepts more than one spelling.</p>
+     */
+    public static boolean hasAnyExact(RuntimeCombatantState combatant, String... abilityNames) {
+        if (abilityNames == null || abilityNames.length == 0) return false;
+        for (String abilityName : abilityNames) {
+            if (hasExact(combatant, abilityName)) return true;
+        }
+        return false;
+    }
 }
