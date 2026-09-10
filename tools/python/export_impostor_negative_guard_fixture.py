@@ -81,6 +81,9 @@ def main() -> None:
     no_ability_target = pokemon("No Ability Target", [], "foes", (2, 3), 10)
     no_ability = battle([("holder", no_ability_holder), ("target", no_ability_target)])
     PhaseController(no_ability).start_round()
+    no_ability_target_effective = no_ability_target.ability_names()
+    no_ability_entrained = no_ability_holder.get_temporary_effects("entrained_ability")
+    no_ability_assigned = str(no_ability_entrained[0].get("ability", "")) if no_ability_entrained else ""
 
     transformed_holder = pokemon("Transformed Holder", "Impostor", "players", (2, 2), 20)
     transformed_holder.add_temporary_effect("entrained_ability", ability="Pressure", source="Transform")
@@ -103,6 +106,8 @@ def main() -> None:
         "NO_TARGET_EVENT_COUNT\t" + str(len(impostor_events(no_target, "holder"))),
         "NO_TARGET_USED_COUNT\t" + str(used_count(no_target_holder, no_target.round)),
         "NO_TARGET_ENTRAINED_COUNT\t" + str(len(no_target_holder.get_temporary_effects("entrained_ability"))),
+        "NO_ABILITY_TARGET_EFFECTIVE\t" + ",".join(no_ability_target_effective),
+        "NO_ABILITY_ASSIGNED\t" + no_ability_assigned,
         "NO_ABILITY_EVENT_COUNT\t" + str(len(impostor_events(no_ability, "holder"))),
         "NO_ABILITY_USED_COUNT\t" + str(used_count(no_ability_holder, no_ability.round)),
         "NO_ABILITY_ENTRAINED_COUNT\t" + str(len(no_ability_holder.get_temporary_effects("entrained_ability"))),
