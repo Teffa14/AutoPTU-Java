@@ -23,6 +23,7 @@ final class AbilityApproachShiftExecutorOracleParityTest {
         Path oracle = Path.of("build/oracle/ball-fetch-switch.tsv");
         Assumptions.assumeTrue(Files.exists(oracle));
         Map<String, GridCoord> fixture = readPositions(oracle);
+        int oracleEventCount = readInt(oracle, "BALL_FETCH_EVENT_COUNT");
 
         RuntimeCombatantState replacement = combatant("replacement", fixture.get("REPLACEMENT_POSITION"), List.of());
         RuntimeCombatantState fetcher = combatant("fetcher", fixture.get("FETCHER_BEFORE"), List.of("Ball Fetch"));
@@ -44,6 +45,7 @@ final class AbilityApproachShiftExecutorOracleParityTest {
                 AbilityApproachShiftExecutor.execute(state, "Ball Fetch", "replacement");
 
         assertEquals(List.of("fetcher", "enemy_fetcher"), results.stream().map(AbilityApproachShiftExecutor.ShiftResult::actorId).toList());
+        assertEquals(oracleEventCount, results.size(), "Python emits one Ball Fetch ability event per successful holder Shift");
         assertEquals(fixture.get("FETCHER_AFTER"), fetcher.position());
         assertEquals(fixture.get("ENEMY_AFTER"), enemyFetcher.position());
         assertEquals(new GridCoord(1, 7), observer.position());
@@ -82,5 +84,15 @@ final class AbilityApproachShiftExecutorOracleParityTest {
             positions.put(parts[0], new GridCoord(Integer.parseInt(parts[1]), Integer.parseInt(parts[2])));
         }
         return Map.copyOf(positions);
+    }
+
+    private static int readInt(Path path, String key) throws IOException {
+        for (String line : Files.readAllLines(path)) {
+            String[] parts = line.split("\\t");
+            if (parts.length == 2 && parts[0].equals(key)) {
+                return Integer.parseInt(parts[1]);
+            }
+        }
+        throw new IllegalStateException("Missing oracle key: " + key);
     }
 }
