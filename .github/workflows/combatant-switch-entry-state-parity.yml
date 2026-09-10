@@ -40,6 +40,11 @@ jobs:
             --source-root python-oracle \
             --output build/oracle/switch-execution-order.tsv
           cat build/oracle/switch-execution-order.tsv
+          python3 -m py_compile tools/python/export_switch_post_entry_calls.py
+          python3 tools/python/export_switch_post_entry_calls.py \
+            --source-root python-oracle \
+            --output build/oracle/switch-post-entry-calls.tsv
+          cat build/oracle/switch-post-entry-calls.tsv
 
       - name: Compare Java switch entry state
         run: |
@@ -49,4 +54,5 @@ jobs:
             --tests io.autoptu.core.runtime.CombatantFieldPresenceStoreOracleParityTest \
             --tests io.autoptu.core.runtime.CombatantSwitchExecutionPlanOracleParityTest \
             --tests io.autoptu.core.runtime.CombatantSwitchExecutorOracleParityTest \
+            --tests io.autoptu.core.runtime.CombatantSwitchPostEntryPlanOracleParityTest \
             --tests io.autoptu.core.runtime.ImpostorSwitchEntryOracleParityTest
