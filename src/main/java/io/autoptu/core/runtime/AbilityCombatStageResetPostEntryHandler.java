@@ -65,8 +65,8 @@ public final class AbilityCombatStageResetPostEntryHandler
         ArrayList<BattleEvent> events = new ArrayList<>();
         for (String targetId : state.combatantIds()) {
             if (!state.teamId(targetId).equals(sourceTeam)) continue;
-            if (!state.isActive(targetId)) continue;
             RuntimeCombatantState target = state.requireCombatant(targetId);
+            if (target.position() == null || source.position() == null) continue;
             if (combatantDistance(state, context.replacementId(), targetId) > maxDistance) continue;
             if (!hasNonZeroCombatStage(target)) continue;
 
