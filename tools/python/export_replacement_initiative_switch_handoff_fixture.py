@@ -65,40 +65,55 @@ def _apply_switch_contract(method) -> tuple[str, str, str, str]:
     )
 
 
-def _caller_contract(method) -> list[tuple[str, str, str]]:
-    try:
-        source = textwrap.dedent(inspect.getsource(method))
-    except (OSError, TypeError):
-        return []
-    tree = ast.parse(source)
-    function = tree.body[0]
-    if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
-        return []
+class _ApplySwitchCallerVisitor(ast.NodeVisitor):
+    def __init__(self) -> None:
+        self.scope: list[str] = []
+        self.rows: list[tuple[str, int, str, str, str, str]] = []
+        self._caller_counts: dict[str, int] = {}
 
-    result: list[tuple[str, str, str]] = []
-    for node in ast.walk(function):
-        if not isinstance(node, ast.Call) or _expr(node.func) != "self._apply_switch":
-            continue
-        keywords = {keyword.arg: keyword.value for keyword in node.keywords if keyword.arg is not None}
-        result.append(
-            (
-                _expr(keywords.get("allow_replacement_turn")),
-                _expr(keywords.get("allow_immediate")),
-                _expr(node.args[1]) if len(node.args) > 1 else _expr(keywords.get("replacement_id")),
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self.scope.append(node.name)
+        self.generic_visit(node)
+        self.scope.pop()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self.scope.append(node.name)
+        self.generic_visit(node)
+        self.scope.pop()
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self.scope.append(node.name)
+        self.generic_visit(node)
+        self.scope.pop()
+
+    def visit_Call(self, node: ast.Call) -> None:
+        if isinstance(node.func, ast.Attribute) and node.func.attr == "_apply_switch":
+            caller = ".".join(self.scope) or "<module>"
+            index = self._caller_counts.get(caller, 0)
+            self._caller_counts[caller] = index + 1
+            keywords = {keyword.arg: keyword.value for keyword in node.keywords if keyword.arg is not None}
+            replacement = keywords.get("replacement_id")
+            if replacement is None and len(node.args) > 1:
+                replacement = node.args[1]
+            self.rows.append(
+                (
+                    caller,
+                    index,
+                    _expr(node.func.value),
+                    _expr(keywords.get("allow_replacement_turn")),
+                    _expr(keywords.get("allow_immediate")),
+                    _expr(replacement),
+                )
             )
-        )
-    return result
+        self.generic_visit(node)
 
 
-def _discover_callers(cls) -> list[tuple[str, int, str, str, str]]:
-    rows: list[tuple[str, int, str, str, str]] = []
-    for name, member in sorted(cls.__dict__.items()):
-        if name == "_apply_switch" or not inspect.isfunction(member):
-            continue
-        calls = _caller_contract(member)
-        for index, (allow_turn, allow_immediate, replacement) in enumerate(calls):
-            rows.append((name, index, allow_turn, allow_immediate, replacement))
-    return rows
+def _discover_callers(module) -> list[tuple[str, int, str, str, str, str]]:
+    source = inspect.getsource(module)
+    tree = ast.parse(source)
+    visitor = _ApplySwitchCallerVisitor()
+    visitor.visit(tree)
+    return visitor.rows
 
 
 def main() -> None:
@@ -108,6 +123,7 @@ def main() -> None:
     args = parser.parse_args()
 
     sys.path.insert(0, str(Path(args.source_root).resolve()))
+    import auto_ptu.rules.battle_state as battle_state_module
     from auto_ptu.rules.battle_state import BattleState
 
     turn_policy, immediate_policy, replacement_arg, forwarded_immediate = _apply_switch_contract(
@@ -124,9 +140,9 @@ def main() -> None:
             f"{turn_policy=}, {immediate_policy=}, {replacement_arg=}, {forwarded_immediate=}"
         )
 
-    caller_rows = _discover_callers(BattleState)
+    caller_rows = _discover_callers(battle_state_module)
     if not caller_rows:
-        raise AssertionError("Pinned BattleState no longer contains any _apply_switch callers")
+        raise AssertionError("Pinned battle_state module no longer contains any _apply_switch callers")
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -135,10 +151,10 @@ def main() -> None:
             "APPLY_SWITCH\t"
             f"{turn_policy}\t{immediate_policy}\t{replacement_arg}\t{forwarded_immediate}\n"
         )
-        for caller_name, index, allow_turn, allow_immediate, replacement in caller_rows:
+        for caller, index, receiver, allow_turn, allow_immediate, replacement in caller_rows:
             handle.write(
                 "CALLER\t"
-                f"{caller_name}\t{index}\t{allow_turn}\t{allow_immediate}\t{replacement}\n"
+                f"{caller}\t{index}\t{receiver}\t{allow_turn}\t{allow_immediate}\t{replacement}\n"
             )
     print(output)
 
