@@ -66,6 +66,12 @@ def main() -> None:
     fetcher = PokemonState(spec=spec("Fetcher", ability="Ball Fetch", overland=4), controller_id="a", position=(7, 2), active=True)
     enemy_fetcher = PokemonState(spec=spec("EnemyFetcher", ability="Ball Fetch", overland=4), controller_id="b", position=(7, 7), active=True)
 
+    # Keep holder HP deliberately distinct from the released combatant and from each other. Python's
+    # Ball Fetch event records the acting holder's HP in target_hp; equal HP values previously hid
+    # that semantic distinction from the language-neutral fixture.
+    fetcher.hp = 47
+    enemy_fetcher.hp = 31
+
     battle = BattleState(
         trainers={"a": trainer_a, "b": trainer_b},
         pokemon={"a-1": outgoing, "a-2": replacement, "a-3": fetcher, "b-1": enemy_fetcher},
