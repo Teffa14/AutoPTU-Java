@@ -78,7 +78,7 @@ final class CombatantSwitchPostEntryDispatcherOracleParityTest {
         assertEquals(
                 List.of(
                         CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
-                        CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
+                        CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING
