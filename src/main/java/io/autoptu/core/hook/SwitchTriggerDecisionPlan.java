@@ -59,8 +59,8 @@ public record SwitchTriggerDecisionPlan(
         }
     }
 
+    /** Only policy explicitly supplied by the pinned trigger call is carried here. */
     public record SwitchPolicy(
-            boolean applyTagIn,
             boolean allowReplacementTurn,
             boolean allowImmediate,
             boolean allowRecursiveTriggers
