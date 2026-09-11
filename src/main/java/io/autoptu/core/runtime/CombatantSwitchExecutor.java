@@ -18,10 +18,10 @@ import java.util.function.Consumer;
  * stage plan through {@link CombatantSwitchPostEntryDispatcher}. Minecraft/Cobblemon/Craftics
  * adapters may request or render a switch but never perform these rule-state mutations themselves.</p>
  *
- * <p>Only post-entry families registered in the supplied dispatcher execute. Unported families
- * remain explicit pending stages. Mount/rider synchronization, hazards/zones, replacement
- * initiative semantics and action-economy consumption remain outside this bounded transaction
- * until their Python contracts are frozen separately.</p>
+ * <p>The convenience overloads use the current parity-safe production post-entry registry. The
+ * explicit dispatcher overload remains available for differential probes and future composition.
+ * Families whose Python contracts are not yet frozen remain pending rather than executing guessed
+ * behavior.</p>
  */
 public final class CombatantSwitchExecutor {
     private CombatantSwitchExecutor() {}
@@ -37,8 +37,27 @@ public final class CombatantSwitchExecutor {
                 state,
                 fieldPresence,
                 lifecycleHooks,
-                CombatantSwitchPostEntryDispatcher.empty(),
+                CombatantSwitchPostEntryDispatchers.paritySafe(),
                 event -> {},
+                outgoingId,
+                replacementId
+        );
+    }
+
+    public static ExecutionResult execute(
+            BattleRuntimeState state,
+            CombatantFieldPresenceStore fieldPresence,
+            LifecycleHookRegistry lifecycleHooks,
+            Consumer<BattleEvent> eventSink,
+            String outgoingId,
+            String replacementId
+    ) {
+        return execute(
+                state,
+                fieldPresence,
+                lifecycleHooks,
+                CombatantSwitchPostEntryDispatchers.paritySafe(),
+                eventSink,
                 outgoingId,
                 replacementId
         );

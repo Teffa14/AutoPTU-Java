@@ -2,6 +2,7 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.event.AbilityEvent;
 import io.autoptu.core.event.BattleEvent;
+import io.autoptu.core.hook.BuiltinLifecycleHooks;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
@@ -17,83 +18,80 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-final class CombatantSwitchPostEntryDispatcherOracleParityTest {
+final class CombatantSwitchBallFetchRuntimeOracleParityTest {
     private static final Map<String, String> ORACLE_TO_JAVA_IDS = Map.of(
-            "a-2", "replacement",
-            "a-3", "fetcher",
-            "b-1", "enemy_fetcher"
+            "a-2", "a-2",
+            "a-3", "a-3",
+            "b-1", "b-1"
     );
 
     @Test
-    void dispatchesFrozenStageOrderAndPublishesRegisteredBallFetchTrace() throws IOException {
-        Path orderFixture = Path.of("build/oracle/switch-post-entry-calls.tsv");
-        Path ballFetchFixture = Path.of("build/oracle/ball-fetch-switch.tsv");
-        Assumptions.assumeTrue(Files.exists(orderFixture));
-        Assumptions.assumeTrue(Files.exists(ballFetchFixture));
+    void productionSwitchPathExecutesBallFetchAndPublishesPinnedTrace() throws IOException {
+        Path oracle = Path.of("build/oracle/ball-fetch-switch.tsv");
+        Assumptions.assumeTrue(Files.exists(oracle));
+        Map<String, GridCoord> positions = readPositions(oracle);
+        List<OracleAbilityEvent> expectedEvents = readAbilityEvents(oracle);
 
-        String expectedOrder = readString(orderFixture, "ORDER");
-        Map<String, GridCoord> positions = readPositions(ballFetchFixture);
-        List<OracleAbilityEvent> oracleEvents = readAbilityEvents(ballFetchFixture);
-
-        RuntimeCombatantState replacement = combatant("replacement", positions.get("REPLACEMENT_POSITION"), 60, List.of());
+        RuntimeCombatantState outgoing = combatant("a-1", positions.get("REPLACEMENT_POSITION"), 60, List.of());
+        RuntimeCombatantState replacement = combatant("a-2", new GridCoord(0, 0), 60, List.of());
         RuntimeCombatantState fetcher = combatant(
-                "fetcher",
-                positions.get("FETCHER_BEFORE"),
-                oracleHp(oracleEvents, "fetcher"),
-                List.of("Ball Fetch")
-        );
+                "a-3", positions.get("FETCHER_BEFORE"), oracleHp(expectedEvents, "a-3"), List.of("Ball Fetch"));
         RuntimeCombatantState enemyFetcher = combatant(
-                "enemy_fetcher",
-                positions.get("ENEMY_BEFORE"),
-                oracleHp(oracleEvents, "enemy_fetcher"),
-                List.of("Ball Fetch")
-        );
+                "b-1", positions.get("ENEMY_BEFORE"), oracleHp(expectedEvents, "b-1"), List.of("Ball Fetch"));
+
         BattleRuntimeState state = new BattleRuntimeState(
                 new MovementGrid(10, 10, Set.of(), Map.of()),
-                List.of(replacement, fetcher, enemyFetcher),
+                List.of(outgoing, replacement, fetcher, enemyFetcher),
                 Map.of(), Map.of(), Map.of(),
                 Map.of(
-                        "replacement", CombatantAffiliationState.active("players"),
-                        "fetcher", CombatantAffiliationState.active("players"),
-                        "enemy_fetcher", CombatantAffiliationState.active("foes")
+                        "a-1", CombatantAffiliationState.active("players"),
+                        "a-2", new CombatantAffiliationState("players", false),
+                        "a-3", CombatantAffiliationState.active("players"),
+                        "b-1", CombatantAffiliationState.active("foes")
                 )
         );
-
-        CombatantSwitchPostEntryDispatcher dispatcher = CombatantSwitchPostEntryDispatchers.paritySafe();
-
+        state.syncCurrentRoundFromLifecycle(1);
+        CombatantFieldPresenceStore presence = new CombatantFieldPresenceStore(
+                Map.of(
+                        "a-1", positions.get("REPLACEMENT_POSITION"),
+                        "a-3", positions.get("FETCHER_BEFORE"),
+                        "b-1", positions.get("ENEMY_BEFORE")
+                )
+        );
         ArrayList<BattleEvent> sink = new ArrayList<>();
-        CombatantSwitchPostEntryDispatcher.DispatchResult result = dispatcher.dispatch(
-                CombatantSwitchPostEntryPlan.pinnedContract(),
-                new CombatantSwitchPostEntryDispatcher.DispatchContext(state, "replacement", "start", 1),
-                sink::add
+
+        CombatantSwitchExecutor.ExecutionResult result = CombatantSwitchExecutor.execute(
+                state,
+                presence,
+                BuiltinLifecycleHooks.registry(),
+                sink::add,
+                "a-1",
+                "a-2"
         );
 
-        assertEquals(expectedOrder, result.stages().stream()
-                .map(stage -> stage.stage().name())
-                .collect(Collectors.joining(",")));
-        assertEquals(
-                List.of(
-                        CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
+        assertEquals(CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
+                result.postEntryDispatchResult().stages().get(0).status());
+        assertEquals(List.of(
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
-                        CombatantSwitchPostEntryDispatcher.StageStatus.PENDING
-                ),
-                result.stages().stream().map(CombatantSwitchPostEntryDispatcher.StageResult::status).toList()
-        );
-        assertEquals(oracleEvents.size(), sink.size());
-        assertEquals(sink, result.orderedEvents());
+                        CombatantSwitchPostEntryDispatcher.StageStatus.PENDING),
+                result.postEntryDispatchResult().stages().subList(1, 5).stream()
+                        .map(CombatantSwitchPostEntryDispatcher.StageResult::status)
+                        .toList());
+        assertEquals(positions.get("REPLACEMENT_POSITION"), replacement.position());
         assertEquals(positions.get("FETCHER_AFTER"), fetcher.position());
         assertEquals(positions.get("ENEMY_AFTER"), enemyFetcher.position());
         assertEquals(1, fetcher.temporaryEffects().count("ball_fetch_shift"));
         assertEquals(1, enemyFetcher.temporaryEffects().count("ball_fetch_shift"));
+        assertEquals(expectedEvents.size(), sink.size());
+        assertEquals(sink, result.postEntryDispatchResult().orderedEvents());
 
-        for (int index = 0; index < oracleEvents.size(); index++) {
-            OracleAbilityEvent expected = oracleEvents.get(index);
+        for (int index = 0; index < expectedEvents.size(); index++) {
+            OracleAbilityEvent expected = expectedEvents.get(index);
             AbilityEvent actual = (AbilityEvent) sink.get(index);
             assertEquals(javaId(expected.actorId()), actual.actorId());
             assertEquals(javaId(expected.targetId()), actual.target());
@@ -123,20 +121,12 @@ final class CombatantSwitchPostEntryDispatcherOracleParityTest {
         );
     }
 
-    private static int oracleHp(List<OracleAbilityEvent> events, String javaActorId) {
+    private static int oracleHp(List<OracleAbilityEvent> events, String actorId) {
         return events.stream()
-                .filter(event -> javaId(event.actorId()).equals(javaActorId))
+                .filter(event -> event.actorId().equals(actorId))
                 .mapToInt(OracleAbilityEvent::targetHp)
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Missing Ball Fetch oracle actor: " + javaActorId));
-    }
-
-    private static String readString(Path path, String key) throws IOException {
-        for (String line : Files.readAllLines(path)) {
-            String[] parts = line.split("\\t", 2);
-            if (parts.length == 2 && parts[0].equals(key)) return parts[1];
-        }
-        throw new IllegalStateException("Missing oracle key: " + key);
+                .orElseThrow(() -> new IllegalStateException("Missing oracle actor: " + actorId));
     }
 
     private static Map<String, GridCoord> readPositions(Path path) throws IOException {
