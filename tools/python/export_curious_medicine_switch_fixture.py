@@ -153,6 +153,13 @@ def main() -> None:
         handle.write(f"CURIOUS_MEDICINE_EVENT_COUNT\t{len(curious_events)}\n")
         for index, event in enumerate(curious_events):
             handle.write(f"CURIOUS_MEDICINE_EVENT\t{index}\t{repr(sorted(event.items()))}\n")
+            handle.write(
+                "CURIOUS_MEDICINE_EVENT_STRUCT\t"
+                f"{index}\t{event.get('actor', '')}\t{event.get('target', '')}\t"
+                f"{event.get('ability', '')}\t{event.get('move', '')}\t{event.get('effect', '')}\t"
+                f"{event.get('description', '')}\t{event.get('target_hp', 0)}\t"
+                f"{event.get('phase', '')}\t{event.get('round', 0)}\n"
+            )
     print(output)
 
 
