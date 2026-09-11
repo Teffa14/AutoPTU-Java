@@ -79,7 +79,7 @@ final class CombatantSwitchPostEntryDispatcherOracleParityTest {
                 List.of(
                         CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
                         CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
-                        CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
+                        CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING
                 ),
