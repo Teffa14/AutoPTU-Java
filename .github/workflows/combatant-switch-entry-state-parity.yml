@@ -73,6 +73,7 @@ jobs:
             --tests io.autoptu.core.runtime.CombatantSwitchPostEntryDispatcherOracleParityTest \
             --tests io.autoptu.core.runtime.CombatantSwitchBallFetchRuntimeOracleParityTest \
             --tests io.autoptu.core.runtime.CombatantSwitchCuriousMedicineRuntimeOracleParityTest \
+            --tests io.autoptu.core.runtime.ReplacementInitiativeInsertionOracleParityTest \
             --tests io.autoptu.core.runtime.RuntimeApproachShiftDestinationResolverOracleParityTest \
             --tests io.autoptu.core.runtime.AbilityApproachShiftExecutorOracleParityTest \
             --tests io.autoptu.core.runtime.ImpostorSwitchEntryOracleParityTest
