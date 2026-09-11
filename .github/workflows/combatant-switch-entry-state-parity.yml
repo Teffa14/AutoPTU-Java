@@ -65,6 +65,11 @@ jobs:
             --source-root python-oracle \
             --output build/oracle/replacement-initiative-switch-handoff.tsv
           cat build/oracle/replacement-initiative-switch-handoff.tsv
+          python3 -m py_compile tools/python/export_quick_switch_entry_contract.py
+          python3 tools/python/export_quick_switch_entry_contract.py \
+            --source-root python-oracle \
+            --output build/oracle/quick-switch-entry-contract.tsv
+          cat build/oracle/quick-switch-entry-contract.tsv
 
       - name: Compare Java switch entry state
         run: |
@@ -80,6 +85,7 @@ jobs:
             --tests io.autoptu.core.runtime.CombatantSwitchCuriousMedicineRuntimeOracleParityTest \
             --tests io.autoptu.core.runtime.ReplacementInitiativeInsertionOracleParityTest \
             --tests io.autoptu.core.runtime.CombatantSwitchReplacementInitiativeHandoffTest \
+            --tests io.autoptu.core.runtime.QuickSwitchEntryContractOracleParityTest \
             --tests io.autoptu.core.runtime.RuntimeApproachShiftDestinationResolverOracleParityTest \
             --tests io.autoptu.core.runtime.AbilityApproachShiftExecutorOracleParityTest \
             --tests io.autoptu.core.runtime.ImpostorSwitchEntryOracleParityTest
