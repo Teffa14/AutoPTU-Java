@@ -1,6 +1,7 @@
 package io.autoptu.core.hook;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +21,7 @@ public final class SwitchTriggerPlannerRegistry {
                 copy.put(key, planner);
             });
         }
-        this.planners = Map.copyOf(copy);
+        this.planners = Collections.unmodifiableMap(copy);
     }
 
     public static SwitchTriggerPlannerRegistry empty() {
