@@ -93,7 +93,7 @@ final class CombatantSwitchCuriousMedicineRuntimeOracleParityTest {
         assertEquals(CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
                 result.postEntryDispatchResult().stages().get(1).status());
         assertEquals(List.of(
-                        CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
+                        CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING),
                 result.postEntryDispatchResult().stages().subList(2, 5).stream()

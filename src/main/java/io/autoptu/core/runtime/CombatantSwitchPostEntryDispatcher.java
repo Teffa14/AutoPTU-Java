@@ -88,8 +88,15 @@ public final class CombatantSwitchPostEntryDispatcher {
             BattleRuntimeState state,
             String replacementId,
             String phase,
-            int round
+            int round,
+            boolean allowReplacementTurn,
+            boolean allowImmediate
     ) {
+        /** Compatibility boundary for callers that do not grant a replacement turn. */
+        public DispatchContext(BattleRuntimeState state, String replacementId, String phase, int round) {
+            this(state, replacementId, phase, round, false, false);
+        }
+
         public DispatchContext {
             if (state == null) throw new IllegalArgumentException("battle state is required");
             if (replacementId == null || replacementId.isBlank()) {

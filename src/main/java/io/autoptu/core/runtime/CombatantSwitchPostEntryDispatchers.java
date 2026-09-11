@@ -34,6 +34,10 @@ public final class CombatantSwitchPostEntryDispatchers {
                                 2,
                                 CURIOUS_MEDICINE_DESCRIPTION
                         )
+                )
+                .withHandler(
+                        CombatantSwitchPostEntryPlan.Stage.INSERT_REPLACEMENT_INITIATIVE,
+                        new ReplacementInitiativePostEntryHandler()
                 );
     }
 }

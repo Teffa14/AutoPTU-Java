@@ -40,7 +40,31 @@ public final class CombatantSwitchExecutor {
                 CombatantSwitchPostEntryDispatchers.paritySafe(),
                 event -> {},
                 outgoingId,
-                replacementId
+                replacementId,
+                false,
+                false
+        );
+    }
+
+    public static ExecutionResult execute(
+            BattleRuntimeState state,
+            CombatantFieldPresenceStore fieldPresence,
+            LifecycleHookRegistry lifecycleHooks,
+            String outgoingId,
+            String replacementId,
+            boolean allowReplacementTurn,
+            boolean allowImmediate
+    ) {
+        return execute(
+                state,
+                fieldPresence,
+                lifecycleHooks,
+                CombatantSwitchPostEntryDispatchers.paritySafe(),
+                event -> {},
+                outgoingId,
+                replacementId,
+                allowReplacementTurn,
+                allowImmediate
         );
     }
 
@@ -59,7 +83,32 @@ public final class CombatantSwitchExecutor {
                 CombatantSwitchPostEntryDispatchers.paritySafe(),
                 eventSink,
                 outgoingId,
-                replacementId
+                replacementId,
+                false,
+                false
+        );
+    }
+
+    public static ExecutionResult execute(
+            BattleRuntimeState state,
+            CombatantFieldPresenceStore fieldPresence,
+            LifecycleHookRegistry lifecycleHooks,
+            Consumer<BattleEvent> eventSink,
+            String outgoingId,
+            String replacementId,
+            boolean allowReplacementTurn,
+            boolean allowImmediate
+    ) {
+        return execute(
+                state,
+                fieldPresence,
+                lifecycleHooks,
+                CombatantSwitchPostEntryDispatchers.paritySafe(),
+                eventSink,
+                outgoingId,
+                replacementId,
+                allowReplacementTurn,
+                allowImmediate
         );
     }
 
@@ -71,6 +120,30 @@ public final class CombatantSwitchExecutor {
             Consumer<BattleEvent> eventSink,
             String outgoingId,
             String replacementId
+    ) {
+        return execute(
+                state,
+                fieldPresence,
+                lifecycleHooks,
+                postEntryDispatcher,
+                eventSink,
+                outgoingId,
+                replacementId,
+                false,
+                false
+        );
+    }
+
+    public static ExecutionResult execute(
+            BattleRuntimeState state,
+            CombatantFieldPresenceStore fieldPresence,
+            LifecycleHookRegistry lifecycleHooks,
+            CombatantSwitchPostEntryDispatcher postEntryDispatcher,
+            Consumer<BattleEvent> eventSink,
+            String outgoingId,
+            String replacementId,
+            boolean allowReplacementTurn,
+            boolean allowImmediate
     ) {
         if (state == null) throw new IllegalArgumentException("battle state is required");
         if (fieldPresence == null) throw new IllegalArgumentException("field presence store is required");
@@ -127,7 +200,9 @@ public final class CombatantSwitchExecutor {
                         state,
                         transition.replacementId(),
                         "start",
-                        round
+                        round,
+                        allowReplacementTurn,
+                        allowImmediate
                 ),
                 eventSink
         );
