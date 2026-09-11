@@ -75,7 +75,7 @@ final class CombatantSwitchBallFetchRuntimeOracleParityTest {
         assertEquals(List.of(
                         CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
                         CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
-                        CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
+                        CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING),
                 result.postEntryDispatchResult().stages().stream()
