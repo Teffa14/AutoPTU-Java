@@ -60,6 +60,11 @@ jobs:
             --source-root python-oracle \
             --output build/oracle/replacement-initiative.tsv
           cat build/oracle/replacement-initiative.tsv
+          python3 -m py_compile tools/python/export_replacement_initiative_switch_handoff_fixture.py
+          python3 tools/python/export_replacement_initiative_switch_handoff_fixture.py \
+            --source-root python-oracle \
+            --output build/oracle/replacement-initiative-switch-handoff.tsv
+          cat build/oracle/replacement-initiative-switch-handoff.tsv
 
       - name: Compare Java switch entry state
         run: |
