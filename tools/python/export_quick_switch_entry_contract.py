@@ -112,6 +112,10 @@ def main() -> None:
     _assert_contains(resolve_source, [
         "trainer.consume_ap(ap_cost)",
         "replacement.add_temporary_effect('quick_switch_sent_out', round=battle.round, expires_round=battle.round)",
+        "'type': 'trainer_feature'",
+        "'feature': 'Quick Switch'",
+        "'effect': 'switch'",
+        "'ap_cost': 2",
     ], "manual resolve")
 
     _assert_contains(trigger_source, [
@@ -125,6 +129,11 @@ def main() -> None:
         "choice_id = replacements[0]",
         "trainer.consume_ap(2)",
         "replacement.add_temporary_effect('quick_switch_sent_out', round=self.round, expires_round=self.round)",
+        "'type': 'trainer_feature'",
+        "'feature': 'Quick Switch'",
+        "'effect': 'switch'",
+        "'trigger': trigger",
+        "'ap_cost': 2",
     ], "trigger")
 
     trigger_switch = _keywords(_single_call(trigger, "_apply_switch"))
@@ -163,10 +172,12 @@ def main() -> None:
         _write_row(handle, "ACTION_AP", action_resolve_ap)
         _write_row(handle, "ACTION_SWITCH", *(f"{key}={value}" for key, value in expected_action_switch.items()))
         _write_row(handle, "ACTION_TEMP", "quick_switch_sent_out", "round=current", "expires=current")
+        _write_row(handle, "ACTION_EVENT", "type=trainer_feature", "feature=Quick Switch", "effect=switch", "ap_cost=2")
         _write_row(handle, "TRIGGER_AP", "required>=2", "consume=2")
         _write_row(handle, "TRIGGER_PROMPT", "phase=interrupt", "optional=True", "default=first_replacement")
         _write_row(handle, "TRIGGER_SWITCH", *(f"{key}={value}" for key, value in expected_trigger_switch.items()))
         _write_row(handle, "TRIGGER_TEMP", "quick_switch_sent_out", "round=current", "expires=current")
+        _write_row(handle, "TRIGGER_EVENT", "type=trainer_feature", "feature=Quick Switch", "effect=switch", "trigger=propagated", "ap_cost=2")
         _write_row(handle, "TRIGGER_SOURCE", "opponent_send_out", "ally_faint")
         _write_row(handle, "FAINT_GUARD", "quick_switch_faint_handled", "round=current", "expires=current")
     print(output)
