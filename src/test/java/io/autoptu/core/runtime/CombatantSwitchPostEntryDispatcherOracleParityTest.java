@@ -29,7 +29,7 @@ final class CombatantSwitchPostEntryDispatcherOracleParityTest {
     );
 
     @Test
-    void dispatchesFrozenStageOrderAndPublishesBallFetchEventsBeforePendingFamilies() throws IOException {
+    void dispatchesFrozenStageOrderAndPublishesRegisteredBallFetchTrace() throws IOException {
         Path orderFixture = Path.of("build/oracle/switch-post-entry-calls.tsv");
         Path ballFetchFixture = Path.of("build/oracle/ball-fetch-switch.tsv");
         Assumptions.assumeTrue(Files.exists(orderFixture));
@@ -39,9 +39,19 @@ final class CombatantSwitchPostEntryDispatcherOracleParityTest {
         Map<String, GridCoord> positions = readPositions(ballFetchFixture);
         List<OracleAbilityEvent> oracleEvents = readAbilityEvents(ballFetchFixture);
 
-        RuntimeCombatantState replacement = combatant("replacement", positions.get("REPLACEMENT_POSITION"), List.of());
-        RuntimeCombatantState fetcher = combatant("fetcher", positions.get("FETCHER_BEFORE"), List.of("Ball Fetch"));
-        RuntimeCombatantState enemyFetcher = combatant("enemy_fetcher", positions.get("ENEMY_BEFORE"), List.of("Ball Fetch"));
+        RuntimeCombatantState replacement = combatant("replacement", positions.get("REPLACEMENT_POSITION"), 60, List.of());
+        RuntimeCombatantState fetcher = combatant(
+                "fetcher",
+                positions.get("FETCHER_BEFORE"),
+                oracleHp(oracleEvents, "fetcher"),
+                List.of("Ball Fetch")
+        );
+        RuntimeCombatantState enemyFetcher = combatant(
+                "enemy_fetcher",
+                positions.get("ENEMY_BEFORE"),
+                oracleHp(oracleEvents, "enemy_fetcher"),
+                List.of("Ball Fetch")
+        );
         BattleRuntimeState state = new BattleRuntimeState(
                 new MovementGrid(10, 10, Set.of(), Map.of()),
                 List.of(replacement, fetcher, enemyFetcher),
@@ -53,26 +63,7 @@ final class CombatantSwitchPostEntryDispatcherOracleParityTest {
                 )
         );
 
-        CombatantSwitchPostEntryDispatcher dispatcher = CombatantSwitchPostEntryDispatcher.empty()
-                .withHandler(CombatantSwitchPostEntryPlan.Stage.BALL_FETCH, context -> {
-                    List<AbilityApproachShiftEffectExecutor.EffectResult> effects =
-                            AbilityApproachShiftEffectExecutor.execute(
-                                    context.state(), "Ball Fetch", context.replacementId(), "ball_fetch_shift");
-                    ArrayList<AbilityEvent> events = new ArrayList<>();
-                    for (AbilityApproachShiftEffectExecutor.EffectResult effect : effects) {
-                        OracleAbilityEvent expected = oracleEvents.stream()
-                                .filter(event -> javaId(event.actorId()).equals(effect.actorId()))
-                                .findFirst()
-                                .orElseThrow();
-                        events.add(effect.toAbilityEvent(
-                                context.phase(),
-                                context.round(),
-                                expected.description(),
-                                context.state().requireCombatant(context.replacementId()).hp()
-                        ));
-                    }
-                    return List.copyOf(events);
-                });
+        CombatantSwitchPostEntryDispatcher dispatcher = CombatantSwitchPostEntryDispatchers.paritySafe();
 
         ArrayList<BattleEvent> sink = new ArrayList<>();
         CombatantSwitchPostEntryDispatcher.DispatchResult result = dispatcher.dispatch(
@@ -119,12 +110,25 @@ final class CombatantSwitchPostEntryDispatcherOracleParityTest {
         }
     }
 
-    private static RuntimeCombatantState combatant(String id, GridCoord position, List<String> abilities) {
+    private static RuntimeCombatantState combatant(
+            String id,
+            GridCoord position,
+            int hp,
+            List<String> abilities
+    ) {
         return new RuntimeCombatantState(
-                id, MovementProfile.walking(position, 4), 60, 60, new ActionBudget(),
+                id, MovementProfile.walking(position, 4), hp, 60, new ActionBudget(),
                 null, null, 0, false, false, false, false,
                 List.of("Normal"), List.of(), abilities
         );
+    }
+
+    private static int oracleHp(List<OracleAbilityEvent> events, String javaActorId) {
+        return events.stream()
+                .filter(event -> javaId(event.actorId()).equals(javaActorId))
+                .mapToInt(OracleAbilityEvent::targetHp)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Missing Ball Fetch oracle actor: " + javaActorId));
     }
 
     private static String readString(Path path, String key) throws IOException {
