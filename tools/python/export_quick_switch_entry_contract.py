@@ -23,11 +23,8 @@ def _expr(node: ast.AST | None) -> str:
 
 
 def _calls(function: ast.AST, suffix: str) -> list[ast.Call]:
-    return [
-        node
-        for node in ast.walk(function)
-        if isinstance(node, ast.Call) and _expr(node.func).endswith(suffix)
-    ]
+    return [node for node in ast.walk(function)
+            if isinstance(node, ast.Call) and _expr(node.func).endswith(suffix)]
 
 
 def _single_call(function: ast.AST, suffix: str) -> ast.Call:
@@ -93,9 +90,11 @@ def main() -> None:
 
     _assert_contains(validate_source, [
         "trainer.available_ap(battle.round) < ap_cost",
-        "not actor.active or actor.fainted",
+        "not actor.active",
+        "actor.fainted",
         "replacement.controller_id != actor.controller_id",
-        "replacement.active or replacement.fainted",
+        "replacement.active",
+        "replacement.fainted",
     ], "manual validation")
 
     action_switch = _keywords(_single_call(resolve, "_apply_switch"))
@@ -116,7 +115,10 @@ def main() -> None:
     ], "manual resolve")
 
     _assert_contains(trigger_source, [
-        "actor is None or actor.fainted or (not actor.active) or (not actor.has_trainer_feature('Quick Switch'))",
+        "actor is None",
+        "actor.fainted",
+        "not actor.active",
+        "not actor.has_trainer_feature('Quick Switch')",
         "int(getattr(trainer, 'ap', 0) or 0) < 2",
         "replacements = self._quick_switch_replacements(actor_id)",
         "response = self.prompt_response(actor_id, prompt)",
