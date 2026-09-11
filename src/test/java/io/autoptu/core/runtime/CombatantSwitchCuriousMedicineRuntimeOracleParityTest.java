@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,11 +116,11 @@ final class CombatantSwitchCuriousMedicineRuntimeOracleParityTest {
             AbilityEvent actual = (AbilityEvent) sink.get(index);
             assertEquals(expected.actorId(), actual.actorId());
             assertEquals(expected.targetId(), actual.target());
-            assertEquals("Curious Medicine", actual.ability());
-            assertEquals("reset_cs", actual.effect());
-            assertEquals("Curious Medicine resets combat stages on entry.", actual.description());
+            assertEquals(expected.ability(), actual.ability());
+            assertEquals(expected.effect(), actual.effect());
+            assertEquals(expected.description(), actual.description());
             assertEquals(expected.targetHp(), actual.targetHp());
-            assertEquals("Curious Medicine", actual.details().get("move"));
+            assertEquals(expected.move(), actual.details().get("move"));
             assertEquals(expected.phase(), actual.details().get("phase"));
             assertEquals(expected.round(), actual.details().get("round"));
         }
@@ -149,41 +150,30 @@ final class CombatantSwitchCuriousMedicineRuntimeOracleParityTest {
                         Integer.parseInt(parts[6]), Integer.parseInt(parts[7]),
                         Integer.parseInt(parts[8]), Integer.parseInt(parts[9])
                 ));
-            } else if (parts.length >= 3 && parts[0].equals("CURIOUS_MEDICINE_EVENT")) {
-                String repr = parts[2];
+            } else if (parts.length == 11 && parts[0].equals("CURIOUS_MEDICINE_EVENT_STRUCT")) {
                 events.add(new OracleEvent(
-                        quotedValue(repr, "actor"),
-                        quotedValue(repr, "target"),
-                        intValue(repr, "target_hp"),
-                        quotedValue(repr, "phase"),
-                        intValue(repr, "round")
+                        Integer.parseInt(parts[1]), parts[2], parts[3], parts[4], parts[5], parts[6],
+                        parts[7], Integer.parseInt(parts[8]), parts[9], Integer.parseInt(parts[10])
                 ));
             }
         }
         if (replacementPosition == null) throw new IllegalStateException("Missing replacement position fixture");
+        events.sort(Comparator.comparingInt(OracleEvent::index));
         return new OracleFixture(replacementPosition, Map.copyOf(combatants), List.copyOf(events));
     }
 
-    private static String quotedValue(String repr, String key) {
-        String marker = "('" + key + "', '";
-        int start = repr.indexOf(marker);
-        if (start < 0) throw new IllegalStateException("Missing " + key + " in " + repr);
-        start += marker.length();
-        int end = repr.indexOf("')", start);
-        if (end < 0) throw new IllegalStateException("Malformed " + key + " in " + repr);
-        return repr.substring(start, end);
-    }
-
-    private static int intValue(String repr, String key) {
-        String marker = "('" + key + "', ";
-        int start = repr.indexOf(marker);
-        if (start < 0) throw new IllegalStateException("Missing " + key + " in " + repr);
-        start += marker.length();
-        int end = repr.indexOf(')', start);
-        return Integer.parseInt(repr.substring(start, end));
-    }
-
     private record OracleCombatant(GridCoord position, int beforeAtk, int afterAtk, int beforeSpd, int afterSpd) {}
-    private record OracleEvent(String actorId, String targetId, int targetHp, String phase, int round) {}
+    private record OracleEvent(
+            int index,
+            String actorId,
+            String targetId,
+            String ability,
+            String move,
+            String effect,
+            String description,
+            int targetHp,
+            String phase,
+            int round
+    ) {}
     private record OracleFixture(GridCoord replacementPosition, Map<String, OracleCombatant> combatants, List<OracleEvent> events) {}
 }
