@@ -10,6 +10,8 @@ package io.autoptu.core.runtime;
 public final class CombatantSwitchPostEntryDispatchers {
     private static final String BALL_FETCH_DESCRIPTION =
             "Ball Fetch pulls the user toward the new combatant.";
+    private static final String CURIOUS_MEDICINE_DESCRIPTION =
+            "Curious Medicine resets combat stages on entry.";
 
     private CombatantSwitchPostEntryDispatchers() {
     }
@@ -22,6 +24,15 @@ public final class CombatantSwitchPostEntryDispatchers {
                                 "Ball Fetch",
                                 "ball_fetch_shift",
                                 BALL_FETCH_DESCRIPTION
+                        )
+                )
+                .withHandler(
+                        CombatantSwitchPostEntryPlan.Stage.CURIOUS_MEDICINE,
+                        new AbilityCombatStageResetPostEntryHandler(
+                                "Curious Medicine",
+                                "curious_medicine_used",
+                                2,
+                                CURIOUS_MEDICINE_DESCRIPTION
                         )
                 );
     }
