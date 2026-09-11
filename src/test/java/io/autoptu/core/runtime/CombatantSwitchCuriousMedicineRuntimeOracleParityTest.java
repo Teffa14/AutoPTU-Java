@@ -37,7 +37,7 @@ final class CombatantSwitchCuriousMedicineRuntimeOracleParityTest {
         RuntimeCombatantState rangeTwo = combatant("a-4", fixture.combatants().get("a-4").position(), List.of());
         RuntimeCombatantState farther = combatant("a-5", fixture.combatants().get("a-5").position(), List.of());
         RuntimeCombatantState enemy = combatant("b-1", fixture.combatants().get("b-1").position(), List.of());
-        RuntimeCombatantState inactive = combatant("a-6", new GridCoord(9, 9), List.of());
+        RuntimeCombatantState inactive = combatant("a-6", fixture.combatants().get("a-6").position(), List.of());
 
         Map<String, RuntimeCombatantState> states = Map.of(
                 "a-2", replacement,
