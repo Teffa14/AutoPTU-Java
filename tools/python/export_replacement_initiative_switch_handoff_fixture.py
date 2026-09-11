@@ -23,13 +23,12 @@ def _apply_switch_contract(method) -> tuple[str, str, str, str]:
     assert isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef))
 
     defaults = {
-        argument.arg: _expr(default)
+        argument.arg: ("<required>" if default is None else _expr(default))
         for argument, default in zip(
             function.args.kwonlyargs,
             function.args.kw_defaults,
             strict=True,
         )
-        if default is not None
     }
 
     guarded_call = None
@@ -81,7 +80,7 @@ def _caller_contract(method) -> list[tuple[str, str, str]]:
             (
                 _expr(keywords.get("allow_replacement_turn")),
                 _expr(keywords.get("allow_immediate")),
-                _expr(node.args[1]) if len(node.args) > 1 else _expr(keywords.get("replacement")),
+                _expr(node.args[1]) if len(node.args) > 1 else _expr(keywords.get("replacement_id")),
             )
         )
     return result
@@ -96,18 +95,18 @@ def main() -> None:
     sys.path.insert(0, str(Path(args.source_root).resolve()))
     from auto_ptu.rules.battle_state import BattleState
 
-    default_turn, default_immediate, replacement_arg, forwarded_immediate = _apply_switch_contract(
+    turn_policy, immediate_policy, replacement_arg, forwarded_immediate = _apply_switch_contract(
         BattleState._apply_switch
     )
-    if (default_turn, default_immediate, replacement_arg, forwarded_immediate) != (
-        "True",
-        "False",
-        "replacement",
+    if (turn_policy, immediate_policy, replacement_arg, forwarded_immediate) != (
+        "<required>",
+        "<required>",
+        "replacement_id",
         "allow_immediate",
     ):
         raise AssertionError(
             "Pinned _apply_switch replacement initiative handoff changed: "
-            f"{default_turn=}, {default_immediate=}, {replacement_arg=}, {forwarded_immediate=}"
+            f"{turn_policy=}, {immediate_policy=}, {replacement_arg=}, {forwarded_immediate=}"
         )
 
     caller_names = (
@@ -141,7 +140,7 @@ def main() -> None:
     with output.open("w", encoding="utf-8") as handle:
         handle.write(
             "APPLY_SWITCH\t"
-            f"{default_turn}\t{default_immediate}\t{replacement_arg}\t{forwarded_immediate}\n"
+            f"{turn_policy}\t{immediate_policy}\t{replacement_arg}\t{forwarded_immediate}\n"
         )
         for caller_name, index, allow_turn, allow_immediate, replacement in caller_rows:
             handle.write(
