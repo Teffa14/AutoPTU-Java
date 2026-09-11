@@ -72,14 +72,13 @@ final class CombatantSwitchBallFetchRuntimeOracleParityTest {
                 "a-2"
         );
 
-        assertEquals(CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
-                result.postEntryDispatchResult().stages().get(0).status());
         assertEquals(List.of(
-                        CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
+                        CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
+                        CombatantSwitchPostEntryDispatcher.StageStatus.EXECUTED,
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING,
                         CombatantSwitchPostEntryDispatcher.StageStatus.PENDING),
-                result.postEntryDispatchResult().stages().subList(1, 5).stream()
+                result.postEntryDispatchResult().stages().stream()
                         .map(CombatantSwitchPostEntryDispatcher.StageResult::status)
                         .toList());
         assertEquals(positions.get("REPLACEMENT_POSITION"), replacement.position());

@@ -73,7 +73,9 @@ def main() -> None:
     range_two = PokemonState(spec=spec("RangeTwo"), controller_id="a", position=(2, 4), active=True)
     farther = PokemonState(spec=spec("Farther"), controller_id="a", position=(2, 5), active=True)
     enemy = PokemonState(spec=spec("Enemy"), controller_id="b", position=(3, 2), active=True)
-    inactive = PokemonState(spec=spec("Inactive"), controller_id="a", position=None, active=False)
+    inactive_positioned = PokemonState(
+        spec=spec("InactivePositioned"), controller_id="a", position=(1, 2), active=False
+    )
 
     combatants = {
         "a-1": outgoing,
@@ -82,7 +84,7 @@ def main() -> None:
         "a-4": range_two,
         "a-5": farther,
         "b-1": enemy,
-        "a-6": inactive,
+        "a-6": inactive_positioned,
     }
     staged = {
         "a-2": replacement,
@@ -90,7 +92,7 @@ def main() -> None:
         "a-4": range_two,
         "a-5": farther,
         "b-1": enemy,
-        "a-6": inactive,
+        "a-6": inactive_positioned,
     }
     for index, pokemon in enumerate(staged.values(), start=1):
         pokemon.combat_stages["atk"] = index
@@ -122,10 +124,10 @@ def main() -> None:
         if event.get("ability") == "Curious Medicine"
     ]
 
-    # This assertion is already established by the pinned Python regression test. It ensures this
-    # exporter fails instead of silently freezing a different switch path.
     if range_two.combat_stages.get("atk") != 0:
         raise AssertionError("Pinned Curious Medicine contract no longer resets the range-two ally")
+    if inactive_positioned.combat_stages.get("atk") != 0:
+        raise AssertionError("Pinned Curious Medicine contract no longer resets positioned inactive allies")
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -153,6 +155,13 @@ def main() -> None:
         handle.write(f"CURIOUS_MEDICINE_EVENT_COUNT\t{len(curious_events)}\n")
         for index, event in enumerate(curious_events):
             handle.write(f"CURIOUS_MEDICINE_EVENT\t{index}\t{repr(sorted(event.items()))}\n")
+            handle.write(
+                "CURIOUS_MEDICINE_EVENT_STRUCT\t"
+                f"{index}\t{event.get('actor', '')}\t{event.get('target', '')}\t"
+                f"{event.get('ability', '')}\t{event.get('move', '')}\t{event.get('effect', '')}\t"
+                f"{event.get('description', '')}\t{event.get('target_hp', 0)}\t"
+                f"{event.get('phase', '')}\t{event.get('round', 0)}\n"
+            )
     print(output)
 
 
