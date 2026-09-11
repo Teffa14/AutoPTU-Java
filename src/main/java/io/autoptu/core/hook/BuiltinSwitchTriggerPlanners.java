@@ -39,7 +39,6 @@ public final class BuiltinSwitchTriggerPlanners {
                 "interrupt",
                 true,
                 new SwitchTriggerDecisionPlan.SwitchPolicy(
-                        false,
                         true,
                         false,
                         false
