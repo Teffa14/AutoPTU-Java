@@ -18,7 +18,7 @@ class StatusStatResolutionTest {
         CombatantStatProfile resolved = StatusStatResolution.apply(profile(Set.of()), Set.of("Burned"));
 
         assertTrue(resolved.has(StatFlag.BURNED));
-        assertEquals(9, StatResolution.defensive(resolved, "Physical", false));
+        assertEquals(14, StatResolution.defensive(resolved, "Physical", false));
     }
 
     @Test
@@ -26,7 +26,7 @@ class StatusStatResolutionTest {
         CombatantStatProfile resolved = StatusStatResolution.apply(profile(Set.of()), Set.of("Poisoned"));
 
         assertTrue(resolved.has(StatFlag.POISONED));
-        assertEquals(10, StatResolution.defensive(resolved, "Special", false));
+        assertEquals(16, StatResolution.defensive(resolved, "Special", false));
     }
 
     @Test
@@ -35,7 +35,7 @@ class StatusStatResolutionTest {
 
         assertTrue(resolved.has(StatFlag.PARALYZED));
         assertTrue(resolved.has(StatFlag.MAJOR_STATUS));
-        assertEquals(6, StatResolution.speed(resolved));
+        assertEquals(10, StatResolution.speed(resolved));
     }
 
     @Test
@@ -45,7 +45,7 @@ class StatusStatResolutionTest {
                 Set.of("Paralyzed")
         );
 
-        assertEquals(36, StatResolution.speed(resolved));
+        assertEquals(25, StatResolution.speed(resolved));
     }
 
     @Test

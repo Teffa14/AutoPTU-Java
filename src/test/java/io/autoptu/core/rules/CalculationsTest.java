@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class CalculationsTest {
     @Test
-    void clampsCombatStagesExactlyLikePython() {
+    void clampsCombatStagesToPtuBounds() {
         assertEquals(-6, Calculations.clampStage(-99));
         assertEquals(-4, Calculations.clampStage(-4));
         assertEquals(0, Calculations.clampStage(0));
@@ -18,14 +18,14 @@ class CalculationsTest {
     }
 
     @Test
-    void stageMultipliersMatchPythonFormula() {
-        assertEquals(0.25, Calculations.stageMultiplier(-6), 1e-12);
-        assertEquals(0.5, Calculations.stageMultiplier(-2), 1e-12);
-        assertEquals(2.0 / 3.0, Calculations.stageMultiplier(-1), 1e-12);
+    void stageMultipliersMatchPtu105AndKairosRulebook() {
+        assertEquals(0.4, Calculations.stageMultiplier(-6), 1e-12);
+        assertEquals(0.8, Calculations.stageMultiplier(-2), 1e-12);
+        assertEquals(0.9, Calculations.stageMultiplier(-1), 1e-12);
         assertEquals(1.0, Calculations.stageMultiplier(0), 1e-12);
-        assertEquals(1.5, Calculations.stageMultiplier(1), 1e-12);
-        assertEquals(2.0, Calculations.stageMultiplier(2), 1e-12);
-        assertEquals(4.0, Calculations.stageMultiplier(6), 1e-12);
+        assertEquals(1.2, Calculations.stageMultiplier(1), 1e-12);
+        assertEquals(1.4, Calculations.stageMultiplier(2), 1e-12);
+        assertEquals(2.2, Calculations.stageMultiplier(6), 1e-12);
     }
 
     @Test
@@ -71,7 +71,6 @@ class CalculationsTest {
                 AttackModifier.scalar("third", 1.0 / 3.0),
                 AttackModifier.flat("bonus-b", 2)
         );
-        // Python: 100 + 5 + 2 = 107; floor(107*.5)=53; floor(53/3)=17.
         assertEquals(17, Calculations.applyContextDamageModifiers(100, modifiers));
     }
 
