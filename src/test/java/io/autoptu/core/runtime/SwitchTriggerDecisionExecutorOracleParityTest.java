@@ -5,6 +5,7 @@ import io.autoptu.core.event.TrainerFeatureEvent;
 import io.autoptu.core.hook.BuiltinSwitchTriggerPlanners;
 import io.autoptu.core.hook.LifecycleHookRegistry;
 import io.autoptu.core.hook.SwitchTriggerDecisionPlan;
+import io.autoptu.core.model.CombatantStatProfile;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.InitiativeEntry;
 import io.autoptu.core.model.MovementGrid;
@@ -213,7 +214,8 @@ final class SwitchTriggerDecisionExecutorOracleParityTest {
                 MovementProfile.walking(position, 5),
                 hp,
                 20,
-                new ActionBudget()
+                new ActionBudget(),
+                new CombatantStatProfile(Map.of(), Map.of(), Map.of(), Set.of())
         );
     }
 
