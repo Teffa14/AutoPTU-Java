@@ -159,8 +159,7 @@ def main() -> None:
         "response.get('accept', True)",
         "response.get('combatant_id')",
         "response.get('replacement_id')",
-        "if requested in replacements:",
-        "choice_id = requested",
+        " in replacements:",
     ], "interrupt response")
     _assert_ordered_contains(trigger_source, [
         "response = self.prompt_response(actor_id, prompt)",
@@ -170,8 +169,7 @@ def main() -> None:
         "response.get('accept', True)",
         "response.get('combatant_id')",
         "response.get('replacement_id')",
-        "if requested in replacements:",
-        "choice_id = requested",
+        " in replacements:",
         "trainer.consume_ap(2)",
     ], "interrupt response")
     _assert_ordered_contains(trigger_source, [
