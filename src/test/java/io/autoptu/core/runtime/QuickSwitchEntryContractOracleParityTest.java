@@ -21,11 +21,13 @@ final class QuickSwitchEntryContractOracleParityTest {
                 "ACTION_SWITCH\toutgoing_id=self.actor_id\treplacement_id=self.replacement_id\tinitiator_id=trainer.identifier\tapply_tag_in=True\tallow_replacement_turn=True\tallow_immediate=False\tallow_quick_switch_triggers=False",
                 "ACTION_TEMP\tquick_switch_sent_out\tround=current\texpires=current",
                 "ACTION_EVENT\ttype=trainer_feature\tfeature=Quick Switch\teffect=switch\tap_cost=2",
+                "ACTION_ORDER\tconsume_ap\tapply_switch\tquick_switch_sent_out\ttrainer_feature_event",
                 "TRIGGER_AP\trequired>=2\tconsume=2",
                 "TRIGGER_PROMPT\tphase=interrupt\toptional=True\tdefault=first_replacement",
                 "TRIGGER_SWITCH\toutgoing_id=actor_id\treplacement_id=choice_id\tinitiator_id=trainer.identifier\tallow_replacement_turn=True\tallow_immediate=False\tallow_quick_switch_triggers=False",
                 "TRIGGER_TEMP\tquick_switch_sent_out\tround=current\texpires=current",
                 "TRIGGER_EVENT\ttype=trainer_feature\tfeature=Quick Switch\teffect=switch\ttrigger=propagated\tap_cost=2",
+                "TRIGGER_ORDER\tconsume_ap\tapply_switch\tquick_switch_sent_out\ttrainer_feature_event",
                 "TRIGGER_SOURCE\topponent_send_out\tally_faint",
                 "FAINT_GUARD\tquick_switch_faint_handled\tround=current\texpires=current"
         ), Files.readAllLines(fixture));

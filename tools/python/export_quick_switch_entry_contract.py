@@ -54,6 +54,18 @@ def _assert_contains(source: str, fragments: list[str], label: str) -> None:
         raise AssertionError(f"pinned Quick Switch {label} contract changed; missing {missing!r}")
 
 
+def _assert_ordered_contains(source: str, fragments: list[str], label: str) -> None:
+    """Freeze relative source order for side effects whose ordering is parity-sensitive."""
+    cursor = -1
+    for fragment in fragments:
+        position = source.find(fragment, cursor + 1)
+        if position < 0:
+            raise AssertionError(
+                f"pinned Quick Switch {label} ordering changed; missing or reordered {fragment!r}"
+            )
+        cursor = position
+
+
 def _write_row(handle, *parts: object) -> None:
     handle.write("\t".join(str(part) for part in parts) + "\n")
 
@@ -117,6 +129,12 @@ def main() -> None:
         "'effect': 'switch'",
         "'ap_cost': 2",
     ], "manual resolve")
+    _assert_ordered_contains(resolve_source, [
+        "trainer.consume_ap(ap_cost)",
+        "battle._apply_switch(",
+        "replacement.add_temporary_effect('quick_switch_sent_out'",
+        "'type': 'trainer_feature'",
+    ], "manual side effects")
 
     _assert_contains(trigger_source, [
         "actor is None",
@@ -135,6 +153,12 @@ def main() -> None:
         "'trigger': trigger",
         "'ap_cost': 2",
     ], "trigger")
+    _assert_ordered_contains(trigger_source, [
+        "trainer.consume_ap(2)",
+        "self._apply_switch(",
+        "replacement.add_temporary_effect('quick_switch_sent_out'",
+        "'type': 'trainer_feature'",
+    ], "trigger side effects")
 
     trigger_switch = _keywords(_single_call(trigger, "_apply_switch"))
     expected_trigger_switch = {
@@ -173,11 +197,13 @@ def main() -> None:
         _write_row(handle, "ACTION_SWITCH", *(f"{key}={value}" for key, value in expected_action_switch.items()))
         _write_row(handle, "ACTION_TEMP", "quick_switch_sent_out", "round=current", "expires=current")
         _write_row(handle, "ACTION_EVENT", "type=trainer_feature", "feature=Quick Switch", "effect=switch", "ap_cost=2")
+        _write_row(handle, "ACTION_ORDER", "consume_ap", "apply_switch", "quick_switch_sent_out", "trainer_feature_event")
         _write_row(handle, "TRIGGER_AP", "required>=2", "consume=2")
         _write_row(handle, "TRIGGER_PROMPT", "phase=interrupt", "optional=True", "default=first_replacement")
         _write_row(handle, "TRIGGER_SWITCH", *(f"{key}={value}" for key, value in expected_trigger_switch.items()))
         _write_row(handle, "TRIGGER_TEMP", "quick_switch_sent_out", "round=current", "expires=current")
         _write_row(handle, "TRIGGER_EVENT", "type=trainer_feature", "feature=Quick Switch", "effect=switch", "trigger=propagated", "ap_cost=2")
+        _write_row(handle, "TRIGGER_ORDER", "consume_ap", "apply_switch", "quick_switch_sent_out", "trainer_feature_event")
         _write_row(handle, "TRIGGER_SOURCE", "opponent_send_out", "ally_faint")
         _write_row(handle, "FAINT_GUARD", "quick_switch_faint_handled", "round=current", "expires=current")
     print(output)
