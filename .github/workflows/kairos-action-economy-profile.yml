@@ -1,0 +1,28 @@
+name: Kairos Action Economy Profile
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  kairos-action-economy-profile:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Run compatibility and Kairos profile tests
+        run: >-
+          gradle test --stacktrace
+          --tests io.autoptu.core.rules.ActionEconomyProfileConformanceTest
+          --tests io.autoptu.core.rules.TurnFlowTest
