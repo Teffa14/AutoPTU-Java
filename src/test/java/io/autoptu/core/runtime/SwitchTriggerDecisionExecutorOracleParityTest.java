@@ -6,6 +6,7 @@ import io.autoptu.core.hook.BuiltinSwitchTriggerPlanners;
 import io.autoptu.core.hook.LifecycleHookRegistry;
 import io.autoptu.core.hook.SwitchTriggerDecisionPlan;
 import io.autoptu.core.model.GridCoord;
+import io.autoptu.core.model.InitiativeEntry;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
 import io.autoptu.core.rules.ActionBudget;
@@ -47,6 +48,7 @@ final class SwitchTriggerDecisionExecutorOracleParityTest {
         state.putTrainer(trainer);
         state.bindController("actor", "trainer");
         state.bindController("bench", "trainer");
+        seedInitiative(state);
 
         SwitchTriggerDecisionPlan plan = BuiltinSwitchTriggerPlanners.paritySafe().plans(
                 RuntimeSwitchTriggerPlanningContextFactory.fromState(
@@ -89,6 +91,7 @@ final class SwitchTriggerDecisionExecutorOracleParityTest {
         assertEquals(outgoingPosition, presence.position("bench").orElseThrow());
         assertFalse(presence.isOnField("actor"));
         assertTrue(presence.isOnField("bench"));
+        assertTrue(state.initiativeProgress().orderedActorIds().contains("bench"));
 
         TemporaryEffectEntry sentOut = replacement.temporaryEffects()
                 .getAll("quick_switch_sent_out")
@@ -113,6 +116,7 @@ final class SwitchTriggerDecisionExecutorOracleParityTest {
         state.putTrainer(trainer);
         state.bindController("actor", "trainer");
         state.bindController("bench", "trainer");
+        seedInitiative(state);
 
         SwitchTriggerDecisionPlan plan = BuiltinSwitchTriggerPlanners.paritySafe().plans(
                 RuntimeSwitchTriggerPlanningContextFactory.fromState(
@@ -141,6 +145,52 @@ final class SwitchTriggerDecisionExecutorOracleParityTest {
         assertTrue(presence.isOnField("actor"));
         assertFalse(presence.isOnField("bench"));
         assertFalse(replacement.temporaryEffects().has("quick_switch_sent_out"));
+    }
+
+    @Test
+    void rejectsMissingDetailedInitiativeBeforeSpendingApOrMutatingSwitchState() {
+        GridCoord outgoingPosition = new GridCoord(5, 5);
+        RuntimeCombatantState actor = combatant("actor", outgoingPosition, 20);
+        RuntimeCombatantState replacement = combatant("bench", new GridCoord(0, 0), 20);
+        BattleRuntimeState state = battle(actor, replacement);
+        TrainerRuntimeState trainer = new TrainerRuntimeState("trainer", List.of("Quick Switch"), 2);
+        state.putTrainer(trainer);
+        state.bindController("actor", "trainer");
+        state.bindController("bench", "trainer");
+
+        SwitchTriggerDecisionPlan plan = BuiltinSwitchTriggerPlanners.paritySafe().plans(
+                RuntimeSwitchTriggerPlanningContextFactory.fromState(
+                        state,
+                        SwitchTriggerDecisionPlan.Trigger.OPPONENT_SEND_OUT,
+                        "actor"
+                )
+        ).getFirst();
+        CombatantFieldPresenceStore presence = new CombatantFieldPresenceStore(
+                Map.of("actor", outgoingPosition)
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> SwitchTriggerDecisionExecutor.execute(
+                state,
+                presence,
+                LifecycleHookRegistry.builder().build(),
+                event -> {},
+                plan,
+                "bench"
+        ));
+
+        assertEquals(2, trainer.ap());
+        assertTrue(state.isActive("actor"));
+        assertFalse(state.isActive("bench"));
+        assertTrue(presence.isOnField("actor"));
+        assertFalse(presence.isOnField("bench"));
+        assertFalse(replacement.temporaryEffects().has("quick_switch_sent_out"));
+    }
+
+    private static void seedInitiative(BattleRuntimeState state) {
+        state.initiativeProgress().replaceDetailedOrderFromLifecycle(List.of(
+                new InitiativeEntry("actor", "trainer", 10, 0, 10, 20)
+        ));
+        state.initiativeProgress().setCursorFromLifecycle(0);
     }
 
     private static BattleRuntimeState battle(RuntimeCombatantState actor, RuntimeCombatantState replacement) {
