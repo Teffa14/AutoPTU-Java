@@ -8,6 +8,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TurnFlowTest {
@@ -31,6 +32,17 @@ class TurnFlowTest {
         assertEquals(TurnPhase.END, PhaseSequence.next(TurnPhase.ACTION));
         assertEquals(TurnPhase.END, PhaseSequence.next(TurnPhase.END));
         assertEquals(TurnPhase.COMMAND, PhaseSequence.next(null));
+    }
+
+    @Test
+    void actionBudgetDefaultsToPinnedPythonCompatibilityProfile() {
+        ActionBudget budget = new ActionBudget();
+        assertEquals(ActionEconomyProfile.PYTHON_ORACLE_COMPATIBILITY, budget.profile());
+    }
+
+    @Test
+    void actionBudgetRequiresAnExplicitNonNullProfileWhenInjected() {
+        assertThrows(IllegalArgumentException.class, () -> new ActionBudget(null));
     }
 
     @Test
