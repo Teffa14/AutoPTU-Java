@@ -87,6 +87,11 @@ public final class SwitchTriggerDecisionExecutor {
                 .equals(transition.replacementDestination())) {
             throw new IllegalArgumentException("field presence disagrees with outgoing switch destination");
         }
+        if (plan.switchPolicy().allowReplacementTurn() && !state.initiativeProgress().hasDetailedOrder()) {
+            throw new IllegalArgumentException(
+                    "replacement-turn switch trigger requires authoritative detailed initiative order"
+            );
+        }
 
         ArrayList<Stage> stages = new ArrayList<>();
         int apBefore = trainer.ap();
