@@ -149,7 +149,9 @@ final class SwitchTriggerDecisionExecutorOracleParityTest {
     }
 
     @Test
-    void rejectsMissingDetailedInitiativeBeforeSpendingApOrMutatingSwitchState() {
+    void insertsReplacementIntoOracleValidEmptyInitiativeOrder() throws IOException {
+        assertTrue(fixture().contains("TRIGGER_SWITCH\toutgoing_id=actor_id\treplacement_id=choice_id\tinitiator_id=trainer.identifier\tallow_replacement_turn=True\tallow_immediate=False\tallow_quick_switch_triggers=False"));
+
         GridCoord outgoingPosition = new GridCoord(5, 5);
         RuntimeCombatantState actor = combatant("actor", outgoingPosition, 20);
         RuntimeCombatantState replacement = combatant("bench", new GridCoord(0, 0), 20);
@@ -158,6 +160,10 @@ final class SwitchTriggerDecisionExecutorOracleParityTest {
         state.putTrainer(trainer);
         state.bindController("actor", "trainer");
         state.bindController("bench", "trainer");
+
+        assertTrue(state.initiativeProgress().hasDetailedOrder());
+        assertTrue(state.initiativeProgress().orderedEntries().isEmpty());
+        assertEquals(-1, state.initiativeProgress().cursor());
 
         SwitchTriggerDecisionPlan plan = BuiltinSwitchTriggerPlanners.paritySafe().plans(
                 RuntimeSwitchTriggerPlanningContextFactory.fromState(
@@ -170,21 +176,24 @@ final class SwitchTriggerDecisionExecutorOracleParityTest {
                 Map.of("actor", outgoingPosition)
         );
 
-        assertThrows(IllegalArgumentException.class, () -> SwitchTriggerDecisionExecutor.execute(
+        SwitchTriggerDecisionExecutor.ExecutionResult result = SwitchTriggerDecisionExecutor.execute(
                 state,
                 presence,
                 LifecycleHookRegistry.builder().build(),
                 event -> {},
                 plan,
                 "bench"
-        ));
+        );
 
-        assertEquals(2, trainer.ap());
-        assertTrue(state.isActive("actor"));
-        assertFalse(state.isActive("bench"));
-        assertTrue(presence.isOnField("actor"));
-        assertFalse(presence.isOnField("bench"));
-        assertFalse(replacement.temporaryEffects().has("quick_switch_sent_out"));
+        assertEquals(2, result.apBefore());
+        assertEquals(0, result.apAfter());
+        assertFalse(state.isActive("actor"));
+        assertTrue(state.isActive("bench"));
+        assertFalse(presence.isOnField("actor"));
+        assertTrue(presence.isOnField("bench"));
+        assertEquals(List.of("bench"), state.initiativeProgress().orderedActorIds());
+        assertEquals(-1, state.initiativeProgress().cursor());
+        assertTrue(replacement.temporaryEffects().has("quick_switch_sent_out"));
     }
 
     private static void seedInitiative(BattleRuntimeState state) {
