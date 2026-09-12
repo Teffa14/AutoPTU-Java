@@ -25,4 +25,5 @@ jobs:
         run: >-
           gradle test --stacktrace
           --tests io.autoptu.core.rules.ActionEconomyProfileConformanceTest
+          --tests io.autoptu.core.rules.AutobattlerActionSpaceProfileTest
           --tests io.autoptu.core.rules.TurnFlowTest
