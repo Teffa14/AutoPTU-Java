@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -143,18 +144,22 @@ final class RuntimeSwitchTriggerDispatcherOracleParityTest {
     }
 
     private static BattleRuntimeState battle(RuntimeCombatantState actor, RuntimeCombatantState bench, RuntimeCombatantState target) {
+        LinkedHashMap<String, CombatantAffiliationState> affiliations = new LinkedHashMap<>();
+        affiliations.put("actor", CombatantAffiliationState.active("red"));
+        affiliations.put("bench", new CombatantAffiliationState("red", false));
+        affiliations.put(
+                target.combatantId(),
+                target.combatantId().equals("sent_out")
+                        ? CombatantAffiliationState.active("blue")
+                        : new CombatantAffiliationState("red", false)
+        );
         return new BattleRuntimeState(
                 new MovementGrid(8, 8, Set.of(), Map.of()),
                 List.of(actor, bench, target),
                 Map.of(),
                 Map.of(),
                 Map.of(),
-                Map.of(
-                        "actor", CombatantAffiliationState.active("red"),
-                        "bench", new CombatantAffiliationState("red", false),
-                        "fainted", new CombatantAffiliationState("red", false),
-                        "sent_out", CombatantAffiliationState.active("blue")
-                )
+                affiliations
         );
     }
 
