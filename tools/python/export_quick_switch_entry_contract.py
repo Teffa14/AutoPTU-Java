@@ -38,6 +38,41 @@ def _keywords(call: ast.Call) -> dict[str, str]:
     return {keyword.arg: _expr(keyword.value) for keyword in call.keywords if keyword.arg is not None}
 
 
+def _string_get_calls(function: ast.AST) -> list[tuple[int, int, str, list[str]]]:
+    """Return source-ordered mapping.get calls without coupling to local variable names or quote style."""
+    calls: list[tuple[int, int, str, list[str]]] = []
+    for node in ast.walk(function):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        if node.func.attr != "get" or not node.args:
+            continue
+        key = node.args[0]
+        if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
+            continue
+        calls.append((node.lineno, node.col_offset, key.value, [_expr(arg) for arg in node.args[1:]]))
+    calls.sort(key=lambda item: (item[0], item[1]))
+    return calls
+
+
+def _assert_interrupt_response_gets(function: ast.AST) -> None:
+    """Freeze response-map semantics while allowing harmless Python source refactors."""
+    calls = _string_get_calls(function)
+    relevant = [call for call in calls if call[2] in {"accept", "combatant_id", "replacement_id"}]
+    keys = [call[2] for call in relevant]
+    expected = ["accept", "combatant_id", "replacement_id"]
+    if keys != expected:
+        raise AssertionError(
+            "pinned Quick Switch interrupt response mapping changed: "
+            f"expected ordered keys {expected!r}, got {keys!r}"
+        )
+    accept_defaults = relevant[0][3]
+    if accept_defaults != ["True"]:
+        raise AssertionError(
+            "pinned Quick Switch interrupt accept default changed: "
+            f"expected ['True'], got {accept_defaults!r}"
+        )
+
+
 def _assignment(function: ast.AST, name: str) -> str:
     for node in ast.walk(function):
         if not isinstance(node, (ast.Assign, ast.AnnAssign)):
@@ -156,19 +191,14 @@ def main() -> None:
     _assert_contains(trigger_source, [
         "if not response:",
         "isinstance(response, dict)",
-        "response.get('accept', True)",
-        "response.get('combatant_id')",
-        "response.get('replacement_id')",
         " in replacements:",
     ], "interrupt response")
+    _assert_interrupt_response_gets(trigger)
     _assert_ordered_contains(trigger_source, [
         "response = self.prompt_response(actor_id, prompt)",
         "if not response:",
         "choice_id = replacements[0]",
         "isinstance(response, dict)",
-        "response.get('accept', True)",
-        "response.get('combatant_id')",
-        "response.get('replacement_id')",
         " in replacements:",
         "trainer.consume_ap(2)",
     ], "interrupt response")
