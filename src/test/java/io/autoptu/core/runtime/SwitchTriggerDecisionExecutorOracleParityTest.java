@@ -121,7 +121,7 @@ final class SwitchTriggerDecisionExecutorOracleParityTest {
                         "actor"
                 )
         ).getFirst();
-        replacement.applyDamage(20);
+        replacement.setHp(0);
 
         CombatantFieldPresenceStore presence = new CombatantFieldPresenceStore(
                 Map.of("actor", outgoingPosition)
