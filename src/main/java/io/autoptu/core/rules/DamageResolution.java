@@ -10,7 +10,8 @@ import io.autoptu.core.random.PythonRandom;
  *
  * Move-specific stat selection, immunities, abilities, and effective-DB hooks are
  * resolved before entering this class. This class owns the dice consumption and
- * arithmetic ordering that must stay identical to Python.
+ * arithmetic ordering. Rule-bearing arithmetic follows PTU; documented Python
+ * oracle divergences must not override an explicit rulebook invariant.
  */
 public final class DamageResolution {
     private DamageResolution() {
@@ -36,7 +37,10 @@ public final class DamageResolution {
             }
         }
 
-        int preModifier = Math.max(0, damageRoll + check.attackValue() - check.defenseValue());
+        // PTU 1.05/Kairos: an ordinary damaging attack does at least 1 damage
+        // after the relevant Defense has been subtracted. Type immunity remains
+        // a later, separate rule and may still reduce final damage to 0.
+        int preModifier = Math.max(1, damageRoll + check.attackValue() - check.defenseValue());
         int preType = Calculations.applyContextDamageModifiers(preModifier, check.modifiers());
         int damage = Calculations.applyTypeMultiplierFloor(preType, check.typeMultiplier());
 

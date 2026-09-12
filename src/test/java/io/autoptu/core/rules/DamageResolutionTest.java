@@ -22,13 +22,13 @@ class DamageResolutionTest {
     }
 
     @Test
-    void defenseCannotPushPreModifierDamageBelowZero() {
+    void defenseCannotPushOrdinaryPreModifierDamageBelowOne() {
         DamageResult result = DamageResolution.resolve(
                 new PythonRandom(7),
                 new DamageCheck(2, 1, 999, false, false, 1.0, List.of())
         );
-        assertEquals(0, result.preModifierDamage());
-        assertEquals(0, result.damage());
+        assertEquals(1, result.preModifierDamage());
+        assertEquals(1, result.damage());
     }
 
     @Test
