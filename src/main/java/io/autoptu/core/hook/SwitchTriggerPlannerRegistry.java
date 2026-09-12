@@ -35,14 +35,33 @@ public final class SwitchTriggerPlannerRegistry {
         return new SwitchTriggerPlannerRegistry(next);
     }
 
+    /** Registered feature families in deterministic dispatch order. */
+    public List<String> featureNames() {
+        return List.copyOf(planners.keySet());
+    }
+
     public List<SwitchTriggerDecisionPlan> plans(PlanningContext context) {
         if (context == null) throw new IllegalArgumentException("context is required");
         ArrayList<SwitchTriggerDecisionPlan> results = new ArrayList<>();
-        for (Map.Entry<String, Planner> entry : planners.entrySet()) {
-            if (!context.trainerFeatures().contains(entry.getKey())) continue;
-            entry.getValue().plan(context).ifPresent(results::add);
+        for (String featureName : planners.keySet()) {
+            plansForFeature(featureName, context).ifPresent(results::add);
         }
         return List.copyOf(results);
+    }
+
+    /**
+     * Plan exactly one registered Feature family.
+     *
+     * <p>This seam lets runtime dispatch apply Feature-specific pre-dispatch guards without
+     * allowing one Feature's dedupe state to suppress unrelated planners that share the same
+     * battle trigger.</p>
+     */
+    public Optional<SwitchTriggerDecisionPlan> plansForFeature(String featureName, PlanningContext context) {
+        if (context == null) throw new IllegalArgumentException("context is required");
+        String key = normalizeFeature(featureName);
+        Planner planner = planners.get(key);
+        if (planner == null || !context.trainerFeatures().contains(key)) return Optional.empty();
+        return planner.plan(context);
     }
 
     @FunctionalInterface
