@@ -51,6 +51,7 @@ For each subsystem:
 - [x] Invariant d20 accuracy resolution: needed roll, natural 1/20, crit threshold, Blur, melee No Guard, and Probability Control rerolls.
 - [x] Combat stat resolution: offensive, defensive, speed, combat-stage/status interactions, and resolved modifiers.
 - [x] Typed turn flow: ActionType, TurnPhase, phase sequence, and action budget.
+- [x] PTU action economy: atomic Full Actions, Standard-to-Swift/Shift conversion, and movement-aware Shift spending.
 - [x] Deterministic initiative ordering, Trick Room ordering, League ordering, and declared-action ordering.
 - [x] Deterministic autobattler action-space contract: Shift, direct combatant targets, SELF/FIELD, tile-aimed AoE, footprints, LoS, and action-budget filtering.
 - [x] Python runtime type-manifest exporter for designing Java records/interfaces from observed engine behavior.
