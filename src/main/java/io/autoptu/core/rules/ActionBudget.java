@@ -13,8 +13,24 @@ import java.util.Optional;
  * are modeled separately and are consumed only after the base bucket is unavailable.
  */
 public final class ActionBudget {
+    private final ActionEconomyProfile profile;
     private final EnumMap<ActionType, String> consumed = new EnumMap<>(ActionType.class);
     private final EnumMap<ActionType, Integer> extras = new EnumMap<>(ActionType.class);
+
+    public ActionBudget() {
+        this(ActionEconomyProfile.PYTHON_ORACLE_COMPATIBILITY);
+    }
+
+    public ActionBudget(ActionEconomyProfile profile) {
+        if (profile == null) {
+            throw new IllegalArgumentException("profile is required");
+        }
+        this.profile = profile;
+    }
+
+    public ActionEconomyProfile profile() {
+        return profile;
+    }
 
     public void reset() {
         consumed.clear();
@@ -27,12 +43,12 @@ public final class ActionBudget {
 
     public void markAction(ActionType actionType, String detail) {
         requireType(actionType);
-        consumed.put(actionType, detail == null ? "" : detail);
+        profile.markBaseAction(consumed, actionType, detail);
     }
 
     public boolean hasActionAvailable(ActionType actionType) {
         requireType(actionType);
-        return !consumed.containsKey(actionType);
+        return profile.hasBaseActionAvailable(consumed, actionType);
     }
 
     public Optional<String> consumedDetail(ActionType actionType) {
