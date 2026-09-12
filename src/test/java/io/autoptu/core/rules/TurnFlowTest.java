@@ -66,12 +66,14 @@ class TurnFlowTest {
     }
 
     @Test
-    void resetConsumedActionsDoesNotInventCrossBucketCoupling() {
+    void fullActionConsumesStandardAndShiftAtomically() {
         ActionBudget budget = new ActionBudget();
-        budget.markAction(ActionType.FULL, "Intercept");
+        assertTrue(budget.consume(ActionType.FULL, "Full maneuver"));
         assertFalse(budget.hasActionAvailable(ActionType.FULL));
-        assertTrue(budget.hasActionAvailable(ActionType.STANDARD));
-        assertTrue(budget.hasActionAvailable(ActionType.SHIFT));
+        assertFalse(budget.hasActionAvailable(ActionType.STANDARD));
+        assertFalse(budget.hasActionAvailable(ActionType.SHIFT));
+        assertFalse(budget.consume(ActionType.STANDARD, "Tackle"));
+        assertFalse(budget.consumeMovement("shift:2,1"));
         budget.resetConsumedActions();
         assertTrue(budget.hasActionAvailable(ActionType.FULL));
     }

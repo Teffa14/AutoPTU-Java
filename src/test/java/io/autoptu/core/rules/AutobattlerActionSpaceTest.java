@@ -46,7 +46,7 @@ class AutobattlerActionSpaceTest {
     @Test
     void exhaustedShiftBudgetRemovesMovementChoices() {
         ActionBudget budget = new ActionBudget();
-        budget.markAction(ActionType.SHIFT, "already moved");
+        assertTrue(budget.consumeMovement("already moved"));
 
         assertTrue(AutobattlerActionSpace.legalShiftChoices(
                 "actor",
@@ -66,6 +66,23 @@ class AutobattlerActionSpaceTest {
                 0,
                 ignored -> true
         ).isEmpty());
+    }
+
+    @Test
+    void movementChoicesRespectStandardToShiftRestriction() {
+        ActionBudget budget = new ActionBudget();
+        assertTrue(budget.consumeMovement("regular movement"));
+
+        assertTrue(AutobattlerActionSpace.legalShiftChoices(
+                "actor",
+                grid(5, 5),
+                MovementProfile.walking(new GridCoord(2, 2), 2),
+                budget,
+                0,
+                ignored -> true
+        ).isEmpty());
+
+        assertTrue(budget.hasCapacity(ActionType.SHIFT));
     }
 
     @Test

@@ -78,7 +78,7 @@ public final class AutobattlerActionSpace {
         if (movement == null) {
             throw new IllegalArgumentException("movement is required");
         }
-        if (!hasCapacity(budget, ActionType.SHIFT)) {
+        if (!budget.hasCapacity(ActionType.SHIFT, true)) {
             return List.of();
         }
 
@@ -210,10 +210,7 @@ public final class AutobattlerActionSpace {
     }
 
     private static boolean hasCapacity(ActionBudget budget, ActionType actionType) {
-        if (actionType == ActionType.FREE) {
-            return true;
-        }
-        return budget.hasActionAvailable(actionType) || budget.extraCount(actionType) > 0;
+        return budget.hasCapacity(actionType);
     }
 
     private static void requireActor(String actorId) {
