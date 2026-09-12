@@ -70,6 +70,8 @@ public final class SwitchTriggerDecisionExecutor {
         }
 
         // Resolve and validate every canonical switch precondition before the Python-ordered AP spend.
+        // ReplacementInitiativeInsertion owns initiative validation, including the oracle-valid
+        // empty-round case where an empty detailed order receives the replacement as its first entry.
         CombatantSwitchExecutionPlan switchPlan = CombatantSwitchExecutionPlan.resolve(
                 state,
                 plan.actorId(),
@@ -86,11 +88,6 @@ public final class SwitchTriggerDecisionExecutor {
                 .orElseThrow(() -> new IllegalArgumentException("outgoing field position is required"))
                 .equals(transition.replacementDestination())) {
             throw new IllegalArgumentException("field presence disagrees with outgoing switch destination");
-        }
-        if (plan.switchPolicy().allowReplacementTurn() && !state.initiativeProgress().hasDetailedOrder()) {
-            throw new IllegalArgumentException(
-                    "replacement-turn switch trigger requires authoritative detailed initiative order"
-            );
         }
 
         ArrayList<Stage> stages = new ArrayList<>();
