@@ -57,9 +57,9 @@ def _string_get_calls(function: ast.AST) -> list[tuple[int, int, str, list[str]]
 def _assert_interrupt_response_gets(function: ast.AST) -> None:
     """Freeze response-map semantics while allowing harmless Python source refactors."""
     calls = _string_get_calls(function)
-    relevant = [call for call in calls if call[2] in {"accept", "combatant_id", "replacement_id"}]
+    relevant = [call for call in calls if call[2] in {"accept", "choice"}]
     keys = [call[2] for call in relevant]
-    expected = ["accept", "combatant_id", "replacement_id"]
+    expected = ["accept", "choice"]
     if keys != expected:
         raise AssertionError(
             "pinned Quick Switch interrupt response mapping changed: "
@@ -255,7 +255,7 @@ def main() -> None:
         _write_row(handle, "TRIGGER_AP", "required>=2", "consume=2")
         _write_row(handle, "TRIGGER_PROMPT", "phase=interrupt", "optional=True", "default=first_replacement")
         _write_row(handle, "TRIGGER_RESPONSE", "falsy=decline", "truthy_non_dict=accept_default", "dict_accept_default=True", "dict_accept_false=decline")
-        _write_row(handle, "TRIGGER_CHOICE", "default=first_replacement", "aliases=combatant_id,replacement_id", "legal_requested=selected", "invalid_requested=default_first")
+        _write_row(handle, "TRIGGER_CHOICE", "default=first_replacement", "field=choice", "legal_requested=selected", "invalid_requested=default_first")
         _write_row(handle, "TRIGGER_SWITCH", *(f"{key}={value}" for key, value in expected_trigger_switch.items()))
         _write_row(handle, "TRIGGER_TEMP", "quick_switch_sent_out", "round=current", "expires=current")
         _write_row(handle, "TRIGGER_EVENT", "type=trainer_feature", "feature=Quick Switch", "effect=switch", "trigger=propagated", "ap_cost=2")
