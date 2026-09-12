@@ -7,15 +7,17 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * BattleState-independent action budget modeled after TrainerState/PokemonState.
+ * BattleState-independent action budget with explicit profile semantics.
  *
- * Python currently tracks each ActionType as its own consumed bucket. Extra actions
- * are modeled separately and are consumed only after the base bucket is unavailable.
+ * <p>The default profile mirrors the pinned Python oracle. Other supported rule
+ * profiles must be injected explicitly.</p>
  */
 public final class ActionBudget {
     private final ActionEconomyProfile profile;
     private final EnumMap<ActionType, String> consumed = new EnumMap<>(ActionType.class);
     private final EnumMap<ActionType, Integer> extras = new EnumMap<>(ActionType.class);
+    private ActionType standardConversion;
+    private boolean regularShiftUsedForMovement;
 
     public ActionBudget() {
         this(ActionEconomyProfile.PYTHON_ORACLE_COMPATIBILITY);
@@ -35,10 +37,14 @@ public final class ActionBudget {
     public void reset() {
         consumed.clear();
         extras.clear();
+        standardConversion = null;
+        regularShiftUsedForMovement = false;
     }
 
     public void resetConsumedActions() {
         consumed.clear();
+        standardConversion = null;
+        regularShiftUsedForMovement = false;
     }
 
     public void markAction(ActionType actionType, String detail) {
@@ -49,6 +55,35 @@ public final class ActionBudget {
     public boolean hasActionAvailable(ActionType actionType) {
         requireType(actionType);
         return profile.hasBaseActionAvailable(consumed, actionType);
+    }
+
+    public boolean hasCapacity(ActionType actionType) {
+        return hasCapacity(actionType, false);
+    }
+
+    /**
+     * Returns resource capacity for the selected profile. The movement flag only
+     * affects Shift conversion rules; ordinary compatibility callers remain unchanged.
+     */
+    public boolean hasCapacity(ActionType actionType, boolean movement) {
+        requireType(actionType);
+        if (actionType == ActionType.FREE) {
+            return true;
+        }
+        if (hasActionAvailable(actionType)) {
+            return true;
+        }
+        if (profile.extraActionCanSatisfy(actionType) && extraCount(actionType) > 0) {
+            return true;
+        }
+        if (!profile.allowsStandardConversion(actionType)
+                || !hasActionAvailable(ActionType.STANDARD)) {
+            return false;
+        }
+        return actionType != ActionType.SHIFT
+                || !movement
+                || !profile.blocksConvertedMovementAfterRegularMovement()
+                || !regularShiftUsedForMovement;
     }
 
     public Optional<String> consumedDetail(ActionType actionType) {
@@ -88,23 +123,66 @@ public final class ActionBudget {
     }
 
     /**
-     * Model ActionResolver's normal non-free consumption rule.
-     * Returns false only when both the base bucket and extra bucket are exhausted.
+     * Consumes a non-movement action using the selected profile.
      */
     public boolean consume(ActionType actionType, String detail) {
+        return consume(actionType, detail, false);
+    }
+
+    /**
+     * Consumes a Shift specifically for movement. This is currently used only by
+     * explicit profile conformance tests; production movement callers remain on
+     * the Python-compatibility path until a later bounded slice.
+     */
+    public boolean consumeMovement(String detail) {
+        return consume(ActionType.SHIFT, detail, true);
+    }
+
+    private boolean consume(ActionType actionType, String detail, boolean movement) {
         requireType(actionType);
         if (actionType == ActionType.FREE) {
             return true;
         }
         if (hasActionAvailable(actionType)) {
             markAction(actionType, detail);
+            if (actionType == ActionType.SHIFT && movement) {
+                regularShiftUsedForMovement = true;
+            }
             return true;
         }
-        return consumeExtra(actionType);
+        if (profile.extraActionCanSatisfy(actionType) && consumeExtra(actionType)) {
+            return true;
+        }
+        if (!profile.allowsStandardConversion(actionType)
+                || !hasActionAvailable(ActionType.STANDARD)) {
+            return false;
+        }
+        if (actionType == ActionType.SHIFT
+                && movement
+                && profile.blocksConvertedMovementAfterRegularMovement()
+                && regularShiftUsedForMovement) {
+            return false;
+        }
+        consumeStandardConversion(actionType, detail);
+        return true;
+    }
+
+    public Optional<ActionType> standardConversion() {
+        return Optional.ofNullable(standardConversion);
+    }
+
+    public boolean regularShiftUsedForMovement() {
+        return regularShiftUsedForMovement;
     }
 
     public Map<ActionType, String> consumedActions() {
         return Map.copyOf(consumed);
+    }
+
+    private void consumeStandardConversion(ActionType target, String detail) {
+        standardConversion = target;
+        String safeDetail = detail == null ? "" : detail;
+        consumed.put(ActionType.STANDARD, "converted-to-" + target.value() + ":" + safeDetail);
     }
 
     private static void requireType(ActionType actionType) {
