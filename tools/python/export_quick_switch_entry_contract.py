@@ -153,6 +153,27 @@ def main() -> None:
         "'trigger': trigger",
         "'ap_cost': 2",
     ], "trigger")
+    _assert_contains(trigger_source, [
+        "if not response:",
+        "isinstance(response, dict)",
+        "response.get('accept', True)",
+        "response.get('combatant_id')",
+        "response.get('replacement_id')",
+        "if requested in replacements:",
+        "choice_id = requested",
+    ], "interrupt response")
+    _assert_ordered_contains(trigger_source, [
+        "response = self.prompt_response(actor_id, prompt)",
+        "if not response:",
+        "choice_id = replacements[0]",
+        "isinstance(response, dict)",
+        "response.get('accept', True)",
+        "response.get('combatant_id')",
+        "response.get('replacement_id')",
+        "if requested in replacements:",
+        "choice_id = requested",
+        "trainer.consume_ap(2)",
+    ], "interrupt response")
     _assert_ordered_contains(trigger_source, [
         "trainer.consume_ap(2)",
         "self._apply_switch(",
@@ -205,6 +226,8 @@ def main() -> None:
         _write_row(handle, "ACTION_ORDER", "consume_ap", "apply_switch", "quick_switch_sent_out", "trainer_feature_event")
         _write_row(handle, "TRIGGER_AP", "required>=2", "consume=2")
         _write_row(handle, "TRIGGER_PROMPT", "phase=interrupt", "optional=True", "default=first_replacement")
+        _write_row(handle, "TRIGGER_RESPONSE", "falsy=decline", "truthy_non_dict=accept_default", "dict_accept_default=True", "dict_accept_false=decline")
+        _write_row(handle, "TRIGGER_CHOICE", "default=first_replacement", "aliases=combatant_id,replacement_id", "legal_requested=selected", "invalid_requested=default_first")
         _write_row(handle, "TRIGGER_SWITCH", *(f"{key}={value}" for key, value in expected_trigger_switch.items()))
         _write_row(handle, "TRIGGER_TEMP", "quick_switch_sent_out", "round=current", "expires=current")
         _write_row(handle, "TRIGGER_EVENT", "type=trainer_feature", "feature=Quick Switch", "effect=switch", "trigger=propagated", "ap_cost=2")
