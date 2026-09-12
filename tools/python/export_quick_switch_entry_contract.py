@@ -185,6 +185,11 @@ def main() -> None:
         "target.add_temporary_effect('quick_switch_faint_handled'",
         "trigger='ally_faint'",
     ], "faint trigger")
+    _assert_ordered_contains(faint_source, [
+        "target.get_temporary_effects('quick_switch_faint_handled')",
+        "target.add_temporary_effect('quick_switch_faint_handled'",
+        "self._maybe_trigger_quick_switch(",
+    ], "faint guard dispatch")
     _assert_contains(apply_switch_source, [
         "trigger='opponent_send_out'",
         "trigger_target_id=replacement_id",
@@ -206,6 +211,7 @@ def main() -> None:
         _write_row(handle, "TRIGGER_ORDER", "consume_ap", "apply_switch", "quick_switch_sent_out", "trainer_feature_event")
         _write_row(handle, "TRIGGER_SOURCE", "opponent_send_out", "ally_faint")
         _write_row(handle, "FAINT_GUARD", "quick_switch_faint_handled", "round=current", "expires=current")
+        _write_row(handle, "FAINT_GUARD_ORDER", "check_guard", "arm_guard", "dispatch_quick_switch")
     print(output)
 
 
