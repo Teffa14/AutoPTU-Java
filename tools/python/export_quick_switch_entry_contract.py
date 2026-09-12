@@ -38,6 +38,41 @@ def _keywords(call: ast.Call) -> dict[str, str]:
     return {keyword.arg: _expr(keyword.value) for keyword in call.keywords if keyword.arg is not None}
 
 
+def _string_get_calls(function: ast.AST) -> list[tuple[int, int, str, list[str]]]:
+    """Return source-ordered mapping.get calls without coupling to local variable names or quote style."""
+    calls: list[tuple[int, int, str, list[str]]] = []
+    for node in ast.walk(function):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        if node.func.attr != "get" or not node.args:
+            continue
+        key = node.args[0]
+        if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
+            continue
+        calls.append((node.lineno, node.col_offset, key.value, [_expr(arg) for arg in node.args[1:]]))
+    calls.sort(key=lambda item: (item[0], item[1]))
+    return calls
+
+
+def _assert_interrupt_response_gets(function: ast.AST) -> None:
+    """Freeze response-map semantics while allowing harmless Python source refactors."""
+    calls = _string_get_calls(function)
+    relevant = [call for call in calls if call[2] in {"accept", "choice"}]
+    keys = [call[2] for call in relevant]
+    expected = ["accept", "choice"]
+    if keys != expected:
+        raise AssertionError(
+            "pinned Quick Switch interrupt response mapping changed: "
+            f"expected ordered keys {expected!r}, got {keys!r}"
+        )
+    accept_defaults = relevant[0][3]
+    if accept_defaults != ["True"]:
+        raise AssertionError(
+            "pinned Quick Switch interrupt accept default changed: "
+            f"expected ['True'], got {accept_defaults!r}"
+        )
+
+
 def _assignment(function: ast.AST, name: str) -> str:
     for node in ast.walk(function):
         if not isinstance(node, (ast.Assign, ast.AnnAssign)):
@@ -153,6 +188,20 @@ def main() -> None:
         "'trigger': trigger",
         "'ap_cost': 2",
     ], "trigger")
+    _assert_contains(trigger_source, [
+        "if not response:",
+        "isinstance(response, dict)",
+        " in replacements:",
+    ], "interrupt response")
+    _assert_interrupt_response_gets(trigger)
+    _assert_ordered_contains(trigger_source, [
+        "response = self.prompt_response(actor_id, prompt)",
+        "if not response:",
+        "choice_id = replacements[0]",
+        "isinstance(response, dict)",
+        " in replacements:",
+        "trainer.consume_ap(2)",
+    ], "interrupt response")
     _assert_ordered_contains(trigger_source, [
         "trainer.consume_ap(2)",
         "self._apply_switch(",
@@ -205,6 +254,8 @@ def main() -> None:
         _write_row(handle, "ACTION_ORDER", "consume_ap", "apply_switch", "quick_switch_sent_out", "trainer_feature_event")
         _write_row(handle, "TRIGGER_AP", "required>=2", "consume=2")
         _write_row(handle, "TRIGGER_PROMPT", "phase=interrupt", "optional=True", "default=first_replacement")
+        _write_row(handle, "TRIGGER_RESPONSE", "falsy=decline", "truthy_non_dict=accept_default", "dict_accept_default=True", "dict_accept_false=decline")
+        _write_row(handle, "TRIGGER_CHOICE", "default=first_replacement", "field=choice", "legal_requested=selected", "invalid_requested=default_first")
         _write_row(handle, "TRIGGER_SWITCH", *(f"{key}={value}" for key, value in expected_trigger_switch.items()))
         _write_row(handle, "TRIGGER_TEMP", "quick_switch_sent_out", "round=current", "expires=current")
         _write_row(handle, "TRIGGER_EVENT", "type=trainer_feature", "feature=Quick Switch", "effect=switch", "trigger=propagated", "ap_cost=2")
