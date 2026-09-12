@@ -25,7 +25,7 @@ final class QuickSwitchEntryContractOracleParityTest {
                 "TRIGGER_AP\trequired>=2\tconsume=2",
                 "TRIGGER_PROMPT\tphase=interrupt\toptional=True\tdefault=first_replacement",
                 "TRIGGER_RESPONSE\tfalsy=decline\ttruthy_non_dict=accept_default\tdict_accept_default=True\tdict_accept_false=decline",
-                "TRIGGER_CHOICE\tdefault=first_replacement\taliases=combatant_id,replacement_id\tlegal_requested=selected\tinvalid_requested=default_first",
+                "TRIGGER_CHOICE\tdefault=first_replacement\tfield=choice\tlegal_requested=selected\tinvalid_requested=default_first",
                 "TRIGGER_SWITCH\toutgoing_id=actor_id\treplacement_id=choice_id\tinitiator_id=trainer.identifier\tallow_replacement_turn=True\tallow_immediate=False\tallow_quick_switch_triggers=False",
                 "TRIGGER_TEMP\tquick_switch_sent_out\tround=current\texpires=current",
                 "TRIGGER_EVENT\ttype=trainer_feature\tfeature=Quick Switch\teffect=switch\ttrigger=propagated\tap_cost=2",
