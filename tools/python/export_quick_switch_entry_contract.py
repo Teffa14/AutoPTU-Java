@@ -73,6 +73,23 @@ def _assert_interrupt_response_gets(function: ast.AST) -> None:
         )
 
 
+def _enclosing_if_tests(function: ast.AST, target_call: ast.Call) -> list[str]:
+    """Return source-ordered if-tests whose body contains the exact target call."""
+    tests: list[tuple[int, int, str]] = []
+    for node in ast.walk(function):
+        if not isinstance(node, ast.If):
+            continue
+        body_contains_target = any(
+            child is target_call
+            for statement in node.body
+            for child in ast.walk(statement)
+        )
+        if body_contains_target:
+            tests.append((node.lineno, node.col_offset, _expr(node.test)))
+    tests.sort(key=lambda item: (item[0], item[1]))
+    return [test for _, _, test in tests]
+
+
 def _assignment(function: ast.AST, name: str) -> str:
     for node in ast.walk(function):
         if not isinstance(node, (ast.Assign, ast.AnnAssign)):
@@ -239,10 +256,24 @@ def main() -> None:
         "target.add_temporary_effect('quick_switch_faint_handled'",
         "self._maybe_trigger_quick_switch(",
     ], "faint guard dispatch")
-    _assert_contains(apply_switch_source, [
-        "trigger='opponent_send_out'",
-        "trigger_target_id=replacement_id",
-    ], "opponent send-out trigger")
+
+    opponent_send_out_call = _single_call(apply_switch, "_maybe_trigger_quick_switch")
+    opponent_send_out_keywords = _keywords(opponent_send_out_call)
+    expected_opponent_send_out_keywords = {
+        "trigger": "'opponent_send_out'",
+        "trigger_target_id": "replacement_id",
+    }
+    if opponent_send_out_keywords != expected_opponent_send_out_keywords:
+        raise AssertionError(
+            "pinned Quick Switch opponent send-out dispatch changed: "
+            f"{opponent_send_out_keywords!r}"
+        )
+    enclosing_tests = _enclosing_if_tests(apply_switch, opponent_send_out_call)
+    if "allow_quick_switch_triggers" not in enclosing_tests:
+        raise AssertionError(
+            "pinned Quick Switch opponent send-out gate changed: "
+            f"expected allow_quick_switch_triggers in {enclosing_tests!r}"
+        )
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -261,6 +292,7 @@ def main() -> None:
         _write_row(handle, "TRIGGER_EVENT", "type=trainer_feature", "feature=Quick Switch", "effect=switch", "trigger=propagated", "ap_cost=2")
         _write_row(handle, "TRIGGER_ORDER", "consume_ap", "apply_switch", "quick_switch_sent_out", "trainer_feature_event")
         _write_row(handle, "TRIGGER_SOURCE", "opponent_send_out", "ally_faint")
+        _write_row(handle, "SWITCH_TRIGGER_GATE", "condition=allow_quick_switch_triggers", "trigger=opponent_send_out", "trigger_target=replacement_id")
         _write_row(handle, "FAINT_GUARD", "quick_switch_faint_handled", "round=current", "expires=current")
         _write_row(handle, "FAINT_GUARD_ORDER", "check_guard", "arm_guard", "dispatch_quick_switch")
     print(output)
