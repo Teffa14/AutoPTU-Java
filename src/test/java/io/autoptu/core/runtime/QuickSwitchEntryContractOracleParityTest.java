@@ -29,7 +29,8 @@ final class QuickSwitchEntryContractOracleParityTest {
                 "TRIGGER_EVENT\ttype=trainer_feature\tfeature=Quick Switch\teffect=switch\ttrigger=propagated\tap_cost=2",
                 "TRIGGER_ORDER\tconsume_ap\tapply_switch\tquick_switch_sent_out\ttrainer_feature_event",
                 "TRIGGER_SOURCE\topponent_send_out\tally_faint",
-                "FAINT_GUARD\tquick_switch_faint_handled\tround=current\texpires=current"
+                "FAINT_GUARD\tquick_switch_faint_handled\tround=current\texpires=current",
+                "FAINT_GUARD_ORDER\tcheck_guard\tarm_guard\tdispatch_quick_switch"
         ), Files.readAllLines(fixture));
     }
 }
