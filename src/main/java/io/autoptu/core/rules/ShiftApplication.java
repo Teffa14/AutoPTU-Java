@@ -1,7 +1,6 @@
 package io.autoptu.core.rules;
 
 import io.autoptu.core.event.ShiftResolvedEvent;
-import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.ShiftApplicationResult;
 
@@ -20,7 +19,7 @@ public final class ShiftApplication {
         if (origin.equals(destination)) throw new IllegalArgumentException("shift destination must differ from origin");
         Set<GridCoord> legal = legalDestinations == null ? Set.of() : legalDestinations;
         if (!legal.contains(destination)) throw new IllegalArgumentException("shift destination is not legal");
-        if (!budget.consume(ActionType.SHIFT, "shift:" + destination.x() + "," + destination.y())) {
+        if (!budget.consumeMovement("shift:" + destination.x() + "," + destination.y())) {
             throw new IllegalStateException("shift action is unavailable");
         }
         ShiftResolvedEvent event = new ShiftResolvedEvent(actorId, origin, destination);
