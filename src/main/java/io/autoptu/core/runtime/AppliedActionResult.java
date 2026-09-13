@@ -41,4 +41,19 @@ public record AppliedActionResult(List<BattleEvent> events, ActionSpendResult ac
         combined.addAll(events);
         return new AppliedActionResult(combined, actionSpend);
     }
+
+    /**
+     * Appends semantic events while retaining authoritative action-spend provenance.
+     * This is the shared composition path for post-hit and post-damage runtime stages.
+     */
+    public AppliedActionResult appendEvents(List<? extends BattleEvent> after) {
+        List<BattleEvent> combined = new ArrayList<>(events);
+        if (after != null) {
+            for (BattleEvent event : after) {
+                if (event == null) throw new IllegalArgumentException("events cannot contain null");
+                combined.add(event);
+            }
+        }
+        return new AppliedActionResult(combined, actionSpend);
+    }
 }

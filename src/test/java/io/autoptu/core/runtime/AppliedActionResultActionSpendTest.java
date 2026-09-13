@@ -52,12 +52,27 @@ class AppliedActionResultActionSpendTest {
     }
 
     @Test
-    void prependingEventsRejectsNullEntriesWithoutLosingOriginalResult() {
+    void appendingSemanticEventsRetainsExactSpendProvenanceAndOrder() {
+        ActionSpendResult spend = ActionSpendResult.standardConversion();
+        RoundStartedEvent existing = new RoundStartedEvent(4, List.of(), "Rain", List.of());
+        RoundStartedEvent after = new RoundStartedEvent(5, List.of(), "Clear", List.of());
+        AppliedActionResult result = new AppliedActionResult(List.of(existing), spend);
+
+        AppliedActionResult composed = result.appendEvents(List.of(after));
+
+        assertEquals(List.of(existing, after), composed.events());
+        assertEquals(spend, composed.actionSpendResult().orElseThrow());
+    }
+
+    @Test
+    void eventCompositionRejectsNullEntriesWithoutLosingOriginalResult() {
         ActionSpendResult spend = ActionSpendResult.standardConversion();
         AppliedActionResult result = new AppliedActionResult(List.of(), spend);
+        List<io.autoptu.core.event.BattleEvent> nullEvent =
+                java.util.Arrays.asList((io.autoptu.core.event.BattleEvent) null);
 
-        assertThrows(IllegalArgumentException.class,
-                () -> result.prependEvents(java.util.Arrays.asList((io.autoptu.core.event.BattleEvent) null)));
+        assertThrows(IllegalArgumentException.class, () -> result.prependEvents(nullEvent));
+        assertThrows(IllegalArgumentException.class, () -> result.appendEvents(nullEvent));
         assertEquals(spend, result.actionSpendResult().orElseThrow());
         assertTrue(result.events().isEmpty());
     }
