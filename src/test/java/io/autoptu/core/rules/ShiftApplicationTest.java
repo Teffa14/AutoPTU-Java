@@ -15,6 +15,7 @@ class ShiftApplicationTest {
                 Set.of(new GridCoord(2, 1)), budget);
         assertEquals(new GridCoord(2, 1), result.position());
         assertEquals("shift_resolved|actor|1,1|2,1", result.event().stableKey());
+        assertEquals(ActionSpendResult.Source.BASE, result.actionSpendResult().orElseThrow().source());
         assertFalse(budget.hasActionAvailable(ActionType.SHIFT));
     }
 
@@ -31,6 +32,21 @@ class ShiftApplicationTest {
         assertThrows(IllegalStateException.class, () -> ShiftApplication.apply("actor",
                 new GridCoord(2, 1), new GridCoord(3, 1), Set.of(new GridCoord(3, 1)), budget));
         assertTrue(budget.hasActionAvailable(ActionType.STANDARD));
+    }
+
+    @Test void preservesNamedExtraGrantWhenItPaysForMovement() {
+        ActionBudget budget = new ActionBudget();
+        assertTrue(budget.consume(ActionType.SHIFT, "non-movement-shift"));
+        budget.grantExtra(ActionType.SHIFT, "feature:quick-shift", 1);
+
+        var result = ShiftApplication.apply("actor", new GridCoord(1, 1), new GridCoord(2, 1),
+                Set.of(new GridCoord(2, 1)), budget);
+
+        var spend = result.actionSpendResult().orElseThrow();
+        assertEquals(ActionSpendResult.Source.EXTRA, spend.source());
+        assertEquals("feature:quick-shift", spend.extraGrantName().orElseThrow());
+        assertEquals(0, budget.extraCount(ActionType.SHIFT));
+        assertEquals("shift_resolved|actor|1,1|2,1", result.event().stableKey());
     }
 
     @Test void kairosRejectsSecondMovementAfterRegularMovementWithoutConsumingStandard() {
@@ -51,7 +67,10 @@ class ShiftApplicationTest {
                 Set.of(new GridCoord(2, 1)), budget);
 
         assertEquals(new GridCoord(2, 1), result.position());
+        assertEquals(ActionSpendResult.Source.STANDARD_CONVERSION,
+                result.actionSpendResult().orElseThrow().source());
         assertEquals(ActionType.SHIFT, budget.standardConversion().orElseThrow());
         assertFalse(budget.hasActionAvailable(ActionType.STANDARD));
+        assertEquals("shift_resolved|actor|1,1|2,1", result.event().stableKey());
     }
 }

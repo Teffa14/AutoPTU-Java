@@ -19,10 +19,11 @@ public final class ShiftApplication {
         if (origin.equals(destination)) throw new IllegalArgumentException("shift destination must differ from origin");
         Set<GridCoord> legal = legalDestinations == null ? Set.of() : legalDestinations;
         if (!legal.contains(destination)) throw new IllegalArgumentException("shift destination is not legal");
-        if (!budget.consumeMovement("shift:" + destination.x() + "," + destination.y())) {
+        ActionSpendResult spend = budget.consumeMovementDetailed("shift:" + destination.x() + "," + destination.y());
+        if (!spend.consumed()) {
             throw new IllegalStateException("shift action is unavailable");
         }
         ShiftResolvedEvent event = new ShiftResolvedEvent(actorId, origin, destination);
-        return new ShiftApplicationResult(destination, event);
+        return new ShiftApplicationResult(destination, event, spend);
     }
 }
