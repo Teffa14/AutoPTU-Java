@@ -174,9 +174,10 @@ public final class ActionBudget {
 
     /**
      * Consumes a non-movement action using the selected profile.
+     * Existing callers retain the legacy boolean contract.
      */
     public boolean consume(ActionType actionType, String detail) {
-        return consume(actionType, detail, false);
+        return consumeDetailed(actionType, detail).consumed();
     }
 
     /**
@@ -184,36 +185,55 @@ public final class ActionBudget {
      * conversion restrictions. Authoritative movement execution must use this path.
      */
     public boolean consumeMovement(String detail) {
-        return consume(ActionType.SHIFT, detail, true);
+        return consumeMovementDetailed(detail).consumed();
     }
 
-    private boolean consume(ActionType actionType, String detail, boolean movement) {
+    /**
+     * Consumes a non-movement action and reports which resource source paid for it.
+     * This preserves named extra-action provenance for generic hook/event callers.
+     */
+    public ActionSpendResult consumeDetailed(ActionType actionType, String detail) {
+        return consumeDetailed(actionType, detail, false);
+    }
+
+    /**
+     * Movement-aware detailed spend boundary. Shift movement callers use this when
+     * semantic events need to retain the exact resource source.
+     */
+    public ActionSpendResult consumeMovementDetailed(String detail) {
+        return consumeDetailed(ActionType.SHIFT, detail, true);
+    }
+
+    private ActionSpendResult consumeDetailed(ActionType actionType, String detail, boolean movement) {
         requireType(actionType);
         if (actionType == ActionType.FREE) {
-            return true;
+            return ActionSpendResult.free();
         }
         if (hasActionAvailable(actionType)) {
             markAction(actionType, detail);
             if (actionType == ActionType.SHIFT && movement) {
                 regularShiftUsedForMovement = true;
             }
-            return true;
+            return ActionSpendResult.base();
         }
-        if (profile.extraActionCanSatisfy(actionType) && consumeExtra(actionType)) {
-            return true;
+        if (profile.extraActionCanSatisfy(actionType)) {
+            Optional<String> extraGrant = consumeExtraGrant(actionType);
+            if (extraGrant.isPresent()) {
+                return ActionSpendResult.extra(extraGrant.orElseThrow());
+            }
         }
         if (!profile.allowsStandardConversion(actionType)
                 || !hasActionAvailable(ActionType.STANDARD)) {
-            return false;
+            return ActionSpendResult.unavailable();
         }
         if (actionType == ActionType.SHIFT
                 && movement
                 && profile.blocksConvertedMovementAfterRegularMovement()
                 && regularShiftUsedForMovement) {
-            return false;
+            return ActionSpendResult.unavailable();
         }
         consumeStandardConversion(actionType, detail);
-        return true;
+        return ActionSpendResult.standardConversion();
     }
 
     public Optional<ActionType> standardConversion() {
