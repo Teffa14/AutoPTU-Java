@@ -3,6 +3,7 @@ package io.autoptu.core.runtime;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
+import io.autoptu.core.rules.ActionEconomyProfile;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,6 +33,7 @@ public final class BattleRuntimeState {
     private final InitiativeProgressState initiativeProgress = new InitiativeProgressState();
     private final BattleDelayedHitState delayedHits;
     private final DeclaredActionState declaredActions = new DeclaredActionState();
+    private final ActionEconomyProfile actionEconomyProfile;
     private BattleEnvironmentState environment = BattleEnvironmentState.neutral();
     private int currentRound;
 
@@ -196,6 +198,7 @@ public final class BattleRuntimeState {
                 throw new IllegalArgumentException("duplicate combatantId: " + combatant.combatantId());
             }
         }
+        this.actionEconomyProfile = BattleActionEconomyProfileResolver.resolve(this.combatants.values());
         if (statusesByCombatant != null) {
             for (Map.Entry<String, ? extends Collection<String>> entry : statusesByCombatant.entrySet()) {
                 String combatantId = entry.getKey();
@@ -251,6 +254,11 @@ public final class BattleRuntimeState {
 
     public MovementGrid grid() {
         return grid;
+    }
+
+    /** Canonical action-resource semantics shared by all actors in this battle. */
+    public ActionEconomyProfile actionEconomyProfile() {
+        return actionEconomyProfile;
     }
 
     /** Read-only tile-trap snapshot owned by the battle state, never by the world adapter. */
