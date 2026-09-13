@@ -95,6 +95,23 @@ public final class AutobattlerActionSpace {
         return List.copyOf(choices);
     }
 
+    /**
+     * Profile-bound Shift projection for authoritative battle callers. A battle-owned
+     * profile must match the actor budget before any legality is projected.
+     */
+    public static List<ShiftChoice> legalShiftChoices(
+            String actorId,
+            MovementGrid grid,
+            MovementProfile movement,
+            ActionBudget budget,
+            ActionEconomyProfile expectedProfile,
+            int movementPenalty,
+            Predicate<GridCoord> canFit
+    ) {
+        requireBudgetProfile(budget, expectedProfile);
+        return legalShiftChoices(actorId, grid, movement, budget, movementPenalty, canFit);
+    }
+
     public static List<MoveChoice> legalMoveChoices(
             String actorId,
             String actorSize,
@@ -209,6 +226,34 @@ public final class AutobattlerActionSpace {
         return List.copyOf(choices);
     }
 
+    /**
+     * Profile-bound move projection for authoritative battle callers. This makes the
+     * battle profile an explicit input instead of silently trusting an actor-local one.
+     */
+    public static List<MoveChoice> legalMoveChoices(
+            String actorId,
+            String actorSize,
+            MovementGrid movementGrid,
+            GridCoord actorAnchor,
+            ActionBudget budget,
+            ActionEconomyProfile expectedProfile,
+            List<MoveOption> moves,
+            List<TargetCandidate> targetCandidates,
+            Set<GridCoord> lineOfSightBlockers
+    ) {
+        requireBudgetProfile(budget, expectedProfile);
+        return legalMoveChoices(
+                actorId,
+                actorSize,
+                movementGrid,
+                actorAnchor,
+                budget,
+                moves,
+                targetCandidates,
+                lineOfSightBlockers
+        );
+    }
+
     private static boolean hasCapacity(ActionBudget budget, ActionType actionType) {
         return budget.hasCapacity(actionType);
     }
@@ -228,6 +273,16 @@ public final class AutobattlerActionSpace {
     private static void requireBudget(ActionBudget budget) {
         if (budget == null) {
             throw new IllegalArgumentException("budget is required");
+        }
+    }
+
+    private static void requireBudgetProfile(ActionBudget budget, ActionEconomyProfile expectedProfile) {
+        requireBudget(budget);
+        if (expectedProfile == null) {
+            throw new IllegalArgumentException("expectedProfile is required");
+        }
+        if (budget.profile() != expectedProfile) {
+            throw new IllegalArgumentException("budget profile must match authoritative action economy profile");
         }
     }
 }

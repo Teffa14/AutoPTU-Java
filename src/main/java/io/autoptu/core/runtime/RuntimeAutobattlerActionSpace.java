@@ -133,6 +133,7 @@ public final class RuntimeAutobattlerActionSpace {
                 state.grid(),
                 actor.movementProfile(),
                 actor.actionBudget(),
+                state.actionEconomyProfile(),
                 movementPenalty,
                 canFit
         ));
@@ -148,6 +149,7 @@ public final class RuntimeAutobattlerActionSpace {
                     state.grid(),
                     actor.position(),
                     actor.actionBudget(),
+                    state.actionEconomyProfile(),
                     List.of(move),
                     authoritativeTargets(state, actorId, move, permittedIds),
                     lineOfSightBlockers
