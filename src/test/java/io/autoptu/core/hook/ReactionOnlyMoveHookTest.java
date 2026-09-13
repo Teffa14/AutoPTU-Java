@@ -37,6 +37,38 @@ class ReactionOnlyMoveHookTest {
     }
 
     @Test
+    void semanticTriggerFiltersCandidatesInsideTheSameWindow() {
+        ReactionOnlyMoveHook hook = new ReactionOnlyMoveHook("reactor", List.of(
+                triggeredMove(
+                        "move:delayed-reaction",
+                        Set.of(ActionWindow.AFTER_DAMAGE),
+                        Set.of(ActionWindowTrigger.DIRECT_DAMAGING_HIT),
+                        "Reaction",
+                        "",
+                        "Trigger: The user is hit by a direct damaging attack",
+                        "",
+                        "")
+        ));
+
+        assertEquals(
+                List.of(new ActionWindowCandidate("reactor", "move:delayed-reaction", "move:attack")),
+                hook.candidates(new ActionWindowContext(
+                        ActionWindow.AFTER_DAMAGE,
+                        "attacker",
+                        "move:attack",
+                        ActionWindowTrigger.DIRECT_DAMAGING_HIT)));
+        assertTrue(hook.candidates(new ActionWindowContext(
+                ActionWindow.AFTER_DAMAGE,
+                "attacker",
+                "move:attack",
+                ActionWindowTrigger.DAMAGE_APPLIED)).isEmpty());
+        assertTrue(hook.candidates(new ActionWindowContext(
+                ActionWindow.AFTER_DAMAGE,
+                "attacker",
+                "move:attack")).isEmpty());
+    }
+
+    @Test
     void registryControlsWhichWindowsInvokeTheMoveDiscoveryHook() {
         ReactionOnlyMoveHook hook = new ReactionOnlyMoveHook("reactor", List.of(
                 move("move:interrupt", Set.of(ActionWindow.BEFORE_HIT), "Interrupt", "", "", "", "")
@@ -63,6 +95,27 @@ class ReactionOnlyMoveHookTest {
         return new ReactionOnlyMoveHook.MoveSpec(
                 actionKey,
                 windows,
+                activation,
+                rangeText,
+                effectsText,
+                canonicalRangeText,
+                canonicalEffectsText);
+    }
+
+    private static ReactionOnlyMoveHook.MoveSpec triggeredMove(
+            String actionKey,
+            Set<ActionWindow> windows,
+            Set<ActionWindowTrigger> triggers,
+            String activation,
+            String rangeText,
+            String effectsText,
+            String canonicalRangeText,
+            String canonicalEffectsText
+    ) {
+        return new ReactionOnlyMoveHook.MoveSpec(
+                actionKey,
+                windows,
+                triggers,
                 activation,
                 rangeText,
                 effectsText,
