@@ -655,7 +655,7 @@ public final class BattleRuntime {
         RuntimeCombatantState target = state.requireCombatant(choice.targetId());
         ActionBudget budget = actor.actionBudget();
         ActionType actionType = choice.actionType();
-        if (spendAction && !budget.hasActionAvailable(actionType) && budget.extraCount(actionType) <= 0) {
+        if (spendAction && !budget.hasCapacity(actionType)) {
             throw new IllegalStateException(actionType.value() + " action is already consumed");
         }
 
