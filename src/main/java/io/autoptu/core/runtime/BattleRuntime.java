@@ -156,7 +156,7 @@ public final class BattleRuntime {
             PostDamageHookRegistry postDamageHookRegistry,
             MoveCombatProfile effectiveMetadata
     ) {
-        if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHooks is required");
+        if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHookRegistry is required");
         if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
