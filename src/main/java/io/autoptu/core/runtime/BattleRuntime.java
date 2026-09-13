@@ -97,6 +97,10 @@ public final class BattleRuntime {
         );
     }
 
+    /**
+     * Public authoritative composition boundary for server-owned rule dependencies.
+     * Existing callers remain source-compatible and receive an empty dependency snapshot.
+     */
     public static AppliedActionResult applyAuthoritativeMove(
             BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
@@ -138,6 +142,12 @@ public final class BattleRuntime {
         );
     }
 
+    /**
+     * Preferred move path for stateful post-result effects. The registry executes only after
+     * accuracy and ordinary DamageResolution have consumed the authoritative RNG. This matches
+     * Python post_result hook timing while keeping HP/history mutation downstream of the final
+     * signed damage adjustment.
+     */
     public static AppliedActionResult applyAuthoritativeMove(
             BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
@@ -146,7 +156,7 @@ public final class BattleRuntime {
             PostDamageHookRegistry postDamageHookRegistry,
             MoveCombatProfile effectiveMetadata
     ) {
-        if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHookRegistry is required");
+        if (postDamageHookRegistry == null) throw new IllegalArgumentException("postDamageHooks is required");
         if (effectiveMetadata == null) throw new IllegalArgumentException("effectiveMetadata is required");
         return applyAuthoritativeMoveInternal(
                 state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
@@ -155,6 +165,7 @@ public final class BattleRuntime {
         );
     }
 
+    /** Runtime-package composition seam. Adapters use public authoritative boundaries. */
     static AppliedActionResult applyAuthoritativeMove(
             BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
@@ -165,12 +176,13 @@ public final class BattleRuntime {
             MoveCombatProfile effectiveMetadata
     ) {
         return applyAuthoritativeMove(
-                state, choice, move, actorSize, targetSize, lineOfSightBlockers,
-                source, rng, input, preResolutionEvents, NO_MOVE_SPECIALS, preDamageHookRegistry,
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
+                rng, input, preResolutionEvents, NO_MOVE_SPECIALS, preDamageHookRegistry,
                 postDamageHookRegistry, effectiveMetadata
         );
     }
 
+    /** Runtime-package composition seam for parity tests and move-special wiring. */
     static AppliedActionResult applyAuthoritativeMove(
             BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
@@ -182,12 +194,13 @@ public final class BattleRuntime {
             MoveCombatProfile effectiveMetadata
     ) {
         return applyAuthoritativeMove(
-                state, choice, move, actorSize, targetSize, lineOfSightBlockers,
-                source, rng, input, preResolutionEvents, moveSpecialHookRegistry, preDamageHookRegistry,
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
+                rng, input, preResolutionEvents, moveSpecialHookRegistry, preDamageHookRegistry,
                 postDamageHookRegistry, effectiveMetadata, BattleRuntimeDependencies.empty()
         );
     }
 
+    /** Dependency-aware runtime composition seam for the production move resolver. */
     static AppliedActionResult applyAuthoritativeMove(
             BattleRuntimeState state, MoveChoice choice, MoveOption move, String actorSize,
             String targetSize, Set<GridCoord> lineOfSightBlockers, String source,
@@ -211,6 +224,13 @@ public final class BattleRuntime {
         );
     }
 
+    /**
+     * Runtime-only composition seam for reaction-driven target replacement. The declared choice
+     * is validated against its controller-selected target before any PRE-target hook runs. The
+     * effective target is then prepared from authoritative state and enters the ordinary move
+     * pipeline without a second declaration check, while action economy and move frequency retain
+     * their normal single-owner timing.
+     */
     static AppliedActionResult applyAuthoritativeMoveWithPreResolutionTargets(
             BattleRuntimeState state,
             MoveChoice declaredChoice,
@@ -268,6 +288,12 @@ public final class BattleRuntime {
         );
     }
 
+    /**
+     * Runtime-only AoE target seam. The TILE action has already been revalidated and its ordered
+     * targets expanded from authoritative state. Each target still receives the ordinary
+     * accuracy/damage/PRE/post pipeline, but action economy and move frequency are owned by the
+     * surrounding multi-target declaration and are therefore not spent here.
+     */
     static AppliedActionResult applyAuthoritativeAreaMoveTarget(
             BattleRuntimeState state,
             MoveChoice choice,
@@ -288,6 +314,7 @@ public final class BattleRuntime {
         );
     }
 
+    /** Dependency-aware AoE target seam used by the authoritative production resolver. */
     static AppliedActionResult applyAuthoritativeAreaMoveTarget(
             BattleRuntimeState state,
             MoveChoice choice,
@@ -317,6 +344,12 @@ public final class BattleRuntime {
         );
     }
 
+    /**
+     * Executes a matured delayed hit through the same accuracy, damage, RNG, post-result,
+     * HP, history, and event pipeline as an ordinary move without spending action economy or
+     * move frequency a second time. The scheduling action already owned that bookkeeping in
+     * the pinned Python oracle.
+     */
     public static AppliedActionResult applyDelayedAuthoritativeMove(
             BattleRuntimeState state,
             DelayedHitBinding binding,
@@ -333,6 +366,7 @@ public final class BattleRuntime {
         );
     }
 
+    /** Dependency-aware delayed-hit seam used by the authoritative production resolver. */
     public static AppliedActionResult applyDelayedAuthoritativeMove(
             BattleRuntimeState state,
             DelayedHitBinding binding,
