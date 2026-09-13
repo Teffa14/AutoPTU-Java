@@ -2,7 +2,6 @@ package io.autoptu.core.runtime;
 
 import io.autoptu.core.event.BattleEvent;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -59,34 +58,21 @@ record MoveSpecialTargetResult(
     }
 
     /**
-     * Prepends already-resolved semantic events without losing the post-damage transport.
-     * This mirrors BattleRuntime's current pre-resolution / PRE_DAMAGE / post-result ordering
-     * while keeping END_ACTION inputs attached to the target result.
+     * Prepends already-resolved semantic events without losing spend provenance, post-damage
+     * transport, or the ordering required by the Python-compatible runtime pipeline.
      */
     MoveSpecialTargetResult prependEvents(List<? extends BattleEvent> before) {
         if (before == null || before.isEmpty()) return this;
-        ArrayList<BattleEvent> events = new ArrayList<>(before.size() + actionResult.events().size());
-        for (BattleEvent event : before) {
-            if (event == null) throw new IllegalArgumentException("events cannot contain null");
-            events.add(event);
-        }
-        events.addAll(actionResult.events());
-        return withActionResult(new AppliedActionResult(events));
+        return withActionResult(actionResult.prependEvents(before));
     }
 
     /**
      * Appends already-resolved semantic events, such as post-hit forced movement, while
-     * preserving the snapshot and applied damage required by action-wide finalization.
+     * preserving action-spend provenance and action-wide finalization inputs.
      */
     MoveSpecialTargetResult appendEvents(List<? extends BattleEvent> after) {
         if (after == null || after.isEmpty()) return this;
-        ArrayList<BattleEvent> events = new ArrayList<>(actionResult.events().size() + after.size());
-        events.addAll(actionResult.events());
-        for (BattleEvent event : after) {
-            if (event == null) throw new IllegalArgumentException("events cannot contain null");
-            events.add(event);
-        }
-        return withActionResult(new AppliedActionResult(events));
+        return withActionResult(actionResult.appendEvents(after));
     }
 
     List<BattleEvent> events() {
