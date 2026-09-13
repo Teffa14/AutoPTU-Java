@@ -160,7 +160,7 @@ class BattleRuntimeActionEconomyProfileTest {
                 MovementProfile.walking(new GridCoord(2, 1), 3),
                 enemyHp,
                 50,
-                new ActionBudget()
+                new ActionBudget(actorBudget.profile())
         );
         return new BattleRuntimeState(
                 new MovementGrid(6, 6, Set.of(), Map.of()),
