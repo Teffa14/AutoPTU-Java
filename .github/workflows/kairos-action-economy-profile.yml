@@ -30,4 +30,5 @@ jobs:
           --tests io.autoptu.core.rules.ShiftApplicationTest
           --tests io.autoptu.core.runtime.BattleRuntimeActionEconomyProfileTest
           --tests io.autoptu.core.runtime.BattleActionEconomyProfileResolverTest
+          --tests io.autoptu.core.runtime.BattleRuntimeStateActionEconomyProfileTest
           --tests io.autoptu.core.rules.TurnFlowTest
