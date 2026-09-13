@@ -37,35 +37,31 @@ class ReactionOnlyMoveHookTest {
     }
 
     @Test
-    void semanticTriggerFiltersCandidatesInsideTheSameWindow() {
+    void semanticTriggerFiltersAttackOfOpportunityInsideTheSameWindow() {
         ReactionOnlyMoveHook hook = new ReactionOnlyMoveHook("reactor", List.of(
                 triggeredMove(
-                        "move:delayed-reaction",
-                        Set.of(ActionWindow.AFTER_DAMAGE),
-                        Set.of(ActionWindowTrigger.DIRECT_DAMAGING_HIT),
-                        "Reaction",
-                        "",
-                        "Trigger: The user is hit by a direct damaging attack",
+                        "move:attack-of-opportunity",
+                        Set.of(ActionWindow.BEFORE_ACTION),
+                        Set.of(ActionWindowTrigger.ADJACENT_FOE_SHIFTS_AWAY),
+                        "Interrupt",
+                        "Self, Trait: Interrupt 1",
+                        "You may make a Struggle Attack against the triggering foe as an Interrupt. "
+                                + "An adjacent foe Shifts out of a Square adjacent to you.",
                         "",
                         "")
         ));
 
         assertEquals(
-                List.of(new ActionWindowCandidate("reactor", "move:delayed-reaction", "move:attack")),
+                List.of(new ActionWindowCandidate("reactor", "move:attack-of-opportunity", "shift:foe")),
                 hook.candidates(new ActionWindowContext(
-                        ActionWindow.AFTER_DAMAGE,
-                        "attacker",
-                        "move:attack",
-                        ActionWindowTrigger.DIRECT_DAMAGING_HIT)));
+                        ActionWindow.BEFORE_ACTION,
+                        "foe",
+                        "shift:foe",
+                        ActionWindowTrigger.ADJACENT_FOE_SHIFTS_AWAY)));
         assertTrue(hook.candidates(new ActionWindowContext(
-                ActionWindow.AFTER_DAMAGE,
-                "attacker",
-                "move:attack",
-                ActionWindowTrigger.DAMAGE_APPLIED)).isEmpty());
-        assertTrue(hook.candidates(new ActionWindowContext(
-                ActionWindow.AFTER_DAMAGE,
-                "attacker",
-                "move:attack")).isEmpty());
+                ActionWindow.BEFORE_ACTION,
+                "foe",
+                "shift:foe")).isEmpty());
     }
 
     @Test
