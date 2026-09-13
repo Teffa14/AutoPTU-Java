@@ -782,6 +782,6 @@ public final class BattleRuntime {
                 legalDestinations, actor.actionBudget()
         );
         actor.moveTo(result.position());
-        return new AppliedActionResult(List.of(result.event()));
+        return new AppliedActionResult(List.of(result.event()), result.actionSpendResult().orElse(null));
     }
 }
