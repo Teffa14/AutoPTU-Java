@@ -30,6 +30,7 @@ import io.autoptu.core.model.TurnPhase;
 import io.autoptu.core.random.PythonRandom;
 import io.autoptu.core.rules.Accuracy;
 import io.autoptu.core.rules.ActionBudget;
+import io.autoptu.core.rules.ActionSpendResult;
 import io.autoptu.core.rules.DamageResolution;
 import io.autoptu.core.rules.Movement;
 import io.autoptu.core.rules.ShiftApplication;
@@ -176,8 +177,8 @@ public final class BattleRuntime {
             MoveCombatProfile effectiveMetadata
     ) {
         return applyAuthoritativeMove(
-                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
-                rng, input, preResolutionEvents, NO_MOVE_SPECIALS, preDamageHookRegistry,
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers,
+                source, rng, input, preResolutionEvents, NO_MOVE_SPECIALS, preDamageHookRegistry,
                 postDamageHookRegistry, effectiveMetadata
         );
     }
@@ -194,8 +195,8 @@ public final class BattleRuntime {
             MoveCombatProfile effectiveMetadata
     ) {
         return applyAuthoritativeMove(
-                state, choice, move, actorSize, targetSize, lineOfSightBlockers, source,
-                rng, input, preResolutionEvents, moveSpecialHookRegistry, preDamageHookRegistry,
+                state, choice, move, actorSize, targetSize, lineOfSightBlockers,
+                source, rng, input, preResolutionEvents, moveSpecialHookRegistry, preDamageHookRegistry,
                 postDamageHookRegistry, effectiveMetadata, BattleRuntimeDependencies.empty()
         );
     }
@@ -662,8 +663,12 @@ public final class BattleRuntime {
         int previousHp = target.hp();
         int resolvedDamage = accuracy.hit() ? Math.max(0, damage.damage()) : 0;
         int nextHp = Math.max(0, previousHp - resolvedDamage);
-        if (spendAction && !budget.consume(actionType, choice.moveId())) {
-            throw new IllegalStateException(actionType.value() + " action is already consumed");
+        ActionSpendResult actionSpend = null;
+        if (spendAction) {
+            actionSpend = budget.consumeDetailed(actionType, choice.moveId());
+            if (!actionSpend.consumed()) {
+                throw new IllegalStateException(actionType.value() + " action is already consumed");
+            }
         }
         target.setHp(nextHp);
         if (accuracy.hit()) {
@@ -675,7 +680,7 @@ public final class BattleRuntime {
                 source, actor.combatantId(), target.combatantId(), choice.moveId(),
                 accuracy, accuracy.hit() ? damage : null, target.hp()
         );
-        return new AppliedActionResult(List.of(event));
+        return new AppliedActionResult(List.of(event), actionSpend);
     }
 
     public static void resetRoundMoveFrequency(BattleRuntimeState state) {
@@ -746,13 +751,7 @@ public final class BattleRuntime {
             AppliedActionResult result
     ) {
         if (before == null || before.isEmpty()) return result;
-        ArrayList<BattleEvent> events = new ArrayList<>(before.size() + result.events().size());
-        for (BattleEvent event : before) {
-            if (event == null) throw new IllegalArgumentException("preResolutionEvents cannot contain null");
-            events.add(event);
-        }
-        events.addAll(result.events());
-        return new AppliedActionResult(events);
+        return result.prependEvents(before);
     }
 
     private static TrainerFeatureEvent trainerFeatureEvent(
