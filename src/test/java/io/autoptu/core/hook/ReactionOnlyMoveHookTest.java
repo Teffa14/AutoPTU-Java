@@ -37,6 +37,34 @@ class ReactionOnlyMoveHookTest {
     }
 
     @Test
+    void semanticTriggerFiltersAttackOfOpportunityInsideTheSameWindow() {
+        ReactionOnlyMoveHook hook = new ReactionOnlyMoveHook("reactor", List.of(
+                triggeredMove(
+                        "move:attack-of-opportunity",
+                        Set.of(ActionWindow.BEFORE_ACTION),
+                        Set.of(ActionWindowTrigger.ADJACENT_FOE_SHIFTS_AWAY),
+                        "Interrupt",
+                        "Self, Trait: Interrupt 1",
+                        "You may make a Struggle Attack against the triggering foe as an Interrupt. "
+                                + "An adjacent foe Shifts out of a Square adjacent to you.",
+                        "",
+                        "")
+        ));
+
+        assertEquals(
+                List.of(new ActionWindowCandidate("reactor", "move:attack-of-opportunity", "shift:foe")),
+                hook.candidates(new ActionWindowContext(
+                        ActionWindow.BEFORE_ACTION,
+                        "foe",
+                        "shift:foe",
+                        ActionWindowTrigger.ADJACENT_FOE_SHIFTS_AWAY)));
+        assertTrue(hook.candidates(new ActionWindowContext(
+                ActionWindow.BEFORE_ACTION,
+                "foe",
+                "shift:foe")).isEmpty());
+    }
+
+    @Test
     void registryControlsWhichWindowsInvokeTheMoveDiscoveryHook() {
         ReactionOnlyMoveHook hook = new ReactionOnlyMoveHook("reactor", List.of(
                 move("move:interrupt", Set.of(ActionWindow.BEFORE_HIT), "Interrupt", "", "", "", "")
@@ -63,6 +91,27 @@ class ReactionOnlyMoveHookTest {
         return new ReactionOnlyMoveHook.MoveSpec(
                 actionKey,
                 windows,
+                activation,
+                rangeText,
+                effectsText,
+                canonicalRangeText,
+                canonicalEffectsText);
+    }
+
+    private static ReactionOnlyMoveHook.MoveSpec triggeredMove(
+            String actionKey,
+            Set<ActionWindow> windows,
+            Set<ActionWindowTrigger> triggers,
+            String activation,
+            String rangeText,
+            String effectsText,
+            String canonicalRangeText,
+            String canonicalEffectsText
+    ) {
+        return new ReactionOnlyMoveHook.MoveSpec(
+                actionKey,
+                windows,
+                triggers,
                 activation,
                 rangeText,
                 effectsText,

@@ -3,7 +3,16 @@ package io.autoptu.core.hook;
 import java.util.Objects;
 
 /** Minimal language-neutral input for triggered action discovery. */
-public record ActionWindowContext(ActionWindow window, String actingCombatantId, String triggerKey) {
+public record ActionWindowContext(
+        ActionWindow window,
+        String actingCombatantId,
+        String triggerKey,
+        ActionWindowTrigger trigger
+) {
+    public ActionWindowContext(ActionWindow window, String actingCombatantId, String triggerKey) {
+        this(window, actingCombatantId, triggerKey, ActionWindowTrigger.UNSPECIFIED);
+    }
+
     public ActionWindowContext {
         window = Objects.requireNonNull(window, "window");
         if (actingCombatantId == null || actingCombatantId.isBlank()) {
@@ -14,5 +23,6 @@ public record ActionWindowContext(ActionWindow window, String actingCombatantId,
             throw new IllegalArgumentException("trigger key is required");
         }
         triggerKey = triggerKey.strip();
+        trigger = Objects.requireNonNull(trigger, "trigger");
     }
 }
