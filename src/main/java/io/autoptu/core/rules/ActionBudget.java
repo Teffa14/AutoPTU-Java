@@ -130,9 +130,8 @@ public final class ActionBudget {
     }
 
     /**
-     * Consumes a Shift specifically for movement. This is currently used only by
-     * explicit profile conformance tests; production movement callers remain on
-     * the Python-compatibility path until a later bounded slice.
+     * Consumes a Shift for actual movement using the selected profile's movement-aware
+     * conversion restrictions. Authoritative movement execution must use this path.
      */
     public boolean consumeMovement(String detail) {
         return consume(ActionType.SHIFT, detail, true);
