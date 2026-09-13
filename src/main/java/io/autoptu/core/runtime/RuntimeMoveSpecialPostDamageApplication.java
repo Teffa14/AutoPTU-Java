@@ -5,7 +5,6 @@ import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.hook.MoveSpecialHookRegistry;
 import io.autoptu.core.hook.MoveSpecialPostDamageResolution;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -62,13 +61,8 @@ public final class RuntimeMoveSpecialPostDamageApplication {
                 damageDealt
         );
 
-        ArrayList<BattleEvent> ordered = new ArrayList<>(
-                special.events().size() + resolvedOutcome.events().size());
-        ordered.addAll(special.events());
-        ordered.addAll(resolvedOutcome.events());
-
         return new Result(
-                new AppliedActionResult(ordered),
+                resolvedOutcome.prependEvents(special.events()),
                 special.resultSnapshot(),
                 damageDealt
         );
