@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AutobattlerActionSpaceProfileTest {
@@ -48,6 +49,38 @@ class AutobattlerActionSpaceProfileTest {
 
         assertTrue(shiftChoices(python).isEmpty());
         assertFalse(shiftChoices(kairos).isEmpty());
+    }
+
+    @Test
+    void profileBoundProjectionRejectsBudgetFromDifferentBattleProfile() {
+        ActionBudget python = new ActionBudget(ActionEconomyProfile.PYTHON_ORACLE_COMPATIBILITY);
+        MoveOption candidate = new MoveOption(
+                "candidate",
+                new MoveSpec("Self", "Self", 0, 0, null, null, "Self"),
+                ActionType.SWIFT,
+                false
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> AutobattlerActionSpace.legalShiftChoices(
+                "actor",
+                grid(),
+                MovementProfile.walking(new GridCoord(1, 1), 1),
+                python,
+                ActionEconomyProfile.KAIROS_2_1_25_1,
+                0,
+                ignored -> true
+        ));
+        assertThrows(IllegalArgumentException.class, () -> AutobattlerActionSpace.legalMoveChoices(
+                "actor",
+                "Medium",
+                grid(),
+                new GridCoord(1, 1),
+                python,
+                ActionEconomyProfile.KAIROS_2_1_25_1,
+                List.of(candidate),
+                List.of(),
+                Set.of()
+        ));
     }
 
     private static List<String> moveIds(ActionBudget budget, ActionType actionType) {
