@@ -3,6 +3,7 @@ package io.autoptu.core.runtime;
 import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.rules.ActionSpendResult;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,5 +24,21 @@ public record AppliedActionResult(List<BattleEvent> events, ActionSpendResult ac
      */
     public Optional<ActionSpendResult> actionSpendResult() {
         return Optional.ofNullable(actionSpend);
+    }
+
+    /**
+     * Prefixes semantic events while retaining authoritative action-spend provenance.
+     * Runtime composition must not erase which resource paid for the action.
+     */
+    public AppliedActionResult prependEvents(List<? extends BattleEvent> before) {
+        List<BattleEvent> combined = new ArrayList<>();
+        if (before != null) {
+            for (BattleEvent event : before) {
+                if (event == null) throw new IllegalArgumentException("events cannot contain null");
+                combined.add(event);
+            }
+        }
+        combined.addAll(events);
+        return new AppliedActionResult(combined, actionSpend);
     }
 }
