@@ -2,7 +2,9 @@ package io.autoptu.core.rules;
 
 import io.autoptu.core.model.ActionType;
 
+import java.util.Collections;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -13,9 +15,11 @@ import java.util.Optional;
  * profiles must be injected explicitly.</p>
  */
 public final class ActionBudget {
+    private static final String LEGACY_EXTRA_GRANT = "legacy";
+
     private final ActionEconomyProfile profile;
     private final EnumMap<ActionType, String> consumed = new EnumMap<>(ActionType.class);
-    private final EnumMap<ActionType, Integer> extras = new EnumMap<>(ActionType.class);
+    private final EnumMap<ActionType, LinkedHashMap<String, Integer>> extras = new EnumMap<>(ActionType.class);
     private ActionType standardConversion;
     private boolean regularShiftUsedForMovement;
 
@@ -96,30 +100,76 @@ public final class ActionBudget {
     }
 
     public void grantExtra(ActionType actionType, int count) {
+        grantExtra(actionType, LEGACY_EXTRA_GRANT, count);
+    }
+
+    /**
+     * Grants an extra action owned by a named rule source such as a Feature, ability,
+     * item, or temporary effect. Grant insertion order is preserved so generic extra
+     * spending remains deterministic while callers can still inspect provenance.
+     */
+    public void grantExtra(ActionType actionType, String grantName, int count) {
         requireType(actionType);
+        requireGrantName(grantName);
         if (count <= 0) {
             return;
         }
-        extras.merge(actionType, count, Integer::sum);
+        extras.computeIfAbsent(actionType, ignored -> new LinkedHashMap<>())
+                .merge(grantName, count, Integer::sum);
     }
 
     public int extraCount(ActionType actionType) {
         requireType(actionType);
-        return extras.getOrDefault(actionType, 0);
+        Map<String, Integer> grants = extras.get(actionType);
+        if (grants == null) {
+            return 0;
+        }
+        return grants.values().stream().mapToInt(Integer::intValue).sum();
+    }
+
+    public int extraCount(ActionType actionType, String grantName) {
+        requireType(actionType);
+        requireGrantName(grantName);
+        Map<String, Integer> grants = extras.get(actionType);
+        return grants == null ? 0 : grants.getOrDefault(grantName, 0);
+    }
+
+    /** Read-only deterministic provenance snapshot for one action type. */
+    public Map<String, Integer> extraGrants(ActionType actionType) {
+        requireType(actionType);
+        LinkedHashMap<String, Integer> grants = extras.get(actionType);
+        if (grants == null || grants.isEmpty()) {
+            return Map.of();
+        }
+        return Collections.unmodifiableMap(new LinkedHashMap<>(grants));
     }
 
     public boolean consumeExtra(ActionType actionType) {
+        return consumeExtraGrant(actionType).isPresent();
+    }
+
+    /**
+     * Consumes one extra action from the earliest still-live named grant and returns
+     * that source identity. This keeps legacy aggregate spending deterministic while
+     * making future semantic events and hook accounting able to retain provenance.
+     */
+    public Optional<String> consumeExtraGrant(ActionType actionType) {
         requireType(actionType);
-        int count = extras.getOrDefault(actionType, 0);
-        if (count <= 0) {
-            return false;
+        LinkedHashMap<String, Integer> grants = extras.get(actionType);
+        if (grants == null || grants.isEmpty()) {
+            return Optional.empty();
         }
+        String grantName = grants.keySet().iterator().next();
+        int count = grants.get(grantName);
         if (count == 1) {
-            extras.remove(actionType);
+            grants.remove(grantName);
         } else {
-            extras.put(actionType, count - 1);
+            grants.put(grantName, count - 1);
         }
-        return true;
+        if (grants.isEmpty()) {
+            extras.remove(actionType);
+        }
+        return Optional.of(grantName);
     }
 
     /**
@@ -187,6 +237,12 @@ public final class ActionBudget {
     private static void requireType(ActionType actionType) {
         if (actionType == null) {
             throw new IllegalArgumentException("actionType is required");
+        }
+    }
+
+    private static void requireGrantName(String grantName) {
+        if (grantName == null || grantName.isBlank()) {
+            throw new IllegalArgumentException("grantName is required");
         }
     }
 }
