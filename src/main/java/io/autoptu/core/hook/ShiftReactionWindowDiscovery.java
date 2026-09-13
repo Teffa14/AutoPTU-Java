@@ -29,9 +29,9 @@ public final class ShiftReactionWindowDiscovery {
         Objects.requireNonNull(orderedEligibleReactors, "ordered eligible reactors");
         Objects.requireNonNull(shiftedBeforeAnchor, "shifted before anchor");
         Objects.requireNonNull(shiftedAfterAnchor, "shifted after anchor");
-        shiftedCombatantId = requireText(shiftedCombatantId, "shifted combatant id");
-        shiftedSize = requireText(shiftedSize, "shifted size");
-        triggerKey = requireText(triggerKey, "trigger key");
+        String normalizedShiftedCombatantId = requireText(shiftedCombatantId, "shifted combatant id");
+        String normalizedShiftedSize = requireText(shiftedSize, "shifted size");
+        String normalizedTriggerKey = requireText(triggerKey, "trigger key");
 
         ArrayList<DiscoveredWindow> discovered = new ArrayList<>();
         for (Reactor reactor : orderedEligibleReactors) {
@@ -41,13 +41,13 @@ public final class ShiftReactionWindowDiscovery {
                     reactor.size(),
                     shiftedBeforeAnchor,
                     shiftedAfterAnchor,
-                    shiftedSize
+                    normalizedShiftedSize
             ).ifPresent(trigger -> discovered.add(new DiscoveredWindow(
                     reactor.combatantId(),
                     new ActionWindowContext(
                             ActionWindow.BEFORE_ACTION,
-                            shiftedCombatantId,
-                            triggerKey,
+                            normalizedShiftedCombatantId,
+                            normalizedTriggerKey,
                             trigger
                     )
             )));
