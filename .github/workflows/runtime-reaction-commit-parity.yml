@@ -1,0 +1,65 @@
+name: Runtime Reaction Commit Parity
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionCommitter.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionEligibilityResolver.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionUsageTracker.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionOwnershipResolver.java"
+      - "src/main/java/io/autoptu/core/runtime/BattleRuntimeState.java"
+      - "src/main/java/io/autoptu/core/hook/ReactionEligibilityPolicy.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionCommitterTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionCommitterOracleParityTest.java"
+      - "tools/python/export_attack_of_opportunity_commit_fixture.py"
+      - ".github/workflows/runtime-reaction-commit-parity.yml"
+  pull_request:
+    paths:
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionCommitter.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionEligibilityResolver.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionUsageTracker.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionOwnershipResolver.java"
+      - "src/main/java/io/autoptu/core/runtime/BattleRuntimeState.java"
+      - "src/main/java/io/autoptu/core/hook/ReactionEligibilityPolicy.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionCommitterTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionCommitterOracleParityTest.java"
+      - "tools/python/export_attack_of_opportunity_commit_fixture.py"
+      - ".github/workflows/runtime-reaction-commit-parity.yml"
+
+jobs:
+  runtime-reaction-commit-parity:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Freeze pinned Python reaction commit fixture
+        run: >-
+          python tools/python/export_attack_of_opportunity_commit_fixture.py
+          --source-root python-oracle
+          --output build/reaction-commit-oracle.tsv
+
+      - name: Run reaction commit unit and oracle parity tests
+        env:
+          AUTOPTU_REACTION_COMMIT_ORACLE: ${{ github.workspace }}/build/reaction-commit-oracle.tsv
+        run: >-
+          gradle test --stacktrace
+          --tests io.autoptu.core.runtime.RuntimeReactionCommitterTest
+          --tests io.autoptu.core.runtime.RuntimeReactionCommitterOracleParityTest
