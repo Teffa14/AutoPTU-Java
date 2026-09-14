@@ -1,5 +1,6 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.event.BattleEventOccurrence;
 import io.autoptu.core.event.ShiftResolvedEvent;
 import io.autoptu.core.model.GridCoord;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,34 @@ class RuntimeReactionWindowTest {
         assertEquals("reactor", first.reactorId());
         assertEquals("actor", first.triggeringActorId());
         assertEquals(RuntimeReactionTriggerRegistry.TriggerKind.ADJACENT_SHIFT_AWAY, first.triggerKind());
+    }
+
+    @Test
+    void sequencedOccurrencesDistinguishRepeatedIdenticalEventsButRemainStableWhenRediscovered() {
+        ShiftResolvedEvent event = new ShiftResolvedEvent(
+                "actor",
+                new GridCoord(1, 0),
+                new GridCoord(2, 0)
+        );
+        RuntimeReactionTriggerMatcher.TriggerMatch match = new RuntimeReactionTriggerMatcher.TriggerMatch(
+                "reactor",
+                "actor",
+                SHIFT_TRIGGER
+        );
+        BattleEventOccurrence firstOccurrence = new BattleEventOccurrence(41, event);
+        BattleEventOccurrence secondOccurrence = new BattleEventOccurrence(42, event);
+
+        RuntimeReactionWindow first = RuntimeReactionWindow.from(
+                "attack_of_opportunity", 3, match, firstOccurrence);
+        RuntimeReactionWindow rediscovered = RuntimeReactionWindow.from(
+                "Attack of Opportunity", 3, match, firstOccurrence);
+        RuntimeReactionWindow repeatedEvent = RuntimeReactionWindow.from(
+                "attack_of_opportunity", 3, match, secondOccurrence);
+
+        assertEquals(first, rediscovered);
+        assertNotEquals(first.windowKey(), repeatedEvent.windowKey());
+        assertEquals(firstOccurrence.occurrenceKey(), first.triggeringEventKey());
+        assertEquals(secondOccurrence.occurrenceKey(), repeatedEvent.triggeringEventKey());
     }
 
     @Test
