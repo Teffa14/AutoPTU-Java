@@ -1,0 +1,55 @@
+name: Runtime Reaction Eligibility Parity
+
+on:
+  pull_request:
+    paths:
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionEligibilityResolver.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionUsageTracker.java"
+      - "src/main/java/io/autoptu/core/runtime/BattleRuntimeState.java"
+      - "src/main/java/io/autoptu/core/hook/ReactionEligibilityPolicy.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionEligibilityResolverTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionEligibilityOracleParityTest.java"
+      - "tools/python/export_attack_of_opportunity_eligibility_fixture.py"
+      - ".github/workflows/runtime-reaction-eligibility-parity.yml"
+  push:
+    branches:
+      - main
+
+jobs:
+  parity:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Export pinned Python eligibility fixture
+        run: |
+          python3 -m py_compile tools/python/export_attack_of_opportunity_eligibility_fixture.py
+          python3 tools/python/export_attack_of_opportunity_eligibility_fixture.py \
+            --source-root python-oracle \
+            --output build/oracle/reaction-eligibility.tsv
+
+      - name: Run runtime reaction eligibility parity
+        env:
+          AUTOPTU_REACTION_ELIGIBILITY_ORACLE: ${{ github.workspace }}/build/oracle/reaction-eligibility.tsv
+        run: |
+          gradle test \
+            --tests io.autoptu.core.runtime.RuntimeReactionEligibilityResolverTest \
+            --tests io.autoptu.core.runtime.RuntimeReactionEligibilityOracleParityTest \
+            --tests io.autoptu.core.hook.ReactionEligibilityPolicyTest \
+            --tests io.autoptu.core.hook.ReactionEligibilityOracleParityTest \
+            --stacktrace
