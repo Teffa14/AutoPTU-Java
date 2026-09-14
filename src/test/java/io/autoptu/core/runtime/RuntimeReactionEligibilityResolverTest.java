@@ -3,6 +3,8 @@ package io.autoptu.core.runtime;
 import io.autoptu.core.hook.ReactionEligibilityPolicy;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
+import io.autoptu.core.model.MovementProfile;
+import io.autoptu.core.rules.ActionBudget;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -13,9 +15,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class RuntimeReactionEligibilityResolverTest {
     private static BattleRuntimeState state(Set<String> statuses) {
+        RuntimeCombatantState alpha = new RuntimeCombatantState(
+                "alpha",
+                MovementProfile.walking(new GridCoord(0, 0), 5),
+                20,
+                20,
+                new ActionBudget()
+        );
         return new BattleRuntimeState(
                 new MovementGrid(2, 1, Set.of(), Map.of()),
-                List.of(new RuntimeCombatantState("alpha", new GridCoord(0, 0), 20, 20, 5)),
+                List.of(alpha),
                 Map.of("alpha", statuses)
         );
     }
