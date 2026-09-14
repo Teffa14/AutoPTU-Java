@@ -1,0 +1,52 @@
+name: Runtime Reaction Trigger Parity
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionTriggerRegistry.java"
+      - "src/main/java/io/autoptu/core/runtime/MoveReactionOwnershipSource.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionTriggerRegistryTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionTriggerOracleParityTest.java"
+      - "tools/python/export_attack_of_opportunity_trigger_fixture.py"
+      - ".github/workflows/runtime-reaction-trigger-parity.yml"
+  pull_request:
+    paths:
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionTriggerRegistry.java"
+      - "src/main/java/io/autoptu/core/runtime/MoveReactionOwnershipSource.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionTriggerRegistryTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionTriggerOracleParityTest.java"
+      - "tools/python/export_attack_of_opportunity_trigger_fixture.py"
+      - ".github/workflows/runtime-reaction-trigger-parity.yml"
+
+jobs:
+  runtime-reaction-trigger-parity:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+      - name: Freeze pinned Python reaction trigger fixture
+        run: >-
+          python tools/python/export_attack_of_opportunity_trigger_fixture.py
+          --source-root python-oracle
+          --output build/reaction-trigger-oracle.tsv
+      - name: Run reaction trigger unit and oracle parity tests
+        env:
+          AUTOPTU_REACTION_TRIGGER_ORACLE: ${{ github.workspace }}/build/reaction-trigger-oracle.tsv
+        run: >-
+          gradle test --stacktrace
+          --tests io.autoptu.core.runtime.RuntimeReactionTriggerRegistryTest
+          --tests io.autoptu.core.runtime.RuntimeReactionTriggerOracleParityTest
