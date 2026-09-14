@@ -1,0 +1,60 @@
+name: Runtime Reaction Shift Trigger Parity
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionTriggerMatcher.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionTriggerRegistry.java"
+      - "src/main/java/io/autoptu/core/runtime/BattleRuntimeState.java"
+      - "src/main/java/io/autoptu/core/runtime/CombatantGeometryState.java"
+      - "src/main/java/io/autoptu/core/rules/Targeting.java"
+      - "src/main/java/io/autoptu/core/event/ShiftResolvedEvent.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionTriggerMatcherTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionShiftTriggerOracleParityTest.java"
+      - "tools/python/export_attack_of_opportunity_shift_trigger_fixture.py"
+      - ".github/workflows/runtime-reaction-shift-trigger-parity.yml"
+  pull_request:
+    paths:
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionTriggerMatcher.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionTriggerRegistry.java"
+      - "src/main/java/io/autoptu/core/runtime/BattleRuntimeState.java"
+      - "src/main/java/io/autoptu/core/runtime/CombatantGeometryState.java"
+      - "src/main/java/io/autoptu/core/rules/Targeting.java"
+      - "src/main/java/io/autoptu/core/event/ShiftResolvedEvent.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionTriggerMatcherTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionShiftTriggerOracleParityTest.java"
+      - "tools/python/export_attack_of_opportunity_shift_trigger_fixture.py"
+      - ".github/workflows/runtime-reaction-shift-trigger-parity.yml"
+
+jobs:
+  runtime-reaction-shift-trigger-parity:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+      - name: Freeze pinned Python Shift trigger fixture
+        run: >-
+          python tools/python/export_attack_of_opportunity_shift_trigger_fixture.py
+          --source-root python-oracle
+          --output build/reaction-shift-trigger-oracle.tsv
+      - name: Run Shift trigger unit and oracle parity tests
+        env:
+          AUTOPTU_REACTION_SHIFT_TRIGGER_ORACLE: ${{ github.workspace }}/build/reaction-shift-trigger-oracle.tsv
+        run: >-
+          gradle test --stacktrace
+          --tests io.autoptu.core.runtime.RuntimeReactionTriggerMatcherTest
+          --tests io.autoptu.core.runtime.RuntimeReactionShiftTriggerOracleParityTest
