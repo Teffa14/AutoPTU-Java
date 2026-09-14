@@ -5,6 +5,9 @@ on:
     paths:
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionEligibilityResolver.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionUsageTracker.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionOwnershipResolver.java"
+      - "src/main/java/io/autoptu/core/runtime/ReactionOwnershipSource.java"
+      - "src/main/java/io/autoptu/core/runtime/MoveReactionOwnershipSource.java"
       - "src/main/java/io/autoptu/core/runtime/BattleRuntimeState.java"
       - "src/main/java/io/autoptu/core/hook/ReactionEligibilityPolicy.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionEligibilityResolverTest.java"
