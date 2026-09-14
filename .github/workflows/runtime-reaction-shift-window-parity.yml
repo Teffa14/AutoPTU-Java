@@ -5,24 +5,28 @@ on:
     branches:
       - main
     paths:
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindow.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindowResolver.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionTriggerMatcher.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionEligibilityResolver.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionOwnershipResolver.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionUsageTracker.java"
       - "src/main/java/io/autoptu/core/runtime/BattleRuntimeState.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowResolverTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionShiftWindowOracleParityTest.java"
       - "tools/python/export_attack_of_opportunity_shift_window_fixture.py"
       - ".github/workflows/runtime-reaction-shift-window-parity.yml"
   pull_request:
     paths:
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindow.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindowResolver.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionTriggerMatcher.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionEligibilityResolver.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionOwnershipResolver.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionUsageTracker.java"
       - "src/main/java/io/autoptu/core/runtime/BattleRuntimeState.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowResolverTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionShiftWindowOracleParityTest.java"
       - "tools/python/export_attack_of_opportunity_shift_window_fixture.py"
@@ -56,5 +60,6 @@ jobs:
           AUTOPTU_REACTION_SHIFT_WINDOW_ORACLE: ${{ github.workspace }}/build/reaction-shift-window-oracle.tsv
         run: >-
           gradle test --stacktrace
+          --tests io.autoptu.core.runtime.RuntimeReactionWindowTest
           --tests io.autoptu.core.runtime.RuntimeReactionWindowResolverTest
           --tests io.autoptu.core.runtime.RuntimeReactionShiftWindowOracleParityTest

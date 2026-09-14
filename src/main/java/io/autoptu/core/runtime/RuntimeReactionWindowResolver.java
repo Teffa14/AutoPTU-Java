@@ -72,18 +72,24 @@ public final class RuntimeReactionWindowResolver {
                 continue;
             }
 
+            RuntimeReactionWindow window = RuntimeReactionWindow.from(
+                    reactionKey,
+                    battleState.currentRound(),
+                    match,
+                    event
+            );
             RuntimeReactionEligibilityResolver.Resolution eligibility = eligibilityResolver.evaluate(
                     reactorId,
                     reactionKey,
                     policy
             );
             if (!eligibility.ownershipKnown()) {
-                unresolved.add(new UnresolvedCandidate(match, eligibility.ownership()));
+                unresolved.add(new UnresolvedCandidate(window, match, eligibility.ownership()));
                 continue;
             }
             ReactionEligibilityPolicy.Eligibility decision = eligibility.eligibility().orElseThrow();
             if (decision.eligible()) {
-                eligible.add(new Candidate(match, eligibility.ownership()));
+                eligible.add(new Candidate(window, match, eligibility.ownership()));
             }
         }
 
@@ -91,40 +97,54 @@ public final class RuntimeReactionWindowResolver {
     }
 
     public record Candidate(
+            RuntimeReactionWindow window,
             RuntimeReactionTriggerMatcher.TriggerMatch triggerMatch,
             RuntimeReactionOwnershipResolver.Result ownership
     ) {
         public Candidate {
+            window = Objects.requireNonNull(window, "window");
             triggerMatch = Objects.requireNonNull(triggerMatch, "triggerMatch");
             ownership = Objects.requireNonNull(ownership, "ownership");
             if (!ownership.ownsReaction()) {
                 throw new IllegalArgumentException("eligible candidate must own the reaction");
             }
+            if (!window.reactorId().equals(triggerMatch.reactorId())
+                    || !window.triggeringActorId().equals(triggerMatch.triggeringActorId())
+                    || window.triggerKind() != triggerMatch.trigger().kind()) {
+                throw new IllegalArgumentException("reaction window must bind the same trigger match");
+            }
         }
 
         public String reactorId() {
-            return triggerMatch.reactorId();
+            return window.reactorId();
         }
 
         public String triggeringActorId() {
-            return triggerMatch.triggeringActorId();
+            return window.triggeringActorId();
         }
     }
 
     public record UnresolvedCandidate(
+            RuntimeReactionWindow window,
             RuntimeReactionTriggerMatcher.TriggerMatch triggerMatch,
             RuntimeReactionOwnershipResolver.Result ownership
     ) {
         public UnresolvedCandidate {
+            window = Objects.requireNonNull(window, "window");
             triggerMatch = Objects.requireNonNull(triggerMatch, "triggerMatch");
             ownership = Objects.requireNonNull(ownership, "ownership");
             if (ownership.status() != RuntimeReactionOwnershipResolver.Status.UNKNOWN) {
                 throw new IllegalArgumentException("unresolved candidate requires UNKNOWN ownership");
             }
+            if (!window.reactorId().equals(triggerMatch.reactorId())
+                    || !window.triggeringActorId().equals(triggerMatch.triggeringActorId())
+                    || window.triggerKind() != triggerMatch.trigger().kind()) {
+                throw new IllegalArgumentException("reaction window must bind the same trigger match");
+            }
         }
 
         public String reactorId() {
-            return triggerMatch.reactorId();
+            return window.reactorId();
         }
     }
 
