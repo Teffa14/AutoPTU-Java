@@ -20,16 +20,11 @@ def main() -> None:
     assert "interrupt-1" in move["keywords"]
     assert "as an Interrupt" in move["effects_text"]
 
-    rows = [
-        ("attack_of_opportunity", "interrupt-1", "INTERRUPT", "1", "false"),
-        ("priority_control", "priority-20", "PRIORITY", "20", "false"),
-        ("ordinary_control", "contact", "ORDINARY", "", "true"),
-    ]
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
         "case\ttrait\ttiming\trank\tspends_ordinary_budget\n"
-        + "".join("\t".join(row) + "\n" for row in rows),
+        "attack_of_opportunity\tinterrupt-1\tINTERRUPT\t1\tfalse\n",
         encoding="utf-8",
     )
 
