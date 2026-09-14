@@ -4,8 +4,13 @@ on:
   pull_request:
     paths:
       - "src/main/java/io/autoptu/core/runtime/ReactionUsageState.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionUsageTracker.java"
+      - "src/main/java/io/autoptu/core/runtime/ReactionUsageRoundLifecycleHook.java"
+      - "src/main/java/io/autoptu/core/runtime/BattleRuntimeState.java"
+      - "src/main/java/io/autoptu/core/hook/BuiltinLifecycleHooks.java"
       - "src/test/java/io/autoptu/core/runtime/ReactionUsageStateTest.java"
       - "src/test/java/io/autoptu/core/runtime/ReactionUsageOracleParityTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionUsageTrackerTest.java"
       - "tools/python/export_attack_of_opportunity_usage_fixture.py"
       - ".github/workflows/reaction-usage-state-parity.yml"
   push:
@@ -47,4 +52,5 @@ jobs:
           gradle test \
             --tests io.autoptu.core.runtime.ReactionUsageStateTest \
             --tests io.autoptu.core.runtime.ReactionUsageOracleParityTest \
+            --tests io.autoptu.core.runtime.RuntimeReactionUsageTrackerTest \
             --stacktrace
