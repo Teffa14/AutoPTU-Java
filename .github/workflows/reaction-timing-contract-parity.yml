@@ -1,0 +1,49 @@
+name: Reaction Timing Contract Parity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/main/java/io/autoptu/core/runtime/ReactionTimingContract.java"
+      - "src/test/java/io/autoptu/core/runtime/ReactionTimingContractTest.java"
+      - "src/test/java/io/autoptu/core/runtime/ReactionTimingContractOracleParityTest.java"
+      - "tools/python/export_reaction_timing_fixture.py"
+      - ".github/workflows/reaction-timing-contract-parity.yml"
+  pull_request:
+    paths:
+      - "src/main/java/io/autoptu/core/runtime/ReactionTimingContract.java"
+      - "src/test/java/io/autoptu/core/runtime/ReactionTimingContractTest.java"
+      - "src/test/java/io/autoptu/core/runtime/ReactionTimingContractOracleParityTest.java"
+      - "tools/python/export_reaction_timing_fixture.py"
+      - ".github/workflows/reaction-timing-contract-parity.yml"
+
+jobs:
+  reaction-timing-contract-parity:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+      - name: Freeze pinned Python timing fixture
+        run: >-
+          python tools/python/export_reaction_timing_fixture.py
+          --source-root python-oracle
+          --output build/reaction-timing-oracle.tsv
+      - name: Run timing unit and oracle parity tests
+        env:
+          AUTOPTU_REACTION_TIMING_ORACLE: ${{ github.workspace }}/build/reaction-timing-oracle.tsv
+        run: >-
+          gradle test --stacktrace
+          --tests io.autoptu.core.runtime.ReactionTimingContractTest
+          --tests io.autoptu.core.runtime.ReactionTimingContractOracleParityTest
