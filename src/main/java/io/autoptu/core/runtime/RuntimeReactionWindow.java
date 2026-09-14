@@ -1,6 +1,7 @@
 package io.autoptu.core.runtime;
 
 import io.autoptu.core.event.BattleEvent;
+import io.autoptu.core.event.BattleEventOccurrence;
 
 import java.util.Objects;
 
@@ -8,14 +9,8 @@ import java.util.Objects;
  * Immutable identity for one discovered reaction opportunity.
  *
  * <p>The window binds the reaction, reactor, triggering actor, trigger family, battle round,
- * and authoritative semantic event fingerprint. It carries no execution authority: commit,
- * action-resource consumption, RNG, targeting, and reaction execution remain separate runtime
- * transitions.</p>
- *
- * <p>The current event component uses {@link BattleEvent#stableKey()}. That key is deterministic
- * for the same semantic event payload. A future battle-event sequence identifier can replace or
- * extend this fingerprint if the runtime needs to distinguish repeated identical events within the
- * same round; callers must not infer execution from the key alone.</p>
+ * and authoritative event identity. It carries no execution authority: commit, action-resource
+ * consumption, RNG, targeting, and reaction execution remain separate runtime transitions.</p>
  */
 public record RuntimeReactionWindow(
         String windowKey,
@@ -48,19 +43,45 @@ public record RuntimeReactionWindow(
         }
     }
 
+    /**
+     * Legacy semantic-payload identity. Prefer the occurrence overload once an event has entered
+     * the authoritative battle event stream.
+     */
     public static RuntimeReactionWindow from(
             String reactionKey,
             int round,
             RuntimeReactionTriggerMatcher.TriggerMatch match,
             BattleEvent triggeringEvent
     ) {
-        Objects.requireNonNull(match, "trigger match");
         Objects.requireNonNull(triggeringEvent, "triggering event");
+        return fromEventKey(reactionKey, round, match, triggeringEvent.stableKey());
+    }
+
+    /**
+     * Builds a window from one battle-local event occurrence. Reusing the same occurrence produces
+     * the same window identity; two identical semantic events with different sequence numbers do not.
+     */
+    public static RuntimeReactionWindow from(
+            String reactionKey,
+            int round,
+            RuntimeReactionTriggerMatcher.TriggerMatch match,
+            BattleEventOccurrence triggeringOccurrence
+    ) {
+        Objects.requireNonNull(triggeringOccurrence, "triggering occurrence");
+        return fromEventKey(reactionKey, round, match, triggeringOccurrence.occurrenceKey());
+    }
+
+    private static RuntimeReactionWindow fromEventKey(
+            String reactionKey,
+            int round,
+            RuntimeReactionTriggerMatcher.TriggerMatch match,
+            String eventKey
+    ) {
+        Objects.requireNonNull(match, "trigger match");
         String normalizedReactionKey = MoveReactionOwnershipSource.normalizeKey(reactionKey);
         if (normalizedReactionKey.isBlank()) {
             throw new IllegalArgumentException("reactionKey is required");
         }
-        String eventKey = triggeringEvent.stableKey();
         String windowKey = "round=" + round
                 + "|reaction=" + normalizedReactionKey
                 + "|reactor=" + match.reactorId()
