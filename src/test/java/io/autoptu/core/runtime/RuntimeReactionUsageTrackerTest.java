@@ -11,6 +11,22 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class RuntimeReactionUsageTrackerTest {
     @Test
+    void allTrackersForOneBattleShareTheCanonicalLedger() {
+        BattleRuntimeState battleState = new BattleRuntimeState(
+                new MovementGrid(1, 1, Set.of(), Map.of()),
+                List.of()
+        );
+        new BattleRoundController(battleState, 1);
+        RuntimeReactionUsageTracker first = new RuntimeReactionUsageTracker(battleState);
+        RuntimeReactionUsageTracker second = new RuntimeReactionUsageTracker(battleState);
+
+        first.recordUseFromRuntime("alpha", "attack_of_opportunity");
+
+        assertEquals(1, second.usesThisRound("alpha", "attack_of_opportunity"));
+        assertEquals(Map.of("alpha\tattack_of_opportunity", 1), second.snapshotForCurrentRound());
+    }
+
+    @Test
     void canonicalRoundRolloverMakesPriorReactionUseIneligibleWithoutASecondClock() {
         BattleRuntimeState battleState = new BattleRuntimeState(
                 new MovementGrid(1, 1, Set.of(), Map.of()),
@@ -31,20 +47,20 @@ class RuntimeReactionUsageTrackerTest {
     }
 
     @Test
-    void lifecyclePruningDropsPastUsageAfterCanonicalRoundAdvances() {
+    void defaultRoundLifecyclePrunesPastUsageFromTheCanonicalLedger() {
         BattleRuntimeState battleState = new BattleRuntimeState(
                 new MovementGrid(1, 1, Set.of(), Map.of()),
                 List.of()
         );
         BattleRoundController rounds = new BattleRoundController(battleState, 4);
-        ReactionUsageState rawUsage = new ReactionUsageState();
-        RuntimeReactionUsageTracker tracker = new RuntimeReactionUsageTracker(battleState, rawUsage);
+        RuntimeReactionUsageTracker tracker = new RuntimeReactionUsageTracker(battleState);
 
         tracker.recordUseFromRuntime("alpha", "attack_of_opportunity");
-        rounds.startRound();
-        tracker.pruneForCurrentRoundFromLifecycle();
+        assertEquals(1, battleState.reactionUsageStateFromRuntime().usesThisRound("alpha", "attack_of_opportunity", 4));
 
-        assertEquals(0, rawUsage.usesThisRound("alpha", "attack_of_opportunity", 4));
+        rounds.startRound();
+
+        assertEquals(0, battleState.reactionUsageStateFromRuntime().usesThisRound("alpha", "attack_of_opportunity", 4));
         assertEquals(0, tracker.usesThisRound("alpha", "attack_of_opportunity"));
     }
 }
