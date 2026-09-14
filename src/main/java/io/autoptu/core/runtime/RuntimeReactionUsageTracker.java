@@ -6,9 +6,9 @@ import java.util.Objects;
 /**
  * Runtime-owned reaction usage facade bound to the canonical battle round.
  *
- * <p>The underlying store remains generic by combatant and reaction key. This facade
- * prevents callers from supplying a second round clock: every query and committed use
- * reads {@link BattleRuntimeState#currentRound()} from the authoritative battle state.
+ * <p>The underlying store is owned by {@link BattleRuntimeState}. This facade prevents
+ * callers from supplying either a second round clock or a parallel usage ledger: every
+ * tracker for the same battle state reads and writes the same server-owned store.
  * Minecraft/Cobblemon adapters may inspect usage through this type, but only runtime
  * package code can commit uses or perform lifecycle pruning.</p>
  */
@@ -17,12 +17,8 @@ public final class RuntimeReactionUsageTracker {
     private final ReactionUsageState usageState;
 
     public RuntimeReactionUsageTracker(BattleRuntimeState battleState) {
-        this(battleState, new ReactionUsageState());
-    }
-
-    RuntimeReactionUsageTracker(BattleRuntimeState battleState, ReactionUsageState usageState) {
         this.battleState = Objects.requireNonNull(battleState, "battleState");
-        this.usageState = Objects.requireNonNull(usageState, "usageState");
+        this.usageState = battleState.reactionUsageStateFromRuntime();
     }
 
     /** Number of committed uses for this combatant/reaction in the authoritative current round. */
@@ -42,6 +38,6 @@ public final class RuntimeReactionUsageTracker {
 
     /** Lifecycle-only retention boundary. Current/future entries survive; past rounds are discarded. */
     void pruneForCurrentRoundFromLifecycle() {
-        usageState.pruneForRoundFromLifecycle(battleState.currentRound());
+        battleState.pruneReactionUsageFromLifecycle();
     }
 }

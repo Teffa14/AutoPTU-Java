@@ -8,6 +8,7 @@ import io.autoptu.core.runtime.DelayedHitRoundLifecycleHook;
 import io.autoptu.core.runtime.FieldRoundLifecycleHook;
 import io.autoptu.core.runtime.HeldItemRuleCatalog;
 import io.autoptu.core.runtime.InitialJoinedRoundLifecycleHook;
+import io.autoptu.core.runtime.ReactionUsageRoundLifecycleHook;
 import io.autoptu.core.runtime.RoundStartAbilityLifecycleHook;
 import io.autoptu.core.runtime.RoundStartTrainerFeatureLifecycleHook;
 import io.autoptu.core.runtime.RoundTemporaryEffectExpiryHook;
@@ -151,6 +152,13 @@ public final class BuiltinLifecycleHooks {
                         LifecycleHookPoint.ROUND_START,
                         50,
                         new DeclaredActionRoundLifecycleHook()
+                )
+                .register(
+                        "round-reaction-usage-pruning",
+                        HookSource.SYSTEM,
+                        LifecycleHookPoint.ROUND_START,
+                        55,
+                        new ReactionUsageRoundLifecycleHook()
                 )
                 .register(
                         "round-move-frequency-reset",

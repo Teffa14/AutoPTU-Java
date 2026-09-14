@@ -30,6 +30,7 @@ public final class BattleRuntimeState {
     private final RoundDamageHistoryState damageHistory = new RoundDamageHistoryState();
     private final RoundInjuryHistoryState injuryHistory = new RoundInjuryHistoryState();
     private final RoundWindowHistoryState roundWindowHistories = RoundWindowHistoryState.pythonMoveHistories();
+    private final ReactionUsageState reactionUsageState = new ReactionUsageState();
     private final InitiativeProgressState initiativeProgress = new InitiativeProgressState();
     private final BattleDelayedHitState delayedHits;
     private final DeclaredActionState declaredActions = new DeclaredActionState();
@@ -300,6 +301,16 @@ public final class BattleRuntimeState {
             throw new IllegalArgumentException("currentRound cannot be negative");
         }
         this.currentRound = currentRound;
+    }
+
+    /** Runtime-only access to the single reaction-usage ledger owned by this battle state. */
+    ReactionUsageState reactionUsageStateFromRuntime() {
+        return reactionUsageState;
+    }
+
+    /** Lifecycle-only pruning for the canonical reaction-usage ledger. */
+    void pruneReactionUsageFromLifecycle() {
+        reactionUsageState.pruneForRoundFromLifecycle(currentRound);
     }
 
     /** Server-owned environmental state shared by initiative and future field-rule hooks. */
