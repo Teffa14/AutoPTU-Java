@@ -1,5 +1,6 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.event.BattleEventOccurrence;
 import io.autoptu.core.event.ShiftResolvedEvent;
 import io.autoptu.core.hook.ReactionEligibilityPolicy;
 
@@ -41,14 +42,35 @@ public final class RuntimeReactionWindowResolver {
     }
 
     /**
-     * Discovers eligible and unresolved reactors for one completed Shift.
-     *
-     * <p>Only trigger matches are evaluated for ownership/eligibility. UNKNOWN ownership is
-     * retained separately so partial snapshots never become false denials.</p>
+     * Discovers windows from a Shift payload before it has a battle-local event occurrence identity.
      */
     public Resolution discoverShiftWindows(
             String reactionKey,
             ShiftResolvedEvent event,
+            ReactionEligibilityPolicy policy
+    ) {
+        return discoverShiftWindowsInternal(reactionKey, event, null, policy);
+    }
+
+    /**
+     * Discovers windows from one authoritative battle-local Shift occurrence.
+     */
+    public Resolution discoverShiftWindows(
+            String reactionKey,
+            BattleEventOccurrence occurrence,
+            ReactionEligibilityPolicy policy
+    ) {
+        Objects.requireNonNull(occurrence, "event occurrence");
+        if (!(occurrence.event() instanceof ShiftResolvedEvent event)) {
+            throw new IllegalArgumentException("Shift reaction discovery requires a ShiftResolvedEvent occurrence");
+        }
+        return discoverShiftWindowsInternal(reactionKey, event, occurrence, policy);
+    }
+
+    private Resolution discoverShiftWindowsInternal(
+            String reactionKey,
+            ShiftResolvedEvent event,
+            BattleEventOccurrence occurrence,
             ReactionEligibilityPolicy policy
     ) {
         if (reactionKey == null || reactionKey.isBlank()) {
@@ -72,12 +94,9 @@ public final class RuntimeReactionWindowResolver {
                 continue;
             }
 
-            RuntimeReactionWindow window = RuntimeReactionWindow.from(
-                    reactionKey,
-                    battleState.currentRound(),
-                    match,
-                    event
-            );
+            RuntimeReactionWindow window = occurrence == null
+                    ? RuntimeReactionWindow.from(reactionKey, battleState.currentRound(), match, event)
+                    : RuntimeReactionWindow.from(reactionKey, battleState.currentRound(), match, occurrence);
             RuntimeReactionEligibilityResolver.Resolution eligibility = eligibilityResolver.evaluate(
                     reactorId,
                     reactionKey,
