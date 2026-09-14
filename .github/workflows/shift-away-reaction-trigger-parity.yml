@@ -4,8 +4,11 @@ on:
   pull_request:
     paths:
       - "src/main/java/io/autoptu/core/hook/ShiftAwayReactionTriggerDetector.java"
+      - "src/main/java/io/autoptu/core/hook/ShiftReactionWindowDiscovery.java"
       - "src/test/java/io/autoptu/core/hook/ShiftAwayReactionTriggerDetectorTest.java"
+      - "src/test/java/io/autoptu/core/hook/ShiftReactionWindowDiscoveryTest.java"
       - "tools/python/export_shift_away_trigger_fixtures.py"
+      - "tools/python/export_shift_reaction_window_fixtures.py"
       - ".github/workflows/shift-away-reaction-trigger-parity.yml"
   push:
     branches:
@@ -32,14 +35,22 @@ jobs:
           "$JAVA_HOME_21_X64/bin/java" -version
           gradle --version
 
-      - name: Export Python oracle fixture
+      - name: Export Python oracle fixtures
         run: |
-          python3 -m py_compile tools/python/export_shift_away_trigger_fixtures.py
+          python3 -m py_compile tools/python/export_shift_away_trigger_fixtures.py tools/python/export_shift_reaction_window_fixtures.py
           python3 tools/python/export_shift_away_trigger_fixtures.py \
             --source-root python-oracle \
             --output build/oracle/shift-away-trigger.tsv
+          python3 tools/python/export_shift_reaction_window_fixtures.py \
+            --source-root python-oracle \
+            --output build/oracle/shift-reaction-window.tsv
 
-      - name: Run Shift-away trigger parity
+      - name: Run Shift-away trigger and reaction-window parity
         env:
           AUTOPTU_SHIFT_AWAY_TRIGGER_ORACLE: ${{ github.workspace }}/build/oracle/shift-away-trigger.tsv
-        run: gradle test --tests io.autoptu.core.hook.ShiftAwayReactionTriggerDetectorTest --stacktrace
+          AUTOPTU_SHIFT_REACTION_WINDOW_ORACLE: ${{ github.workspace }}/build/oracle/shift-reaction-window.tsv
+        run: |
+          gradle test \
+            --tests io.autoptu.core.hook.ShiftAwayReactionTriggerDetectorTest \
+            --tests io.autoptu.core.hook.ShiftReactionWindowDiscoveryTest \
+            --stacktrace
