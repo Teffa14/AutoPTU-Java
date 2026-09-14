@@ -1,6 +1,7 @@
 package io.autoptu.core.runtime;
 
 import io.autoptu.core.action.MoveOption;
+import io.autoptu.core.event.BattleEventOccurrence;
 import io.autoptu.core.event.ShiftResolvedEvent;
 import io.autoptu.core.hook.ReactionEligibilityPolicy;
 import io.autoptu.core.model.GridCoord;
@@ -15,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RuntimeReactionWindowResolverTest {
@@ -47,6 +49,38 @@ class RuntimeReactionWindowResolverTest {
                 .toList());
         assertTrue(result.unresolved().isEmpty());
         assertEquals("actor", result.eligible().get(0).triggeringActorId());
+    }
+
+    @Test
+    void preservesOccurrenceIdentityThroughDiscovery() {
+        BattleRuntimeState state = battle(
+                List.of(
+                        combatant("reactor-a", new GridCoord(0, 0)),
+                        combatant("actor", new GridCoord(2, 0))
+                ),
+                Map.of(),
+                Map.of(
+                        "reactor-a", List.of(move("Attack of Opportunity")),
+                        "actor", List.of(move("Tackle"))
+                )
+        );
+        ShiftResolvedEvent event = new ShiftResolvedEvent("actor", new GridCoord(1, 0), new GridCoord(2, 0));
+        RuntimeReactionWindowResolver resolver = new RuntimeReactionWindowResolver(state);
+        BattleEventOccurrence firstOccurrence = new BattleEventOccurrence(11, event);
+        BattleEventOccurrence secondOccurrence = new BattleEventOccurrence(12, event);
+
+        String firstKey = resolver.discoverShiftWindows(
+                        REACTION, firstOccurrence, ReactionEligibilityPolicy.attackOfOpportunity())
+                .eligible().get(0).window().windowKey();
+        String rediscoveredKey = resolver.discoverShiftWindows(
+                        REACTION, firstOccurrence, ReactionEligibilityPolicy.attackOfOpportunity())
+                .eligible().get(0).window().windowKey();
+        String repeatedEventKey = resolver.discoverShiftWindows(
+                        REACTION, secondOccurrence, ReactionEligibilityPolicy.attackOfOpportunity())
+                .eligible().get(0).window().windowKey();
+
+        assertEquals(firstKey, rediscoveredKey);
+        assertNotEquals(firstKey, repeatedEventKey);
     }
 
     @Test
