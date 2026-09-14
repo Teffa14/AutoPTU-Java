@@ -1,7 +1,9 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.hook.ReactionEligibilityPolicy;
 import io.autoptu.core.model.GridCoord;
+import io.autoptu.core.model.MoveSpec;
 import io.autoptu.core.model.MovementGrid;
 import io.autoptu.core.model.MovementProfile;
 import io.autoptu.core.rules.ActionBudget;
@@ -40,10 +42,15 @@ class RuntimeReactionEligibilityOracleParityTest {
                     20,
                     new ActionBudget()
             );
+            List<MoveOption> moves = List.of(move(ownsReaction ? "Attack of Opportunity" : "Tackle"));
             BattleRuntimeState state = new BattleRuntimeState(
                     new MovementGrid(2, 1, Set.of(), Map.of()),
                     List.of(alpha),
-                    Map.of("alpha", statuses)
+                    Map.of("alpha", statuses),
+                    Map.of(),
+                    Map.of(),
+                    Map.of(),
+                    Map.of("alpha", moves)
             );
             new BattleRoundController(state, 1);
             RuntimeReactionUsageTracker tracker = new RuntimeReactionUsageTracker(state);
@@ -52,13 +59,17 @@ class RuntimeReactionEligibilityOracleParityTest {
             }
 
             RuntimeReactionEligibilityResolver resolver = new RuntimeReactionEligibilityResolver(state, tracker);
-            ReactionEligibilityPolicy.Eligibility actual = resolver.evaluate(
+            RuntimeReactionEligibilityResolver.Resolution actual = resolver.evaluate(
                     "alpha",
                     "attack_of_opportunity",
-                    ownsReaction,
                     ReactionEligibilityPolicy.attackOfOpportunity()
             );
-            assertEquals(expected, actual.reason(), row);
+            assertEquals(RuntimeReactionOwnershipResolver.Status.valueOf(ownsReaction ? "OWNED" : "NOT_OWNED"), actual.ownership().status(), row);
+            assertEquals(expected, actual.eligibility().orElseThrow().reason(), row);
         }
+    }
+
+    private static MoveOption move(String id) {
+        return MoveOption.standard(id, new MoveSpec("Self", "Self", 0, 0, null, null, "Self"));
     }
 }
