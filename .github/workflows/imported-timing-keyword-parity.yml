@@ -1,0 +1,55 @@
+name: Imported Timing Keyword Parity
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/main/java/io/autoptu/core/runtime/ImportedTimingKeyword.java"
+      - "src/test/java/io/autoptu/core/runtime/ImportedTimingKeywordTest.java"
+      - "src/test/java/io/autoptu/core/runtime/ImportedTimingKeywordOracleParityTest.java"
+      - "tools/python/export_imported_timing_keyword_fixture.py"
+      - ".github/workflows/imported-timing-keyword-parity.yml"
+  pull_request:
+    paths:
+      - "src/main/java/io/autoptu/core/runtime/ImportedTimingKeyword.java"
+      - "src/test/java/io/autoptu/core/runtime/ImportedTimingKeywordTest.java"
+      - "src/test/java/io/autoptu/core/runtime/ImportedTimingKeywordOracleParityTest.java"
+      - "tools/python/export_imported_timing_keyword_fixture.py"
+      - ".github/workflows/imported-timing-keyword-parity.yml"
+
+jobs:
+  imported-timing-keyword-parity:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out Java port
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Python oracle
+        uses: actions/checkout@v4
+        with:
+          repository: Teffa14/AutoPTU
+          ref: 16d228efa63aabecb67fa788959a359aac7f8f03
+          path: python-oracle
+
+      - name: Use preinstalled Java 21 and Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          "$JAVA_HOME_21_X64/bin/java" -version
+          gradle --version
+
+      - name: Freeze pinned Python imported timing keyword fixture
+        run: >-
+          python tools/python/export_imported_timing_keyword_fixture.py
+          --source-root python-oracle
+          --output build/imported-timing-keyword-oracle.tsv
+
+      - name: Run imported timing keyword unit and oracle parity tests
+        env:
+          AUTOPTU_IMPORTED_TIMING_KEYWORD_ORACLE: ${{ github.workspace }}/build/imported-timing-keyword-oracle.tsv
+        run: >-
+          gradle test --stacktrace
+          --tests io.autoptu.core.runtime.ImportedTimingKeywordTest
+          --tests io.autoptu.core.runtime.ImportedTimingKeywordOracleParityTest
