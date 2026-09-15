@@ -14,9 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class StatResolutionTest {
     @Test
-    void physicalOffenseUsesAttackAndStages() {
+    void physicalOffenseUsesAttackAndPtuStages() {
         CombatantStatProfile profile = profile(Map.of(CombatStat.ATK, 12), Map.of(CombatStat.ATK, 2), Map.of(), Set.of());
-        assertEquals(24, StatResolution.offensive(profile, "Physical", false));
+        assertEquals(16, StatResolution.offensive(profile, "Physical", false));
     }
 
     @Test
@@ -25,22 +25,23 @@ class StatResolutionTest {
                 Map.of(CombatStat.ATK, 5, CombatStat.DEF, 20),
                 Map.of(CombatStat.DEF, 1), Map.of(), Set.of(StatFlag.POWER_SHIFT)
         );
-        assertEquals(30, StatResolution.offensive(profile, "Physical", false));
+        assertEquals(24, StatResolution.offensive(profile, "Physical", false));
     }
 
     @Test
-    void statModifiersPreservePythonFloorOrder() {
+    void statModifiersPreserveFloorOrderAroundPtuStageProjection() {
         CombatantStatProfile profile = profile(
                 Map.of(CombatStat.ATK, 10), Map.of(CombatStat.ATK, 1),
                 Map.of(CombatStat.ATK, new StatModifier(3, 1.5, 2)), Set.of()
         );
-        assertEquals(30, StatResolution.offensive(profile, "Physical", false));
+        // (10 + 3) * 1.5 -> floor 19; +1 CS -> floor(19 * 1.2) = 22; post-stage +2 = 24.
+        assertEquals(24, StatResolution.offensive(profile, "Physical", false));
     }
 
     @Test
     void burnReducesPhysicalDefenseStageByTwo() {
         CombatantStatProfile profile = profile(Map.of(CombatStat.DEF, 18), Map.of(), Map.of(), Set.of(StatFlag.BURNED));
-        assertEquals(9, StatResolution.defensive(profile, "Physical", false));
+        assertEquals(14, StatResolution.defensive(profile, "Physical", false));
     }
 
     @Test
@@ -58,7 +59,7 @@ class StatResolutionTest {
                 Map.of(CombatStat.SPDEF, 20), Map.of(), Map.of(),
                 Set.of(StatFlag.POISONED, StatFlag.POTENT_VENOM_OVERRIDE)
         );
-        assertEquals(10, StatResolution.defensive(poisoned, "Special", false));
+        assertEquals(16, StatResolution.defensive(poisoned, "Special", false));
         assertEquals(20, StatResolution.defensive(protectedProfile, "Special", false));
     }
 
@@ -68,13 +69,13 @@ class StatResolutionTest {
                 Map.of(CombatStat.SPD, 16), Map.of(), Map.of(),
                 Set.of(StatFlag.QUICK_FEET, StatFlag.MAJOR_STATUS, StatFlag.PARALYZED)
         );
-        assertEquals(32, StatResolution.speed(profile));
+        assertEquals(22, StatResolution.speed(profile));
     }
 
     @Test
     void paralysisAloneRemovesFourSpeedStages() {
         CombatantStatProfile profile = profile(Map.of(CombatStat.SPD, 18), Map.of(), Map.of(), Set.of(StatFlag.PARALYZED));
-        assertEquals(6, StatResolution.speed(profile));
+        assertEquals(10, StatResolution.speed(profile));
     }
 
     private static CombatantStatProfile profile(
