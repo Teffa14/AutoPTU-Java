@@ -52,7 +52,7 @@ class RuntimeRecordedReactionDiscoveryTest {
         RuntimeReactionWindow window = resolution.eligible().getFirst().window();
         assertEquals("reactor", window.reactorId());
         assertEquals("actor", window.triggeringActorId());
-        assertEquals(recorded.occurrences().getFirst().occurrenceKey(), window.triggerOccurrenceKey());
+        assertEquals(recorded.occurrences().getFirst().occurrenceKey(), window.triggeringEventKey());
     }
 
     @Test
