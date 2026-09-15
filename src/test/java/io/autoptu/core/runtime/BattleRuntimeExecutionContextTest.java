@@ -1,9 +1,13 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.action.ShiftChoice;
 import io.autoptu.core.event.BattleEventOccurrence;
 import io.autoptu.core.event.ShiftResolvedEvent;
+import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MovementGrid;
+import io.autoptu.core.model.MovementProfile;
+import io.autoptu.core.rules.ActionBudget;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -14,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BattleRuntimeExecutionContextTest {
     @Test
@@ -30,6 +35,60 @@ class BattleRuntimeExecutionContextTest {
         assertEquals(2L, second.get(0).sequence());
         assertNotEquals(first.get(0).occurrenceKey(), second.get(0).occurrenceKey());
         assertEquals(3L, context.nextEventSequence());
+    }
+
+    @Test
+    void applyActionMutatesShiftAndRecordsItsOccurrenceInsideOneBoundary() {
+        RuntimeCombatantState actor = new RuntimeCombatantState(
+                "actor",
+                new GridCoord(1, 1),
+                10,
+                new ActionBudget(true, true, true),
+                new MovementProfile(3, 0, 0, false)
+        );
+        BattleRuntimeState state = new BattleRuntimeState(openGrid(6, 6), List.of(actor));
+        BattleRuntimeExecutionContext context = new BattleRuntimeExecutionContext(state);
+
+        RecordedActionResult recorded = context.applyAction(
+                new ShiftChoice("actor", new GridCoord(2, 1)),
+                ignored -> true
+        );
+
+        assertEquals(new GridCoord(2, 1), actor.position());
+        assertTrue(!actor.actionBudget().hasActionAvailable(ActionType.SHIFT));
+        assertEquals(1, recorded.result().events().size());
+        assertEquals(1, recorded.occurrences().size());
+        ShiftResolvedEvent event = (ShiftResolvedEvent) recorded.result().events().getFirst();
+        BattleEventOccurrence occurrence = recorded.occurrences().getFirst();
+        assertSame(event, occurrence.event());
+        assertEquals(new GridCoord(1, 1), event.origin());
+        assertEquals(new GridCoord(2, 1), event.destination());
+        assertEquals(1L, occurrence.sequence());
+        assertEquals(2L, context.nextEventSequence());
+    }
+
+    @Test
+    void rejectedShiftDoesNotConsumeOccurrenceSequence() {
+        RuntimeCombatantState actor = new RuntimeCombatantState(
+                "actor",
+                new GridCoord(1, 1),
+                10,
+                new ActionBudget(true, true, true),
+                new MovementProfile(3, 0, 0, false)
+        );
+        BattleRuntimeExecutionContext context = new BattleRuntimeExecutionContext(
+                new BattleRuntimeState(
+                        new MovementGrid(6, 6, Set.of(new GridCoord(2, 1)), Map.of()),
+                        List.of(actor)
+                ));
+
+        assertThrows(IllegalArgumentException.class, () -> context.applyAction(
+                new ShiftChoice("actor", new GridCoord(2, 1)),
+                ignored -> true
+        ));
+        assertEquals(new GridCoord(1, 1), actor.position());
+        assertTrue(actor.actionBudget().hasActionAvailable(ActionType.SHIFT));
+        assertEquals(1L, context.nextEventSequence());
     }
 
     @Test
