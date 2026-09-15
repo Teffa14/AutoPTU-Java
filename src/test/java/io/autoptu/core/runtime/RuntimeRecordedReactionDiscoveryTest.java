@@ -22,23 +22,7 @@ class RuntimeRecordedReactionDiscoveryTest {
 
     @Test
     void recordedShiftFeedsOccurrenceIdentityDirectlyIntoReactionDiscovery() {
-        RuntimeCombatantState reactor = combatant("reactor", new GridCoord(0, 0));
-        RuntimeCombatantState actor = combatant("actor", new GridCoord(1, 0));
-        BattleRuntimeState state = new BattleRuntimeState(
-                new MovementGrid(8, 8, Set.of(), Map.of()),
-                List.of(reactor, actor),
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                Map.of(
-                        "reactor", CombatantAffiliationState.active("blue"),
-                        "actor", CombatantAffiliationState.active("red")
-                ),
-                Map.of(
-                        "reactor", List.of(move("Attack of Opportunity")),
-                        "actor", List.of(move("Tackle"))
-                )
-        );
+        BattleRuntimeState state = reactionBattle();
         BattleRuntimeExecutionContext context = new BattleRuntimeExecutionContext(state);
 
         RecordedActionResult recorded = context.applyAction(
@@ -56,6 +40,52 @@ class RuntimeRecordedReactionDiscoveryTest {
     }
 
     @Test
+    void replayingSameRecordedOccurrenceDoesNotSurfaceSameWindowTwice() {
+        BattleRuntimeState state = reactionBattle();
+        BattleRuntimeExecutionContext context = new BattleRuntimeExecutionContext(state);
+        RuntimeRecordedReactionDiscovery discovery = new RuntimeRecordedReactionDiscovery(state);
+        RecordedActionResult recorded = context.applyAction(
+                new ShiftChoice("actor", new GridCoord(2, 0)),
+                ignored -> true
+        );
+
+        RuntimeReactionWindowResolver.Resolution first = discovery.discoverShiftWindows(
+                REACTION, recorded, ReactionEligibilityPolicy.attackOfOpportunity());
+        RuntimeReactionWindowResolver.Resolution replay = discovery.discoverShiftWindows(
+                REACTION, recorded, ReactionEligibilityPolicy.attackOfOpportunity());
+
+        assertEquals(1, first.eligible().size());
+        assertTrue(replay.eligible().isEmpty());
+        assertEquals(1, discovery.discoveredWindowCount());
+    }
+
+    @Test
+    void sameSemanticShiftAtDifferentOccurrenceCanSurfaceAnotherWindow() {
+        BattleRuntimeState state = reactionBattle();
+        RuntimeRecordedReactionDiscovery discovery = new RuntimeRecordedReactionDiscovery(state);
+        RuntimeReactionWindowResolver resolver = new RuntimeReactionWindowResolver(state);
+        BattleRuntimeEventStream stream = new BattleRuntimeEventStream();
+        AppliedActionResult semantic = BattleRuntime.applyAction(
+                state,
+                new ShiftChoice("actor", new GridCoord(2, 0)),
+                ignored -> true
+        );
+        RecordedActionResult firstRecorded = new RecordedActionResult(semantic, stream.record(semantic));
+        RecordedActionResult secondRecorded = new RecordedActionResult(semantic, stream.record(semantic));
+
+        RuntimeReactionWindowResolver.Resolution first = discovery.discoverShiftWindows(
+                REACTION, firstRecorded, ReactionEligibilityPolicy.attackOfOpportunity());
+        RuntimeReactionWindowResolver.Resolution second = discovery.discoverShiftWindows(
+                REACTION, secondRecorded, ReactionEligibilityPolicy.attackOfOpportunity());
+
+        assertEquals(1, first.eligible().size());
+        assertEquals(1, second.eligible().size());
+        assertEquals(2, discovery.discoveredWindowCount());
+        assertTrue(!first.eligible().getFirst().window().triggeringEventKey()
+                .equals(second.eligible().getFirst().window().triggeringEventKey()));
+    }
+
+    @Test
     void actionWithoutShiftOccurrenceProducesNoShiftReactionWindow() {
         BattleRuntimeState state = new BattleRuntimeState(
                 new MovementGrid(4, 4, Set.of(), Map.of()),
@@ -70,6 +100,26 @@ class RuntimeRecordedReactionDiscoveryTest {
 
         assertTrue(resolution.eligible().isEmpty());
         assertTrue(resolution.unresolved().isEmpty());
+    }
+
+    private static BattleRuntimeState reactionBattle() {
+        RuntimeCombatantState reactor = combatant("reactor", new GridCoord(0, 0));
+        RuntimeCombatantState actor = combatant("actor", new GridCoord(1, 0));
+        return new BattleRuntimeState(
+                new MovementGrid(8, 8, Set.of(), Map.of()),
+                List.of(reactor, actor),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(
+                        "reactor", CombatantAffiliationState.active("blue"),
+                        "actor", CombatantAffiliationState.active("red")
+                ),
+                Map.of(
+                        "reactor", List.of(move("Attack of Opportunity")),
+                        "actor", List.of(move("Tackle"))
+                )
+        );
     }
 
     private static RuntimeCombatantState combatant(String id, GridCoord position) {
