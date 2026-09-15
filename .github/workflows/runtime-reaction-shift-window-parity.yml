@@ -15,6 +15,8 @@ on:
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindow.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindowArbiter.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindowCommitter.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionInstruction.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionInstructionResolver.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindowResolver.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionTriggerMatcher.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionEligibilityResolver.java"
@@ -28,6 +30,7 @@ on:
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowArbiterTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowCommitterTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionInstructionResolverTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowResolverTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionShiftWindowOracleParityTest.java"
       - "tools/python/export_attack_of_opportunity_shift_window_fixture.py"
@@ -44,6 +47,8 @@ on:
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindow.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindowArbiter.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindowCommitter.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionInstruction.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeReactionInstructionResolver.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindowResolver.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionTriggerMatcher.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionEligibilityResolver.java"
@@ -57,6 +62,7 @@ on:
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowArbiterTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowCommitterTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeReactionInstructionResolverTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowResolverTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionShiftWindowOracleParityTest.java"
       - "tools/python/export_attack_of_opportunity_shift_window_fixture.py"
@@ -97,5 +103,6 @@ jobs:
           --tests io.autoptu.core.runtime.RuntimeReactionWindowTest
           --tests io.autoptu.core.runtime.RuntimeReactionWindowArbiterTest
           --tests io.autoptu.core.runtime.RuntimeReactionWindowCommitterTest
+          --tests io.autoptu.core.runtime.RuntimeReactionInstructionResolverTest
           --tests io.autoptu.core.runtime.RuntimeReactionWindowResolverTest
           --tests io.autoptu.core.runtime.RuntimeReactionShiftWindowOracleParityTest
