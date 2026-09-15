@@ -41,10 +41,10 @@ class BattleRuntimeExecutionContextTest {
     void applyActionMutatesShiftAndRecordsItsOccurrenceInsideOneBoundary() {
         RuntimeCombatantState actor = new RuntimeCombatantState(
                 "actor",
-                new GridCoord(1, 1),
+                MovementProfile.walking(new GridCoord(1, 1), 3),
                 10,
-                new ActionBudget(true, true, true),
-                new MovementProfile(3, 0, 0, false)
+                10,
+                new ActionBudget(true, true, true)
         );
         BattleRuntimeState state = new BattleRuntimeState(openGrid(6, 6), List.of(actor));
         BattleRuntimeExecutionContext context = new BattleRuntimeExecutionContext(state);
@@ -71,10 +71,10 @@ class BattleRuntimeExecutionContextTest {
     void rejectedShiftDoesNotConsumeOccurrenceSequence() {
         RuntimeCombatantState actor = new RuntimeCombatantState(
                 "actor",
-                new GridCoord(1, 1),
+                MovementProfile.walking(new GridCoord(1, 1), 3),
                 10,
-                new ActionBudget(true, true, true),
-                new MovementProfile(3, 0, 0, false)
+                10,
+                new ActionBudget(true, true, true)
         );
         BattleRuntimeExecutionContext context = new BattleRuntimeExecutionContext(
                 new BattleRuntimeState(
