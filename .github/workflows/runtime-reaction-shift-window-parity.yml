@@ -9,6 +9,8 @@ on:
       - "src/main/java/io/autoptu/core/runtime/RuntimeBattleEventSequencer.java"
       - "src/main/java/io/autoptu/core/runtime/BattleRuntimeEventStream.java"
       - "src/main/java/io/autoptu/core/runtime/AppliedActionResult.java"
+      - "src/main/java/io/autoptu/core/runtime/RecordedActionResult.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeRecordedReactionDiscovery.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindow.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindowResolver.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionTriggerMatcher.java"
@@ -19,6 +21,7 @@ on:
       - "src/test/java/io/autoptu/core/runtime/RuntimeBattleEventSequencerTest.java"
       - "src/test/java/io/autoptu/core/runtime/BattleRuntimeEventStreamTest.java"
       - "src/test/java/io/autoptu/core/runtime/AppliedActionResultOccurrenceTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeRecordedReactionDiscoveryTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowResolverTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionShiftWindowOracleParityTest.java"
@@ -30,6 +33,8 @@ on:
       - "src/main/java/io/autoptu/core/runtime/RuntimeBattleEventSequencer.java"
       - "src/main/java/io/autoptu/core/runtime/BattleRuntimeEventStream.java"
       - "src/main/java/io/autoptu/core/runtime/AppliedActionResult.java"
+      - "src/main/java/io/autoptu/core/runtime/RecordedActionResult.java"
+      - "src/main/java/io/autoptu/core/runtime/RuntimeRecordedReactionDiscovery.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindow.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindowResolver.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionTriggerMatcher.java"
@@ -40,6 +45,7 @@ on:
       - "src/test/java/io/autoptu/core/runtime/RuntimeBattleEventSequencerTest.java"
       - "src/test/java/io/autoptu/core/runtime/BattleRuntimeEventStreamTest.java"
       - "src/test/java/io/autoptu/core/runtime/AppliedActionResultOccurrenceTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeRecordedReactionDiscoveryTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowResolverTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionShiftWindowOracleParityTest.java"
@@ -77,6 +83,7 @@ jobs:
           --tests io.autoptu.core.runtime.RuntimeBattleEventSequencerTest
           --tests io.autoptu.core.runtime.BattleRuntimeEventStreamTest
           --tests io.autoptu.core.runtime.AppliedActionResultOccurrenceTest
+          --tests io.autoptu.core.runtime.RuntimeRecordedReactionDiscoveryTest
           --tests io.autoptu.core.runtime.RuntimeReactionWindowTest
           --tests io.autoptu.core.runtime.RuntimeReactionWindowResolverTest
           --tests io.autoptu.core.runtime.RuntimeReactionShiftWindowOracleParityTest
