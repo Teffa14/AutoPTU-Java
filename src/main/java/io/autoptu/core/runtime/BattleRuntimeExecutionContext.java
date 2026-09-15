@@ -1,9 +1,12 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.action.BattleChoice;
 import io.autoptu.core.event.BattleEventOccurrence;
+import io.autoptu.core.model.GridCoord;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -30,6 +33,19 @@ public final class BattleRuntimeExecutionContext {
     /** Records one completed authoritative action result in semantic order. */
     public List<BattleEventOccurrence> record(AppliedActionResult result) {
         return eventStream.record(result);
+    }
+
+    /**
+     * Applies a controller-selected battle choice against authoritative state and records
+     * its semantic events before the result leaves this battle-local boundary.
+     *
+     * <p>BattleRuntime remains the owner of PTU legality, action economy, and state mutation.
+     * This context only binds that completed application to battle-local occurrence identity.</p>
+     */
+    public RecordedActionResult applyAction(BattleChoice choice, Predicate<GridCoord> canFit) {
+        Objects.requireNonNull(choice, "choice");
+        Objects.requireNonNull(canFit, "canFit");
+        return applyAndRecord(() -> BattleRuntime.applyAction(state, choice, canFit));
     }
 
     /**
