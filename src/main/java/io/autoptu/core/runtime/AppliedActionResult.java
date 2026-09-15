@@ -1,10 +1,12 @@
 package io.autoptu.core.runtime;
 
 import io.autoptu.core.event.BattleEvent;
+import io.autoptu.core.event.BattleEventOccurrence;
 import io.autoptu.core.rules.ActionSpendResult;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /** Ordered semantic output of one authoritative battle action. */
@@ -24,6 +26,22 @@ public record AppliedActionResult(List<BattleEvent> events, ActionSpendResult ac
      */
     public Optional<ActionSpendResult> actionSpendResult() {
         return Optional.ofNullable(actionSpend);
+    }
+
+    /**
+     * Projects this action's ordered semantic events into battle-local occurrences.
+     *
+     * <p>The supplied sequencer must be the authoritative sequencer for the battle. This
+     * method preserves event order and payload exactly; it only assigns occurrence identity.
+     * It does not execute, deduplicate, or otherwise reinterpret semantic events.</p>
+     */
+    public List<BattleEventOccurrence> recordEventOccurrences(RuntimeBattleEventSequencer sequencer) {
+        Objects.requireNonNull(sequencer, "sequencer");
+        List<BattleEventOccurrence> occurrences = new ArrayList<>(events.size());
+        for (BattleEvent event : events) {
+            occurrences.add(sequencer.record(event));
+        }
+        return List.copyOf(occurrences);
     }
 
     /**
