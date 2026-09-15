@@ -33,6 +33,38 @@ class BattleRuntimeExecutionContextTest {
     }
 
     @Test
+    void applyAndRecordKeepsResultAndOccurrenceIdentityInsideOneBoundary() {
+        BattleRuntimeExecutionContext context = new BattleRuntimeExecutionContext(
+                new BattleRuntimeState(openGrid(4, 4), List.of()));
+        ShiftResolvedEvent firstEvent = new ShiftResolvedEvent("actor", new GridCoord(0, 0), new GridCoord(1, 0));
+        ShiftResolvedEvent secondEvent = new ShiftResolvedEvent("actor", new GridCoord(1, 0), new GridCoord(2, 0));
+        AppliedActionResult firstResult = new AppliedActionResult(List.of(firstEvent));
+        AppliedActionResult secondResult = new AppliedActionResult(List.of(secondEvent));
+
+        RecordedActionResult first = context.applyAndRecord(() -> firstResult);
+        RecordedActionResult second = context.applyAndRecord(() -> secondResult);
+
+        assertSame(firstResult, first.result());
+        assertSame(secondResult, second.result());
+        assertEquals(List.of(firstEvent), first.result().events());
+        assertEquals(1L, first.occurrences().get(0).sequence());
+        assertEquals(2L, second.occurrences().get(0).sequence());
+        assertEquals(firstEvent.stableKey(), first.occurrences().get(0).event().stableKey());
+        assertEquals(secondEvent.stableKey(), second.occurrences().get(0).event().stableKey());
+        assertEquals(3L, context.nextEventSequence());
+    }
+
+    @Test
+    void applyAndRecordRejectsMissingApplicationOrResultWithoutAdvancingSequence() {
+        BattleRuntimeExecutionContext context = new BattleRuntimeExecutionContext(
+                new BattleRuntimeState(openGrid(2, 2), List.of()));
+
+        assertThrows(NullPointerException.class, () -> context.applyAndRecord(null));
+        assertThrows(NullPointerException.class, () -> context.applyAndRecord(() -> null));
+        assertEquals(1L, context.nextEventSequence());
+    }
+
+    @Test
     void separateBattleContextsOwnIndependentSequences() {
         ShiftResolvedEvent event = new ShiftResolvedEvent("actor", new GridCoord(0, 0), new GridCoord(1, 0));
         BattleRuntimeExecutionContext first = new BattleRuntimeExecutionContext(
