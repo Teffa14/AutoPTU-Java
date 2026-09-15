@@ -7,6 +7,7 @@ on:
     paths:
       - "src/main/java/io/autoptu/core/event/BattleEventOccurrence.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeBattleEventSequencer.java"
+      - "src/main/java/io/autoptu/core/runtime/BattleRuntimeEventStream.java"
       - "src/main/java/io/autoptu/core/runtime/AppliedActionResult.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindow.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindowResolver.java"
@@ -16,6 +17,7 @@ on:
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionUsageTracker.java"
       - "src/main/java/io/autoptu/core/runtime/BattleRuntimeState.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeBattleEventSequencerTest.java"
+      - "src/test/java/io/autoptu/core/runtime/BattleRuntimeEventStreamTest.java"
       - "src/test/java/io/autoptu/core/runtime/AppliedActionResultOccurrenceTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowResolverTest.java"
@@ -26,6 +28,7 @@ on:
     paths:
       - "src/main/java/io/autoptu/core/event/BattleEventOccurrence.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeBattleEventSequencer.java"
+      - "src/main/java/io/autoptu/core/runtime/BattleRuntimeEventStream.java"
       - "src/main/java/io/autoptu/core/runtime/AppliedActionResult.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindow.java"
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionWindowResolver.java"
@@ -35,6 +38,7 @@ on:
       - "src/main/java/io/autoptu/core/runtime/RuntimeReactionUsageTracker.java"
       - "src/main/java/io/autoptu/core/runtime/BattleRuntimeState.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeBattleEventSequencerTest.java"
+      - "src/test/java/io/autoptu/core/runtime/BattleRuntimeEventStreamTest.java"
       - "src/test/java/io/autoptu/core/runtime/AppliedActionResultOccurrenceTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowResolverTest.java"
@@ -71,6 +75,7 @@ jobs:
         run: >-
           gradle test --stacktrace
           --tests io.autoptu.core.runtime.RuntimeBattleEventSequencerTest
+          --tests io.autoptu.core.runtime.BattleRuntimeEventStreamTest
           --tests io.autoptu.core.runtime.AppliedActionResultOccurrenceTest
           --tests io.autoptu.core.runtime.RuntimeReactionWindowTest
           --tests io.autoptu.core.runtime.RuntimeReactionWindowResolverTest
