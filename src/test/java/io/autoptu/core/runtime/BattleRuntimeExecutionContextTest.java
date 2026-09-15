@@ -44,7 +44,7 @@ class BattleRuntimeExecutionContextTest {
                 MovementProfile.walking(new GridCoord(1, 1), 3),
                 10,
                 10,
-                new ActionBudget(true, true, true)
+                new ActionBudget()
         );
         BattleRuntimeState state = new BattleRuntimeState(openGrid(6, 6), List.of(actor));
         BattleRuntimeExecutionContext context = new BattleRuntimeExecutionContext(state);
@@ -74,7 +74,7 @@ class BattleRuntimeExecutionContextTest {
                 MovementProfile.walking(new GridCoord(1, 1), 3),
                 10,
                 10,
-                new ActionBudget(true, true, true)
+                new ActionBudget()
         );
         BattleRuntimeExecutionContext context = new BattleRuntimeExecutionContext(
                 new BattleRuntimeState(
