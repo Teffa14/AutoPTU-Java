@@ -41,7 +41,7 @@ class RuntimeReactionInstructionResolverTest {
         assertEquals(candidate.window().windowKey(), instruction.windowKey());
         assertEquals(candidate.window().triggeringEventKey(), instruction.triggeringEventKey());
         assertSame(state.moveOptions("reactor").getFirst(), instruction.move());
-        assertEquals(20, state.requireCombatant("actor").currentHp());
+        assertEquals(20, state.requireCombatant("actor").hp());
     }
 
     @Test
@@ -59,7 +59,7 @@ class RuntimeReactionInstructionResolverTest {
                 .resolve(candidate, replay);
 
         assertFalse(instruction.isPresent());
-        assertEquals(20, state.requireCombatant("actor").currentHp());
+        assertEquals(20, state.requireCombatant("actor").hp());
     }
 
     private static RuntimeReactionWindowResolver.Candidate candidate(BattleRuntimeState state) {
