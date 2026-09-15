@@ -50,7 +50,8 @@ class RuntimeReactionWindowCommitterTest {
         BattleRuntimeState state = battle();
         RuntimeReactionUsageTracker usage = new RuntimeReactionUsageTracker(state);
         RuntimeReactionWindowResolver.Candidate candidate = candidate(state, 1);
-        state.advanceRound();
+        state.syncCurrentRoundFromLifecycle(state.currentRound() + 1);
+        state.pruneReactionUsageFromLifecycle();
 
         RuntimeReactionWindowCommitter.CommitResult result = new RuntimeReactionWindowCommitter(state, usage)
                 .commit(candidate, ReactionEligibilityPolicy.attackOfOpportunity());
