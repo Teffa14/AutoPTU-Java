@@ -74,9 +74,11 @@ class RuntimeReactionInstructionExecutorTest {
     }
 
     private static BattleRuntimeState battle() {
-        MoveOption reaction = MoveOption.standard(
+        MoveOption reaction = new MoveOption(
                 "Attack of Opportunity",
                 new MoveSpec("Melee", "Melee", 1, 1, null, null, "Melee"),
+                ActionType.FREE,
+                true,
                 new MoveCombatProfile(2, 6, 20, "physical")
         );
         return new BattleRuntimeState(
