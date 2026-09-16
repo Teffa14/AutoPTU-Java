@@ -87,7 +87,10 @@ class RuntimeReactionInstructionExecutorTest {
                 ),
                 Map.of(),
                 Map.of(),
-                Map.of(),
+                Map.of(
+                        "reactor", CombatantGeometryState.MEDIUM,
+                        "actor", CombatantGeometryState.MEDIUM
+                ),
                 Map.of(
                         "reactor", CombatantAffiliationState.active("blue"),
                         "actor", CombatantAffiliationState.active("red")
