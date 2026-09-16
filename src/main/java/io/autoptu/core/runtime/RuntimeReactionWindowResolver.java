@@ -1,6 +1,7 @@
 package io.autoptu.core.runtime;
 
 import io.autoptu.core.event.ActionResolvedEvent;
+import io.autoptu.core.event.BattleEvent;
 import io.autoptu.core.event.BattleEventOccurrence;
 import io.autoptu.core.event.ShiftResolvedEvent;
 import io.autoptu.core.hook.ReactionEligibilityPolicy;
@@ -30,9 +31,7 @@ public final class RuntimeReactionWindowResolver {
         this.eligibilityResolver = Objects.requireNonNull(eligibilityResolver, "eligibilityResolver");
     }
 
-    public Resolution discoverShiftWindows(
-            String reactionKey, ShiftResolvedEvent event, ReactionEligibilityPolicy policy
-    ) {
+    public Resolution discoverShiftWindows(String reactionKey, ShiftResolvedEvent event, ReactionEligibilityPolicy policy) {
         return discoverShiftWindowsInternal(reactionKey, event, null, policy);
     }
 
@@ -56,37 +55,25 @@ public final class RuntimeReactionWindowResolver {
             throw new IllegalArgumentException("Adjacent action discovery requires an ActionResolvedEvent occurrence");
         }
         battleState.requireCombatant(event.actorId());
-        return discover(
-                reactionKey,
-                event.actorId(),
-                occurrence,
-                policy,
-                reactorId -> triggerMatcher.matchAdjacentOccurrence(reactionKey, reactorId, battleState, event).orElse(null)
-        );
+        return discover(reactionKey, event.actorId(), occurrence, null, policy,
+                reactorId -> triggerMatcher.matchAdjacentOccurrence(reactionKey, reactorId, battleState, event).orElse(null));
     }
 
     private Resolution discoverShiftWindowsInternal(
-            String reactionKey,
-            ShiftResolvedEvent event,
-            BattleEventOccurrence occurrence,
-            ReactionEligibilityPolicy policy
+            String reactionKey, ShiftResolvedEvent event, BattleEventOccurrence occurrence, ReactionEligibilityPolicy policy
     ) {
         validateInputs(reactionKey, policy);
         Objects.requireNonNull(event, "shift event");
         battleState.requireCombatant(event.actorId());
-        return discover(
-                reactionKey,
-                event.actorId(),
-                occurrence,
-                policy,
-                reactorId -> triggerMatcher.matchShift(reactionKey, reactorId, battleState, event).orElse(null)
-        );
+        return discover(reactionKey, event.actorId(), occurrence, event, policy,
+                reactorId -> triggerMatcher.matchShift(reactionKey, reactorId, battleState, event).orElse(null));
     }
 
     private Resolution discover(
             String reactionKey,
             String actorId,
             BattleEventOccurrence occurrence,
+            BattleEvent legacyEvent,
             ReactionEligibilityPolicy policy,
             MatchResolver matchResolver
     ) {
@@ -96,12 +83,10 @@ public final class RuntimeReactionWindowResolver {
             if (reactorId.equals(actorId)) continue;
             RuntimeReactionTriggerMatcher.TriggerMatch match = matchResolver.match(reactorId);
             if (match == null) continue;
-            RuntimeReactionWindow window;
-            if (occurrence != null) {
-                window = RuntimeReactionWindow.from(reactionKey, battleState.currentRound(), match, occurrence);
-            } else {
-                throw new IllegalStateException("payload-only discovery must construct its window before generic discovery");
-            }
+            RuntimeReactionWindow window = occurrence != null
+                    ? RuntimeReactionWindow.from(reactionKey, battleState.currentRound(), match, occurrence)
+                    : RuntimeReactionWindow.from(reactionKey, battleState.currentRound(), match,
+                            Objects.requireNonNull(legacyEvent, "legacy event"));
             RuntimeReactionEligibilityResolver.Resolution eligibility = eligibilityResolver.evaluate(
                     reactorId, reactionKey, policy);
             if (!eligibility.ownershipKnown()) {
