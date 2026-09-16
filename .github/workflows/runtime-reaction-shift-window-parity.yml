@@ -33,6 +33,7 @@ on:
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowCommitterTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionInstructionResolverTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionInstructionExecutorTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeStandUpReactionExecutionTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowResolverTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionShiftWindowOracleParityTest.java"
       - "tools/python/export_attack_of_opportunity_shift_window_fixture.py"
@@ -67,6 +68,7 @@ on:
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowCommitterTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionInstructionResolverTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionInstructionExecutorTest.java"
+      - "src/test/java/io/autoptu/core/runtime/RuntimeStandUpReactionExecutionTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionWindowResolverTest.java"
       - "src/test/java/io/autoptu/core/runtime/RuntimeReactionShiftWindowOracleParityTest.java"
       - "tools/python/export_attack_of_opportunity_shift_window_fixture.py"
@@ -111,6 +113,7 @@ jobs:
             --tests io.autoptu.core.runtime.RuntimeReactionWindowCommitterTest \
             --tests io.autoptu.core.runtime.RuntimeReactionInstructionResolverTest \
             --tests io.autoptu.core.runtime.RuntimeReactionInstructionExecutorTest \
+            --tests io.autoptu.core.runtime.RuntimeStandUpReactionExecutionTest \
             --tests io.autoptu.core.runtime.RuntimeReactionWindowResolverTest \
             --tests io.autoptu.core.runtime.RuntimeReactionShiftWindowOracleParityTest \
             2>&1 | tee build/reaction-shift-window-gradle.log
