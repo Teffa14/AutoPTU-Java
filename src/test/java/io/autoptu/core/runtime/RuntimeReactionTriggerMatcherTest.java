@@ -100,6 +100,65 @@ class RuntimeReactionTriggerMatcherTest {
         assertTrue(matcher.matchShift("future_reaction", "reactor", state, event).isEmpty());
     }
 
+    @Test
+    void adjacentStandUpMatchesSecondAttackOfOpportunityTriggerFamily() {
+        BattleRuntimeState state = battle(
+                new GridCoord(0, 0), "Medium", "blue",
+                new GridCoord(1, 0), "Medium", "red"
+        );
+
+        RuntimeReactionTriggerMatcher.TriggerMatch match = matcher.matchAdjacentAction(
+                "attack_of_opportunity",
+                "reactor",
+                state,
+                "actor",
+                RuntimeReactionTriggerRegistry.TriggerKind.ADJACENT_STAND_UP,
+                null
+        ).orElseThrow();
+
+        assertEquals("reactor", match.reactorId());
+        assertEquals("actor", match.triggeringActorId());
+        assertEquals(RuntimeReactionTriggerRegistry.TriggerKind.ADJACENT_STAND_UP, match.trigger().kind());
+    }
+
+    @Test
+    void standUpRequiresFoeAndCanonicalFootprintAdjacency() {
+        BattleRuntimeState distant = battle(
+                new GridCoord(0, 0), "Medium", "blue",
+                new GridCoord(2, 0), "Medium", "red"
+        );
+        BattleRuntimeState ally = battle(
+                new GridCoord(0, 0), "Medium", "blue",
+                new GridCoord(1, 0), "Medium", "blue"
+        );
+
+        assertTrue(matcher.matchAdjacentAction(
+                "attack_of_opportunity", "reactor", distant, "actor",
+                RuntimeReactionTriggerRegistry.TriggerKind.ADJACENT_STAND_UP, null
+        ).isEmpty());
+        assertTrue(matcher.matchAdjacentAction(
+                "attack_of_opportunity", "reactor", ally, "actor",
+                RuntimeReactionTriggerRegistry.TriggerKind.ADJACENT_STAND_UP, null
+        ).isEmpty());
+    }
+
+    @Test
+    void qualifierDrivenAdjacentManeuverUsesRegistryInsteadOfHardcodedSwitch() {
+        BattleRuntimeState state = battle(
+                new GridCoord(0, 0), "Large", "blue",
+                new GridCoord(2, 0), "Medium", "red"
+        );
+
+        assertTrue(matcher.matchAdjacentAction(
+                "attack_of_opportunity", "reactor", state, "actor",
+                RuntimeReactionTriggerRegistry.TriggerKind.ADJACENT_NON_TARGETING_MANEUVER, "Dirty Trick"
+        ).isPresent());
+        assertTrue(matcher.matchAdjacentAction(
+                "attack_of_opportunity", "reactor", state, "actor",
+                RuntimeReactionTriggerRegistry.TriggerKind.ADJACENT_NON_TARGETING_MANEUVER, "Sprint"
+        ).isEmpty());
+    }
+
     private static BattleRuntimeState battle(
             GridCoord reactorPosition,
             String reactorSize,
