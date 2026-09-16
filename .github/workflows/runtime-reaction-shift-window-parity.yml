@@ -111,6 +111,17 @@ jobs:
           --tests io.autoptu.core.runtime.RuntimeReactionInstructionExecutorTest
           --tests io.autoptu.core.runtime.RuntimeReactionWindowResolverTest
           --tests io.autoptu.core.runtime.RuntimeReactionShiftWindowOracleParityTest
+      - name: Print reaction parity JUnit diagnostics
+        if: always()
+        run: |
+          echo '=== JUnit XML diagnostics ==='
+          if find build/test-results/test -type f -name '*.xml' -print -quit 2>/dev/null | grep -q .; then
+            find build/test-results/test -type f -name '*.xml' -print -exec cat {} \;
+          else
+            echo 'No JUnit XML files were produced.'
+          fi
+          echo '=== Gradle test report files ==='
+          find build/reports/tests/test -maxdepth 3 -type f -print 2>/dev/null || true
       - name: Upload reaction parity test diagnostics
         if: always()
         uses: actions/upload-artifact@v4
