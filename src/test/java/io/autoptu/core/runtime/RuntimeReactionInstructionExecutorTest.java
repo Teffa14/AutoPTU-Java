@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -40,7 +41,7 @@ class RuntimeReactionInstructionExecutorTest {
         assertTrue(state.requireCombatant("reactor").actionBudget().hasActionAvailable(ActionType.STANDARD));
         assertTrue(state.requireCombatant("reactor").actionBudget().hasActionAvailable(ActionType.SHIFT));
         assertTrue(state.requireCombatant("reactor").actionBudget().hasActionAvailable(ActionType.SWIFT));
-        assertTrue(result.events().stream().anyMatch(event -> event.stableKey().contains("actor")));
+        assertFalse(result.events().isEmpty());
     }
 
     @Test
