@@ -90,7 +90,9 @@ public final class RuntimeReactionTriggerMatcher {
     private Optional<RuntimeReactionTriggerRegistry.TriggerDefinition> definition(
             String reactionKey, RuntimeReactionTriggerRegistry.TriggerKind kind, String qualifier
     ) {
-        String normalizedQualifier = qualifier == null ? "" : MoveReactionOwnershipSource.normalizeKey(qualifier);
+        String normalizedQualifier = qualifier == null || qualifier.isBlank()
+                ? ""
+                : MoveReactionOwnershipSource.normalizeKey(qualifier);
         List<RuntimeReactionTriggerRegistry.TriggerDefinition> definitions = registry.resolve(reactionKey).orElse(List.of());
         return definitions.stream()
                 .filter(candidate -> candidate.kind() == kind)
