@@ -4,6 +4,7 @@ import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.model.CombatStat;
 import io.autoptu.core.model.CombatantStatProfile;
+import io.autoptu.core.model.EvasionProfile;
 import io.autoptu.core.model.GridCoord;
 import io.autoptu.core.model.MoveCombatProfile;
 import io.autoptu.core.model.MoveSpec;
@@ -102,7 +103,13 @@ class RuntimeReactionInstructionExecutorTest {
             String id, GridCoord position, int hp, CombatantStatProfile profile
     ) {
         return new RuntimeCombatantState(
-                id, MovementProfile.walking(position, 6), hp, 100, new ActionBudget(), profile
+                id,
+                MovementProfile.walking(position, 6),
+                hp,
+                100,
+                new ActionBudget(),
+                profile,
+                new EvasionProfile(profile, 0, 0, 0, false, false)
         );
     }
 
