@@ -68,7 +68,7 @@ class RuntimeReactionInstructionExecutorTest {
                 state.currentRound(),
                 "reactor",
                 "actor",
-                RuntimeReactionTriggerRegistry.TriggerKind.SHIFT_OUT_OF_ADJACENCY,
+                RuntimeReactionTriggerRegistry.TriggerKind.ADJACENT_SHIFT_AWAY,
                 "shift|actor|1,0|2,0",
                 state.moveOptions("reactor").getFirst()
         );
