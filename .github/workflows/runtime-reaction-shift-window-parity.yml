@@ -98,22 +98,27 @@ jobs:
       - name: Run Shift-window unit and oracle parity tests
         env:
           AUTOPTU_REACTION_SHIFT_WINDOW_ORACLE: ${{ github.workspace }}/build/reaction-shift-window-oracle.tsv
-        run: >-
-          gradle test --stacktrace
-          --tests io.autoptu.core.runtime.RuntimeBattleEventSequencerTest
-          --tests io.autoptu.core.runtime.BattleRuntimeEventStreamTest
-          --tests io.autoptu.core.runtime.AppliedActionResultOccurrenceTest
-          --tests io.autoptu.core.runtime.RuntimeRecordedReactionDiscoveryTest
-          --tests io.autoptu.core.runtime.RuntimeReactionWindowTest
-          --tests io.autoptu.core.runtime.RuntimeReactionWindowArbiterTest
-          --tests io.autoptu.core.runtime.RuntimeReactionWindowCommitterTest
-          --tests io.autoptu.core.runtime.RuntimeReactionInstructionResolverTest
-          --tests io.autoptu.core.runtime.RuntimeReactionInstructionExecutorTest
-          --tests io.autoptu.core.runtime.RuntimeReactionWindowResolverTest
-          --tests io.autoptu.core.runtime.RuntimeReactionShiftWindowOracleParityTest
-      - name: Print reaction parity JUnit diagnostics
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle test --stacktrace \
+            --tests io.autoptu.core.runtime.RuntimeBattleEventSequencerTest \
+            --tests io.autoptu.core.runtime.BattleRuntimeEventStreamTest \
+            --tests io.autoptu.core.runtime.AppliedActionResultOccurrenceTest \
+            --tests io.autoptu.core.runtime.RuntimeRecordedReactionDiscoveryTest \
+            --tests io.autoptu.core.runtime.RuntimeReactionWindowTest \
+            --tests io.autoptu.core.runtime.RuntimeReactionWindowArbiterTest \
+            --tests io.autoptu.core.runtime.RuntimeReactionWindowCommitterTest \
+            --tests io.autoptu.core.runtime.RuntimeReactionInstructionResolverTest \
+            --tests io.autoptu.core.runtime.RuntimeReactionInstructionExecutorTest \
+            --tests io.autoptu.core.runtime.RuntimeReactionWindowResolverTest \
+            --tests io.autoptu.core.runtime.RuntimeReactionShiftWindowOracleParityTest \
+            2>&1 | tee build/reaction-shift-window-gradle.log
+      - name: Print reaction parity diagnostics
         if: always()
         run: |
+          echo '=== Gradle diagnostics ==='
+          cat build/reaction-shift-window-gradle.log 2>/dev/null || echo 'No Gradle log was produced.'
           echo '=== JUnit XML diagnostics ==='
           if find build/test-results/test -type f -name '*.xml' -print -quit 2>/dev/null | grep -q .; then
             find build/test-results/test -type f -name '*.xml' -print -exec cat {} \;
@@ -128,6 +133,7 @@ jobs:
         with:
           name: runtime-reaction-shift-window-test-results
           path: |
+            build/reaction-shift-window-gradle.log
             build/test-results/test
             build/reports/tests/test
-          if-no-files-found: warn
+          if-no-files-found: error
