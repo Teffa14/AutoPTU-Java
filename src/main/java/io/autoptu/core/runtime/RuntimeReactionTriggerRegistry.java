@@ -46,6 +46,17 @@ public final class RuntimeReactionTriggerRegistry {
         return Optional.ofNullable(triggersByReactionKey.get(MoveReactionOwnershipSource.normalizeKey(reactionKey)));
     }
 
+    /** Resolves one declarative trigger family from a normalized authoritative action occurrence. */
+    public Optional<TriggerDefinition> resolveOccurrence(String reactionKey, String actionKey, String qualifier) {
+        String normalizedAction = MoveReactionOwnershipSource.normalizeKey(actionKey);
+        String normalizedQualifier = MoveReactionOwnershipSource.normalizeKey(qualifier);
+        return resolve(reactionKey).orElse(List.of()).stream()
+                .filter(definition -> definition.kind().occurrenceKey().equals(normalizedAction))
+                .filter(definition -> definition.qualifiers().isEmpty()
+                        || definition.qualifiers().contains(normalizedQualifier))
+                .findFirst();
+    }
+
     public Map<String, List<TriggerDefinition>> definitions() {
         return triggersByReactionKey;
     }
@@ -58,10 +69,20 @@ public final class RuntimeReactionTriggerRegistry {
     }
 
     public enum TriggerKind {
-        ADJACENT_NON_TARGETING_MANEUVER,
-        ADJACENT_STAND_UP,
-        ADJACENT_RANGED_ATTACK_WITHOUT_ADJACENT_TARGET,
-        ADJACENT_STANDARD_ITEM_RETRIEVAL,
-        ADJACENT_SHIFT_AWAY
+        ADJACENT_NON_TARGETING_MANEUVER("maneuver"),
+        ADJACENT_STAND_UP("stand_up"),
+        ADJACENT_RANGED_ATTACK_WITHOUT_ADJACENT_TARGET("ranged_attack_without_adjacent_target"),
+        ADJACENT_STANDARD_ITEM_RETRIEVAL("standard_item_retrieval"),
+        ADJACENT_SHIFT_AWAY("shift_away");
+
+        private final String occurrenceKey;
+
+        TriggerKind(String occurrenceKey) {
+            this.occurrenceKey = occurrenceKey;
+        }
+
+        public String occurrenceKey() {
+            return occurrenceKey;
+        }
     }
 }
