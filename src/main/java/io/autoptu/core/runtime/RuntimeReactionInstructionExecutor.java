@@ -46,7 +46,7 @@ public final class RuntimeReactionInstructionExecutor {
             throw new IllegalStateException("reaction target is no longer targetable");
         }
 
-        GridCoord targetAnchor = target.position();
+        GridCoord targetAnchor = target.movementProfile().position();
         MoveChoice choice = new MoveChoice(
                 instruction.reactorId(),
                 instruction.move().moveId(),
