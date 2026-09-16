@@ -1,0 +1,129 @@
+package io.autoptu.core.runtime;
+
+import io.autoptu.core.action.MoveOption;
+import io.autoptu.core.hook.ReactionEligibilityPolicy;
+import io.autoptu.core.model.ActionType;
+import io.autoptu.core.model.CombatStat;
+import io.autoptu.core.model.CombatantStatProfile;
+import io.autoptu.core.model.EvasionProfile;
+import io.autoptu.core.model.GridCoord;
+import io.autoptu.core.model.MoveCombatProfile;
+import io.autoptu.core.model.MoveSpec;
+import io.autoptu.core.model.MovementGrid;
+import io.autoptu.core.model.MovementProfile;
+import io.autoptu.core.random.PythonRandom;
+import io.autoptu.core.rules.ActionBudget;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class RuntimeStandUpReactionExecutionTest {
+    private static final String REACTION = "attack_of_opportunity";
+
+    @Test
+    void standUpFlowsThroughWindowCommitInstructionAndAuthoritativeMoveExecution() {
+        BattleRuntimeState state = battle();
+
+        RuntimeActionTransition.Result standUp = new RuntimeActionTransition(state).standUp("actor", 71);
+        assertFalse(state.hasStatus("actor", RuntimeActionTransition.PRONE_STATUS));
+
+        RuntimeReactionWindowResolver.Candidate candidate = new RuntimeReactionWindowResolver(state)
+                .discoverAdjacentActionWindows(
+                        REACTION,
+                        standUp.occurrence(),
+                        ReactionEligibilityPolicy.attackOfOpportunity()
+                ).eligible().getFirst();
+        assertEquals(RuntimeReactionTriggerRegistry.TriggerKind.ADJACENT_STAND_UP,
+                candidate.window().triggerKind());
+        assertEquals(standUp.occurrence().occurrenceKey(), candidate.window().triggeringEventKey());
+
+        RuntimeReactionWindowCommitter.CommitResult commit = new RuntimeReactionWindowCommitter(state)
+                .commit(candidate, ReactionEligibilityPolicy.attackOfOpportunity());
+        assertTrue(commit.committed());
+
+        RuntimeReactionInstruction instruction = new RuntimeReactionInstructionResolver(state)
+                .resolve(candidate, commit)
+                .orElseThrow();
+        assertEquals(RuntimeReactionTriggerRegistry.TriggerKind.ADJACENT_STAND_UP, instruction.triggerKind());
+        assertEquals("actor", instruction.targetCombatantId());
+
+        AppliedActionResult result = RuntimeReactionInstructionExecutor.execute(
+                state,
+                instruction,
+                new PythonRandom(7),
+                legacyInput(),
+                BattleRuntimeDependencies.empty()
+        );
+
+        assertTrue(state.requireCombatant("actor").hp() < 100);
+        assertTrue(state.requireCombatant("reactor").actionBudget().hasActionAvailable(ActionType.STANDARD));
+        assertTrue(state.requireCombatant("reactor").actionBudget().hasActionAvailable(ActionType.SHIFT));
+        assertTrue(state.requireCombatant("reactor").actionBudget().hasActionAvailable(ActionType.SWIFT));
+        assertFalse(result.events().isEmpty());
+    }
+
+    private static BattleRuntimeState battle() {
+        MoveOption reaction = new MoveOption(
+                "Attack of Opportunity",
+                new MoveSpec("Melee", "Melee", 1, 1, null, null, "Melee"),
+                ActionType.FREE,
+                true,
+                new MoveCombatProfile(2, 6, 20, "physical")
+        );
+        return new BattleRuntimeState(
+                new MovementGrid(6, 6, Set.of(), Map.of()),
+                List.of(
+                        combatant("reactor", new GridCoord(0, 0), 100, profile(20, 8)),
+                        combatant("actor", new GridCoord(1, 0), 100, profile(10, 5))
+                ),
+                Map.of("actor", List.of(RuntimeActionTransition.PRONE_STATUS)),
+                Map.of(),
+                Map.of(
+                        "reactor", CombatantGeometryState.MEDIUM,
+                        "actor", CombatantGeometryState.MEDIUM
+                ),
+                Map.of(
+                        "reactor", CombatantAffiliationState.active("blue"),
+                        "actor", CombatantAffiliationState.active("red")
+                ),
+                Map.of(
+                        "reactor", List.of(reaction),
+                        "actor", List.of()
+                )
+        );
+    }
+
+    private static RuntimeCombatantState combatant(
+            String id, GridCoord position, int hp, CombatantStatProfile profile
+    ) {
+        return new RuntimeCombatantState(
+                id,
+                MovementProfile.walking(position, 6),
+                hp,
+                100,
+                new ActionBudget(),
+                profile,
+                new EvasionProfile(profile, 0, 0, 0, false, false)
+        );
+    }
+
+    private static CombatantStatProfile profile(int attack, int defense) {
+        return new CombatantStatProfile(
+                Map.of(CombatStat.ATK, attack, CombatStat.DEF, defense),
+                Map.of(), Map.of(), Set.of()
+        );
+    }
+
+    private static MoveResolutionInput legacyInput() {
+        return new MoveResolutionInput(
+                null, 0, 0, 20, false, false, false,
+                0, 0, 0, false, 1.0, List.of()
+        );
+    }
+}
