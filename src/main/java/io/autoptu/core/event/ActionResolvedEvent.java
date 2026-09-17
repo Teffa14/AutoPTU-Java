@@ -47,7 +47,11 @@ public record ActionResolvedEvent(
 
     @Override
     public String stableKey() {
-        return String.join("|", "action_resolved", actorId, actionKey, qualifier, String.join(",", targetIds));
+        String legacyKey = String.join("|", "action_resolved", actorId, actionKey, qualifier);
+        if (targetIds.isEmpty()) {
+            return legacyKey;
+        }
+        return legacyKey + "|" + String.join(",", targetIds);
     }
 
     private static String safe(String value) {
