@@ -38,6 +38,50 @@ class RuntimeAdjacentActionReactionWindowTest {
     }
 
     @Test
+    void rangedAttackWithoutAdjacentTargetOpensAttackOfOpportunityWindow() {
+        BattleRuntimeState state = battleWithTarget(new GridCoord(0, 0), new GridCoord(1, 0), new GridCoord(4, 0));
+        BattleEventOccurrence occurrence = new BattleEventOccurrence(50,
+                ActionResolvedEvent.targeted("actor", "ranged_attack", List.of("target")));
+
+        RuntimeReactionWindowResolver.Resolution resolution = new RuntimeReactionWindowResolver(state)
+                .discoverAdjacentActionWindows(
+                        "attack_of_opportunity", occurrence, ReactionEligibilityPolicy.attackOfOpportunity());
+
+        assertEquals(List.of("reactor"), resolution.eligible().stream()
+                .map(RuntimeReactionWindowResolver.Candidate::reactorId).toList());
+        assertEquals(RuntimeReactionTriggerRegistry.TriggerKind.ADJACENT_RANGED_ATTACK_WITHOUT_ADJACENT_TARGET,
+                resolution.eligible().get(0).window().triggerKind());
+    }
+
+    @Test
+    void rangedAttackWithAnyAdjacentTargetSuppressesAttackOfOpportunityWindow() {
+        BattleRuntimeState state = battleWithTarget(new GridCoord(0, 0), new GridCoord(1, 0), new GridCoord(2, 0));
+        BattleEventOccurrence occurrence = new BattleEventOccurrence(51,
+                ActionResolvedEvent.targeted("actor", "ranged_attack", List.of("target")));
+
+        RuntimeReactionWindowResolver.Resolution resolution = new RuntimeReactionWindowResolver(state)
+                .discoverAdjacentActionWindows(
+                        "attack_of_opportunity", occurrence, ReactionEligibilityPolicy.attackOfOpportunity());
+
+        assertTrue(resolution.eligible().isEmpty());
+    }
+
+    @Test
+    void rangedAttackUsesAllAuthoritativeTargetsForAdjacencyPredicate() {
+        BattleRuntimeState state = battleWithTargets(
+                new GridCoord(0, 0), new GridCoord(1, 0),
+                new GridCoord(4, 0), new GridCoord(2, 0));
+        BattleEventOccurrence occurrence = new BattleEventOccurrence(52,
+                ActionResolvedEvent.targeted("actor", "ranged_attack", List.of("far_target", "near_target")));
+
+        RuntimeReactionWindowResolver.Resolution resolution = new RuntimeReactionWindowResolver(state)
+                .discoverAdjacentActionWindows(
+                        "attack_of_opportunity", occurrence, ReactionEligibilityPolicy.attackOfOpportunity());
+
+        assertTrue(resolution.eligible().isEmpty());
+    }
+
+    @Test
     void sameOccurrenceIsStableAndRepeatedStandUpGetsDistinctWindowIdentity() {
         BattleRuntimeState state = battle(new GridCoord(0, 0), new GridCoord(1, 0));
         ActionResolvedEvent event = new ActionResolvedEvent("actor", "stand_up");
@@ -94,20 +138,41 @@ class RuntimeAdjacentActionReactionWindowTest {
     }
 
     private static BattleRuntimeState battle(GridCoord reactorPosition, GridCoord actorPosition) {
-        List<RuntimeCombatantState> combatants = List.of(
-                combatant("reactor", reactorPosition), combatant("actor", actorPosition));
+        return battleState(
+                List.of(combatant("reactor", reactorPosition), combatant("actor", actorPosition)),
+                Map.of("reactor", "blue", "actor", "red"));
+    }
+
+    private static BattleRuntimeState battleWithTarget(
+            GridCoord reactorPosition, GridCoord actorPosition, GridCoord targetPosition
+    ) {
+        return battleState(
+                List.of(combatant("reactor", reactorPosition), combatant("actor", actorPosition),
+                        combatant("target", targetPosition)),
+                Map.of("reactor", "blue", "actor", "red", "target", "blue"));
+    }
+
+    private static BattleRuntimeState battleWithTargets(
+            GridCoord reactorPosition, GridCoord actorPosition, GridCoord farTargetPosition, GridCoord nearTargetPosition
+    ) {
+        return battleState(
+                List.of(combatant("reactor", reactorPosition), combatant("actor", actorPosition),
+                        combatant("far_target", farTargetPosition), combatant("near_target", nearTargetPosition)),
+                Map.of("reactor", "blue", "actor", "red", "far_target", "blue", "near_target", "blue"));
+    }
+
+    private static BattleRuntimeState battleState(List<RuntimeCombatantState> combatants, Map<String, String> teams) {
+        Map<String, CombatantAffiliationState> affiliations = teams.entrySet().stream().collect(
+                java.util.stream.Collectors.toMap(Map.Entry::getKey,
+                        entry -> CombatantAffiliationState.active(entry.getValue())));
+        Map<String, List<MoveOption>> moves = combatants.stream().collect(
+                java.util.stream.Collectors.toMap(RuntimeCombatantState::combatantId,
+                        combatant -> List.of(move(combatant.combatantId().equals("reactor")
+                                ? "Attack of Opportunity" : "Tackle"))));
         return new BattleRuntimeState(
                 new MovementGrid(8, 8, Set.of(), Map.of()),
                 combatants,
-                Map.of(), Map.of(), Map.of(),
-                Map.of(
-                        "reactor", CombatantAffiliationState.active("blue"),
-                        "actor", CombatantAffiliationState.active("red")
-                ),
-                Map.of(
-                        "reactor", List.of(move("Attack of Opportunity")),
-                        "actor", List.of(move("Tackle"))
-                )
+                Map.of(), Map.of(), Map.of(), affiliations, moves
         );
     }
 
