@@ -75,7 +75,7 @@ public final class RuntimeReactionTriggerRegistry {
     public enum TriggerKind {
         ADJACENT_NON_TARGETING_MANEUVER("maneuver"),
         ADJACENT_STAND_UP("stand_up"),
-        ADJACENT_RANGED_ATTACK_WITHOUT_ADJACENT_TARGET("ranged_attack_without_adjacent_target"),
+        ADJACENT_RANGED_ATTACK_WITHOUT_ADJACENT_TARGET("ranged_attack"),
         ADJACENT_STANDARD_ITEM_RETRIEVAL("standard_item_retrieval"),
         ADJACENT_SHIFT_AWAY("shift_away");
 
