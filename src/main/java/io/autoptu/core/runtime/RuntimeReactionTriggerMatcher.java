@@ -54,9 +54,26 @@ public final class RuntimeReactionTriggerMatcher {
         if (trigger == null || trigger.kind() == RuntimeReactionTriggerRegistry.TriggerKind.ADJACENT_SHIFT_AWAY) {
             return Optional.empty();
         }
+        if (trigger.kind() == RuntimeReactionTriggerRegistry.TriggerKind.ADJACENT_RANGED_ATTACK_WITHOUT_ADJACENT_TARGET
+                && hasTargetAdjacentToActor(battleState, event)) {
+            return Optional.empty();
+        }
         return matchAdjacentAction(
                 reactionKey, reactorId, battleState, event.actorId(), trigger.kind(), event.qualifier()
         );
+    }
+
+    private boolean hasTargetAdjacentToActor(BattleRuntimeState battleState, ActionResolvedEvent event) {
+        RuntimeCombatantState actor = battleState.requireCombatant(event.actorId());
+        for (String targetId : event.targetIds()) {
+            RuntimeCombatantState target = battleState.requireCombatant(targetId);
+            int distance = Targeting.footprintDistance(
+                    actor.position(), battleState.geometry(event.actorId()).sizeLabel(),
+                    target.position(), battleState.geometry(targetId).sizeLabel()
+            );
+            if (distance == 1) return true;
+        }
+        return false;
     }
 
     public Optional<TriggerMatch> matchAdjacentAction(
