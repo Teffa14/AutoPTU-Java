@@ -26,7 +26,7 @@ class RuntimeMoveReactionProjectionTest {
         assertEquals(1, projected.events().size());
         ActionResolvedEvent event = (ActionResolvedEvent) projected.events().getFirst();
         assertEquals("actor", event.actorId());
-        assertEquals("ranged_attack", event.actionKind());
+        assertEquals("ranged_attack", event.actionKey());
         assertEquals(List.of("target-a"), event.targetIds());
     }
 
