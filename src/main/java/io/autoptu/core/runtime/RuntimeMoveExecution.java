@@ -53,6 +53,7 @@ public final class RuntimeMoveExecution {
     public static MultiTargetAppliedActionResult applyArea(
             BattleRuntimeState state,
             MoveChoice tileChoice,
+            MoveOption move,
             String source,
             PythonRandom rng,
             MoveResolutionInput input,
@@ -60,6 +61,10 @@ public final class RuntimeMoveExecution {
             boolean ignorePositiveDefenseStage,
             BattleRuntimeDependencies dependencies
     ) {
+        if (move == null) throw new IllegalArgumentException("move is required");
+        if (!move.moveId().equals(tileChoice.moveId())) {
+            throw new IllegalArgumentException("move must match tile choice");
+        }
         MultiTargetAppliedActionResult resolved = RuntimeMoveResolution.applyAreaUsingAuthoritativeCombatState(
                 state,
                 tileChoice,
@@ -70,12 +75,6 @@ public final class RuntimeMoveExecution {
                 ignorePositiveDefenseStage,
                 dependencies
         );
-        MoveOption move = state.requireCombatant(tileChoice.actorId())
-                .moves()
-                .stream()
-                .filter(candidate -> candidate.moveId().equals(tileChoice.moveId()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("unknown move: " + tileChoice.moveId()));
         return RuntimeMoveCompletionProjection.area(resolved, tileChoice, move);
     }
 }
