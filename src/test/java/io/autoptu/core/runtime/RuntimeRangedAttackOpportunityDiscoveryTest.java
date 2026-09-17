@@ -51,7 +51,7 @@ class RuntimeRangedAttackOpportunityDiscoveryTest {
                 "attacker", "ranged_attack", List.of("far-target"));
         AuthoritativeCombatGeometrySnapshot geometry = new AuthoritativeCombatGeometrySnapshot(List.of(
                 combatant("reactor", 0, 0, "Medium"),
-                combatant("attacker", 2, 0, "Large"),
+                combatant("attacker", -2, 0, "Large"),
                 combatant("far-target", 6, 0, "Medium")
         ));
 
@@ -78,7 +78,7 @@ class RuntimeRangedAttackOpportunityDiscoveryTest {
         AuthoritativeCombatGeometrySnapshot geometry = new AuthoritativeCombatGeometrySnapshot(List.of(
                 combatant("reactor", 0, 0, "Medium"),
                 combatant("attacker", 1, 0, "Medium"),
-                combatant("large-adjacent-target", 2, 2, "Large"),
+                combatant("large-adjacent-target", -2, 0, "Large"),
                 combatant("far-target", 6, 0, "Medium")
         ));
 
