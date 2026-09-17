@@ -30,9 +30,6 @@ public final class RuntimeMoveActionOccurrenceFactory {
         if (choice == null) throw new IllegalArgumentException("choice is required");
         if (move == null) throw new IllegalArgumentException("move is required");
         if (resolvedTargetIds == null) throw new IllegalArgumentException("resolvedTargetIds are required");
-        if (!choice.actorId().equals(choice.actorId().strip())) {
-            throw new IllegalArgumentException("choice actorId must be canonical");
-        }
         if (!move.spec().hasRangeKeyword("ranged")) {
             return Optional.empty();
         }
