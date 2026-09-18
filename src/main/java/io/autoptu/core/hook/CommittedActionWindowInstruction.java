@@ -14,6 +14,7 @@ public record CommittedActionWindowInstruction(
         String reactingCombatantId,
         String actionKey,
         String triggerKey,
+        String triggeringCombatantId,
         ActionType actionType,
         String resourceDetail,
         ActionSpendResult spend
@@ -22,6 +23,7 @@ public record CommittedActionWindowInstruction(
         reactingCombatantId = requireText(reactingCombatantId, "reacting combatant id");
         actionKey = requireText(actionKey, "action key");
         triggerKey = requireText(triggerKey, "trigger key");
+        triggeringCombatantId = normalizeOptionalText(triggeringCombatantId);
         if (actionType == null) {
             throw new IllegalArgumentException("action type is required");
         }
@@ -29,6 +31,22 @@ public record CommittedActionWindowInstruction(
         if (spend == null || !spend.consumed()) {
             throw new IllegalArgumentException("committed instruction requires a consumed spend");
         }
+    }
+
+    /** Compatibility constructor for committed windows that do not yet expose a source combatant. */
+    public CommittedActionWindowInstruction(
+            String reactingCombatantId,
+            String actionKey,
+            String triggerKey,
+            ActionType actionType,
+            String resourceDetail,
+            ActionSpendResult spend
+    ) {
+        this(reactingCombatantId, actionKey, triggerKey, "", actionType, resourceDetail, spend);
+    }
+
+    public boolean hasTriggeringCombatant() {
+        return !triggeringCombatantId.isEmpty();
     }
 
     public static CommittedActionWindowInstruction from(
@@ -46,6 +64,7 @@ public record CommittedActionWindowInstruction(
                 candidate.reactingCombatantId(),
                 candidate.actionKey(),
                 candidate.triggerKey(),
+                candidate.triggeringCombatantId(),
                 resource.actionType(),
                 resource.detail(),
                 spend
@@ -57,5 +76,9 @@ public record CommittedActionWindowInstruction(
             throw new IllegalArgumentException(label + " is required");
         }
         return value.strip();
+    }
+
+    private static String normalizeOptionalText(String value) {
+        return value == null ? "" : value.strip();
     }
 }
