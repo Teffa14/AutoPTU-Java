@@ -39,6 +39,11 @@ For each subsystem:
 
 ## Current status
 
+Pokémon creation now has a typed [creation/stat-allocation contract](docs/POKEMON_CREATION.md)
+with 3,600 frozen Python-oracle cases: nature selection, level-point allocation,
+post-nature stats, base HP and ability tier choices. This does not claim full capture
+or battle integration.
+
 - [x] Java 21 library skeleton.
 - [x] Cross-language oracle input/output contracts.
 - [x] Stable-value canonicalizer matching Python oracle normalization.
