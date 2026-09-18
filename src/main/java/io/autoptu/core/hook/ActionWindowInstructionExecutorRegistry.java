@@ -33,14 +33,20 @@ public final class ActionWindowInstructionExecutorRegistry {
         return handlers.containsKey(normalize(instruction.actionKey()));
     }
 
-    public void execute(CommittedActionWindowInstruction instruction) {
+    public ActionWindowExecutionResult execute(CommittedActionWindowInstruction instruction) {
         requireInstruction(instruction);
         ActionWindowInstructionHandler handler = handlers.get(normalize(instruction.actionKey()));
         if (handler == null) {
             throw new IllegalStateException(
                     "no authoritative handler registered for committed action key: " + instruction.actionKey());
         }
-        handler.execute(instruction);
+        ActionWindowExecutionResult result = handler.execute(instruction);
+        if (result == null) {
+            throw new IllegalStateException(
+                    "authoritative handler returned no execution result for committed action key: "
+                            + instruction.actionKey());
+        }
+        return result;
     }
 
     private static void requireInstruction(CommittedActionWindowInstruction instruction) {
