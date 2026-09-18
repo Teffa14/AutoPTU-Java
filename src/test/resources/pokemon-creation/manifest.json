@@ -1,0 +1,11 @@
+{
+  "source_revision": "16d228efa63aabecb67fa788959a359aac7f8f03",
+  "cases": 3600,
+  "sources": {
+    "auto_ptu/random_campaign.py": "99a263ca18b965ac8a2ec4fbfe3977d032ecae31683853f1a4b46869d57a5c41",
+    "auto_ptu/natures.py": "6a87c3e7dcd09a7828712aa3d2910b0786f039888a5d518ea15d983c5c13754f",
+    "auto_ptu/foundry_loader.py": "3cb3194b78eea84b3b2ef150a1a1d767a1c2a4c3d1c68ba48be05b88a896c0c3",
+    "auto_ptu/ptu_engine.py": "2a368206b6d64cc5eee4bd1f6b37e3608f0d78272ec2b42ef60e0f22f8f9522c",
+    "files/Copia de Fancy PTU 1.05 Sheet - Version Hisui - Nature_Type Data.csv": "943bc98bcba58d069165b2b8d5f5535dfe0e67f3743afdc71b946944b87f6ada"
+  }
+}
