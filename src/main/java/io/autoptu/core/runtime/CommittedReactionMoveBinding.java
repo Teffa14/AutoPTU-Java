@@ -1,5 +1,6 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 
@@ -30,7 +31,10 @@ public record CommittedReactionMoveBinding(
         if (!reactorId.strip().equals(choice.actorId())) {
             throw new IllegalArgumentException("choice actor does not match committed reactor");
         }
-        if (!choice.targetIds().equals(java.util.List.of(triggeringCombatantId.strip()))) {
+        if (choice.targetMode() != ChoiceTargetMode.COMBATANT) {
+            throw new IllegalArgumentException("committed reaction attack requires a combatant target");
+        }
+        if (!triggeringCombatantId.strip().equals(choice.targetId())) {
             throw new IllegalArgumentException("choice target does not match committed triggering combatant");
         }
     }
