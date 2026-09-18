@@ -20,7 +20,6 @@ class ActionWindowCommitRegistryTest {
     void commitsCandidateOnlyAfterCurrentStateValidation() {
         ActionWindowCommitRegistry commits = new ActionWindowCommitRegistry();
         ActionWindowCandidate candidate = candidate("reactor", "attack_of_opportunity", "action:42");
-
         assertTrue(commits.commit(candidate, ignored -> true).isPresent());
         assertTrue(commits.isCommitted("action:42"));
         assertEquals(candidate, commits.committed("action:42").orElseThrow());
@@ -30,7 +29,6 @@ class ActionWindowCommitRegistryTest {
     void rejectsCandidateThatBecameStaleBeforeCommit() {
         ActionWindowCommitRegistry commits = new ActionWindowCommitRegistry();
         ActionWindowCandidate candidate = candidate("reactor", "attack_of_opportunity", "action:42");
-
         assertTrue(commits.commit(candidate, ignored -> false).isEmpty());
         assertFalse(commits.isCommitted("action:42"));
         assertEquals(0, commits.committedCount());
@@ -41,7 +39,6 @@ class ActionWindowCommitRegistryTest {
         ActionWindowCommitRegistry commits = new ActionWindowCommitRegistry();
         ActionWindowCandidate first = candidate("reactor-a", "attack_of_opportunity", "action:42");
         ActionWindowCandidate competing = candidate("reactor-b", "attack_of_opportunity", "action:42");
-
         assertTrue(commits.commit(first, ignored -> true).isPresent());
         assertTrue(commits.commit(competing, ignored -> true).isEmpty());
         assertEquals(first, commits.committed("action:42").orElseThrow());
@@ -53,7 +50,6 @@ class ActionWindowCommitRegistryTest {
         ActionWindowCommitRegistry commits = new ActionWindowCommitRegistry();
         ActionWindowCandidate stale = candidate("reactor-a", "attack_of_opportunity", "action:42");
         ActionWindowCandidate live = candidate("reactor-b", "attack_of_opportunity", "action:42");
-
         assertTrue(commits.commit(stale, ignored -> false).isEmpty());
         assertTrue(commits.commit(live, ignored -> true).isPresent());
         assertEquals(live, commits.committed("action:42").orElseThrow());
@@ -66,12 +62,10 @@ class ActionWindowCommitRegistryTest {
         ActionBudget exhausted = new ActionBudget();
         exhausted.markAction(ActionType.STANDARD, "earlier action");
         ActionWindowCandidate first = candidate("reactor-a", "feature_reaction", "action:42");
-
         assertTrue(commits.commitWithResource(first, ignored -> true,
                 new ActionWindowResourceCommit(ActionType.STANDARD, "feature reaction"),
                 exhausted, resources).isEmpty());
         assertFalse(commits.isCommitted("action:42"));
-
         ActionBudget available = new ActionBudget();
         ActionWindowCandidate second = candidate("reactor-b", "feature_reaction", "action:42");
         assertTrue(commits.commitWithResource(second, ignored -> true,
@@ -89,7 +83,6 @@ class ActionWindowCommitRegistryTest {
         ActionWindowCandidate first = candidate("reactor-a", "feature_reaction", "action:42");
         ActionWindowCandidate competing = candidate("reactor-b", "feature_reaction", "action:42");
         ActionWindowResourceCommit cost = new ActionWindowResourceCommit(ActionType.SWIFT, "feature reaction");
-
         CommittedActionWindowInstruction instruction = commits.commitWithResource(
                 first, ignored -> true, cost, firstBudget, resources).orElseThrow();
         assertEquals("reactor-a", instruction.reactingCombatantId());
@@ -112,15 +105,10 @@ class ActionWindowCommitRegistryTest {
         budget.markAction(ActionType.STANDARD, "earlier action");
         budget.grantExtra(ActionType.STANDARD, "Commander grant", 1);
         ActionWindowCandidate candidate = candidate("reactor", "feature_reaction", "action:extra");
-
         CommittedActionWindowInstruction instruction = commits.commitWithResource(
-                candidate,
-                ignored -> true,
-                new ActionWindowResourceCommit(ActionType.STANDARD, "feature reaction"),
-                budget,
-                resources
+                candidate, ignored -> true,
+                new ActionWindowResourceCommit(ActionType.STANDARD, "feature reaction"), budget, resources
         ).orElseThrow();
-
         assertEquals(ActionSpendResult.Source.EXTRA, instruction.spend().source());
         assertEquals("Commander grant", instruction.spend().extraGrantName().orElseThrow());
     }
@@ -130,17 +118,16 @@ class ActionWindowCommitRegistryTest {
         ActionWindowCommitRegistry commits = new ActionWindowCommitRegistry();
         ReactionResourceCommitter resources = new ReactionResourceCommitter();
         ActionBudget budget = new ActionBudget();
-        ActionWindowCandidate aoo = candidate("reactor", "attack_of_opportunity", "action:42");
-
+        ActionWindowCandidate aoo = new ActionWindowCandidate(
+                "reactor", "attack_of_opportunity", "action:42", "triggering-foe");
         CommittedActionWindowInstruction instruction = commits.commitWithResource(
-                aoo,
-                ignored -> true,
-                new ActionWindowResourceCommit(ActionType.FREE, "Attack of Opportunity"),
-                budget,
-                resources
+                aoo, ignored -> true,
+                new ActionWindowResourceCommit(ActionType.FREE, "Attack of Opportunity"), budget, resources
         ).orElseThrow();
         assertEquals(ActionSpendResult.Source.FREE, instruction.spend().source());
         assertEquals(ActionType.FREE, instruction.actionType());
+        assertEquals("triggering-foe", instruction.triggeringCombatantId());
+        assertTrue(instruction.hasTriggeringCombatant());
         assertTrue(budget.hasActionAvailable(ActionType.STANDARD));
         assertTrue(budget.hasActionAvailable(ActionType.SHIFT));
         assertTrue(budget.hasActionAvailable(ActionType.SWIFT));
