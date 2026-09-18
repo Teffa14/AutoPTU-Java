@@ -13,8 +13,9 @@ import java.util.Optional;
  * Authoritative commit boundary for discovered action-window candidates.
  *
  * <p>Discovery is advisory. Commit revalidates the selected candidate against current core state
- * and claims its trigger key only after any required action-economy resource is paid. The actual
- * reaction instruction/execution remains a later resolver step.</p>
+ * and claims its trigger key only after any required action-economy resource is paid. A successful
+ * resource-bearing commit returns an immutable instruction carrying the provenance already decided
+ * by the core; downstream execution must not reconstruct legality or payment.</p>
  */
 public final class ActionWindowCommitRegistry {
     private final Map<String, ActionWindowCandidate> committedByTrigger = new LinkedHashMap<>();
@@ -37,7 +38,7 @@ public final class ActionWindowCommitRegistry {
         return Optional.of(candidate);
     }
 
-    public Optional<ActionWindowCandidate> commitWithResource(
+    public Optional<CommittedActionWindowInstruction> commitWithResource(
             ActionWindowCandidate candidate,
             ActionWindowCommitValidator validator,
             ActionWindowResourceCommit resource,
@@ -63,7 +64,7 @@ public final class ActionWindowCommitRegistry {
         }
 
         committedByTrigger.put(candidate.triggerKey(), candidate);
-        return Optional.of(candidate);
+        return Optional.of(CommittedActionWindowInstruction.from(candidate, resource, spend));
     }
 
     public boolean isCommitted(String triggerKey) {
