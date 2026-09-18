@@ -1,5 +1,8 @@
 package io.autoptu.core.hook;
 
+import io.autoptu.core.model.ActionType;
+import io.autoptu.core.rules.ActionBudget;
+import io.autoptu.core.rules.ReactionResourceCommitter;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -53,5 +56,58 @@ class ActionWindowCommitRegistryTest {
         assertTrue(commits.commit(stale, ignored -> false).isEmpty());
         assertTrue(commits.commit(live, ignored -> true).isPresent());
         assertEquals(live, commits.committed("action:42").orElseThrow());
+    }
+
+    @Test
+    void failedResourceSpendDoesNotClaimTrigger() {
+        ActionWindowCommitRegistry commits = new ActionWindowCommitRegistry();
+        ReactionResourceCommitter resources = new ReactionResourceCommitter();
+        ActionBudget exhausted = new ActionBudget();
+        exhausted.markAction(ActionType.STANDARD, "earlier action");
+        ActionWindowCandidate first = candidate("reactor-a", "feature_reaction", "action:42");
+
+        assertTrue(commits.commitWithResource(first, ignored -> true,
+                new ActionWindowResourceCommit(ActionType.STANDARD, "feature reaction"),
+                exhausted, resources).isEmpty());
+        assertFalse(commits.isCommitted("action:42"));
+
+        ActionBudget available = new ActionBudget();
+        ActionWindowCandidate second = candidate("reactor-b", "feature_reaction", "action:42");
+        assertTrue(commits.commitWithResource(second, ignored -> true,
+                new ActionWindowResourceCommit(ActionType.STANDARD, "feature reaction"),
+                available, resources).isPresent());
+        assertFalse(available.hasActionAvailable(ActionType.STANDARD));
+    }
+
+    @Test
+    void successfulResourceSpendClaimsTriggerBeforeCompetitorCanSpend() {
+        ActionWindowCommitRegistry commits = new ActionWindowCommitRegistry();
+        ReactionResourceCommitter resources = new ReactionResourceCommitter();
+        ActionBudget firstBudget = new ActionBudget();
+        ActionBudget competingBudget = new ActionBudget();
+        ActionWindowCandidate first = candidate("reactor-a", "feature_reaction", "action:42");
+        ActionWindowCandidate competing = candidate("reactor-b", "feature_reaction", "action:42");
+        ActionWindowResourceCommit cost = new ActionWindowResourceCommit(ActionType.SWIFT, "feature reaction");
+
+        assertTrue(commits.commitWithResource(first, ignored -> true, cost, firstBudget, resources).isPresent());
+        assertFalse(firstBudget.hasActionAvailable(ActionType.SWIFT));
+        assertTrue(commits.commitWithResource(competing, ignored -> true, cost, competingBudget, resources).isEmpty());
+        assertTrue(competingBudget.hasActionAvailable(ActionType.SWIFT));
+        assertEquals(first, commits.committed("action:42").orElseThrow());
+    }
+
+    @Test
+    void freeReactionClaimsTriggerWithoutMutatingBudget() {
+        ActionWindowCommitRegistry commits = new ActionWindowCommitRegistry();
+        ReactionResourceCommitter resources = new ReactionResourceCommitter();
+        ActionBudget budget = new ActionBudget();
+        ActionWindowCandidate aoo = candidate("reactor", "attack_of_opportunity", "action:42");
+
+        assertTrue(commits.commitWithResource(aoo, ignored -> true,
+                new ActionWindowResourceCommit(ActionType.FREE, "Attack of Opportunity"),
+                budget, resources).isPresent());
+        assertTrue(budget.hasActionAvailable(ActionType.STANDARD));
+        assertTrue(budget.hasActionAvailable(ActionType.SHIFT));
+        assertTrue(budget.hasActionAvailable(ActionType.SWIFT));
     }
 }
