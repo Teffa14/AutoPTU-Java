@@ -2,6 +2,7 @@ package io.autoptu.core.hook;
 
 import io.autoptu.core.model.ActionType;
 import io.autoptu.core.rules.ActionBudget;
+import io.autoptu.core.rules.ActionSpendResult;
 import io.autoptu.core.rules.ReactionResourceCommitter;
 import org.junit.jupiter.api.Test;
 
@@ -89,7 +90,14 @@ class ActionWindowCommitRegistryTest {
         ActionWindowCandidate competing = candidate("reactor-b", "feature_reaction", "action:42");
         ActionWindowResourceCommit cost = new ActionWindowResourceCommit(ActionType.SWIFT, "feature reaction");
 
-        assertTrue(commits.commitWithResource(first, ignored -> true, cost, firstBudget, resources).isPresent());
+        CommittedActionWindowInstruction instruction = commits.commitWithResource(
+                first, ignored -> true, cost, firstBudget, resources).orElseThrow();
+        assertEquals("reactor-a", instruction.reactingCombatantId());
+        assertEquals("feature_reaction", instruction.actionKey());
+        assertEquals("action:42", instruction.triggerKey());
+        assertEquals(ActionType.SWIFT, instruction.actionType());
+        assertEquals("feature reaction", instruction.resourceDetail());
+        assertEquals(ActionSpendResult.Source.BASE, instruction.spend().source());
         assertFalse(firstBudget.hasActionAvailable(ActionType.SWIFT));
         assertTrue(commits.commitWithResource(competing, ignored -> true, cost, competingBudget, resources).isEmpty());
         assertTrue(competingBudget.hasActionAvailable(ActionType.SWIFT));
@@ -97,15 +105,42 @@ class ActionWindowCommitRegistryTest {
     }
 
     @Test
-    void freeReactionClaimsTriggerWithoutMutatingBudget() {
+    void instructionPreservesNamedExtraSpendProvenance() {
+        ActionWindowCommitRegistry commits = new ActionWindowCommitRegistry();
+        ReactionResourceCommitter resources = new ReactionResourceCommitter();
+        ActionBudget budget = new ActionBudget();
+        budget.markAction(ActionType.STANDARD, "earlier action");
+        budget.grantExtraAction(ActionType.STANDARD, "Commander grant");
+        ActionWindowCandidate candidate = candidate("reactor", "feature_reaction", "action:extra");
+
+        CommittedActionWindowInstruction instruction = commits.commitWithResource(
+                candidate,
+                ignored -> true,
+                new ActionWindowResourceCommit(ActionType.STANDARD, "feature reaction"),
+                budget,
+                resources
+        ).orElseThrow();
+
+        assertEquals(ActionSpendResult.Source.EXTRA, instruction.spend().source());
+        assertEquals("Commander grant", instruction.spend().extraGrantName().orElseThrow());
+    }
+
+    @Test
+    void freeReactionClaimsTriggerWithoutMutatingBudgetAndPreservesFreeProvenance() {
         ActionWindowCommitRegistry commits = new ActionWindowCommitRegistry();
         ReactionResourceCommitter resources = new ReactionResourceCommitter();
         ActionBudget budget = new ActionBudget();
         ActionWindowCandidate aoo = candidate("reactor", "attack_of_opportunity", "action:42");
 
-        assertTrue(commits.commitWithResource(aoo, ignored -> true,
+        CommittedActionWindowInstruction instruction = commits.commitWithResource(
+                aoo,
+                ignored -> true,
                 new ActionWindowResourceCommit(ActionType.FREE, "Attack of Opportunity"),
-                budget, resources).isPresent());
+                budget,
+                resources
+        ).orElseThrow();
+        assertEquals(ActionSpendResult.Source.FREE, instruction.spend().source());
+        assertEquals(ActionType.FREE, instruction.actionType());
         assertTrue(budget.hasActionAvailable(ActionType.STANDARD));
         assertTrue(budget.hasActionAvailable(ActionType.SHIFT));
         assertTrue(budget.hasActionAvailable(ActionType.SWIFT));
