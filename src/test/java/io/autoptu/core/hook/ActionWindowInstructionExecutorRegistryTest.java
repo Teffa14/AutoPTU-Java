@@ -22,15 +22,13 @@ class ActionWindowInstructionExecutorRegistryTest {
             executed.add(instruction);
             return ActionWindowExecutionResult.empty();
         });
-
         CommittedActionWindowInstruction instruction = instruction("Attack-Of-Opportunity");
-
         assertTrue(registry.canExecute(instruction));
         ActionWindowExecutionResult result = registry.execute(instruction);
-
         assertEquals(List.of(instruction), executed);
         assertEquals(ActionSpendResult.Source.FREE, executed.get(0).spend().source());
         assertEquals("shift:left-threatened-square", executed.get(0).triggerKey());
+        assertEquals("triggering-foe", executed.get(0).triggeringCombatantId());
         assertEquals(List.of(), result.events());
     }
 
@@ -38,7 +36,6 @@ class ActionWindowInstructionExecutorRegistryTest {
     void refusesUnknownCommittedActionInsteadOfDelegatingRulesOutsideCore() {
         ActionWindowInstructionExecutorRegistry registry = new ActionWindowInstructionExecutorRegistry();
         CommittedActionWindowInstruction instruction = instruction("unregistered-reaction");
-
         assertFalse(registry.canExecute(instruction));
         IllegalStateException error = assertThrows(IllegalStateException.class, () -> registry.execute(instruction));
         assertTrue(error.getMessage().contains("unregistered-reaction"));
@@ -48,7 +45,6 @@ class ActionWindowInstructionExecutorRegistryTest {
     void rejectsHandlerThatReturnsNoAuthoritativeResult() {
         ActionWindowInstructionExecutorRegistry registry = new ActionWindowInstructionExecutorRegistry();
         registry.register("attack-of-opportunity", ignored -> null);
-
         IllegalStateException error = assertThrows(
                 IllegalStateException.class,
                 () -> registry.execute(instruction("attack-of-opportunity"))
@@ -60,11 +56,9 @@ class ActionWindowInstructionExecutorRegistryTest {
     void rejectsDuplicateHandlersForSameNormalizedActionKey() {
         ActionWindowInstructionExecutorRegistry registry = new ActionWindowInstructionExecutorRegistry();
         registry.register("Attack-Of-Opportunity", ignored -> ActionWindowExecutionResult.empty());
-
         assertThrows(IllegalArgumentException.class,
                 () -> registry.register(
-                        " attack-of-opportunity ",
-                        ignored -> ActionWindowExecutionResult.empty()
+                        " attack-of-opportunity ", ignored -> ActionWindowExecutionResult.empty()
                 ));
     }
 
@@ -73,6 +67,7 @@ class ActionWindowInstructionExecutorRegistryTest {
                 "reactor-1",
                 actionKey,
                 "shift:left-threatened-square",
+                "triggering-foe",
                 ActionType.FREE,
                 "Attack of Opportunity",
                 ActionSpendResult.free()
