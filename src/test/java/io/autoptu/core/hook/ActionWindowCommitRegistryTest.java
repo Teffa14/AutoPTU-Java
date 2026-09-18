@@ -110,7 +110,7 @@ class ActionWindowCommitRegistryTest {
         ReactionResourceCommitter resources = new ReactionResourceCommitter();
         ActionBudget budget = new ActionBudget();
         budget.markAction(ActionType.STANDARD, "earlier action");
-        budget.grantExtraAction(ActionType.STANDARD, "Commander grant");
+        budget.grantExtra(ActionType.STANDARD, "Commander grant", 1);
         ActionWindowCandidate candidate = candidate("reactor", "feature_reaction", "action:extra");
 
         CommittedActionWindowInstruction instruction = commits.commitWithResource(
