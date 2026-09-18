@@ -50,6 +50,6 @@ public record CommittedReactionMoveExecution(
         if (!instruction.hasTriggeringCombatant()) {
             throw new IllegalArgumentException("committed reaction attack requires a triggering combatant");
         }
-        binding.requireParticipants(instruction.reactorId(), instruction.triggeringCombatantId());
+        binding.requireParticipants(instruction.reactingCombatantId(), instruction.triggeringCombatantId());
     }
 }
