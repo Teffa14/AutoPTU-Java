@@ -17,6 +17,8 @@ The runtime receives one immutable committed-reaction execution value containing
 
 The runtime must reject any execution whose reactor or triggering combatant differs from the committed instruction. Actor, target and move identity must remain equal to the frozen binding.
 
+The committed `MoveChoice` action type represents the reaction/action-window execution context and is not required to equal the move metadata's ordinary action type. Existing committed-reaction fixtures intentionally bind an ordinary Standard move to a Free reaction choice after the reaction resource has already been paid. Runtime code must not normalize that choice back to Standard or use the move's ordinary action type to charge a second action.
+
 ## Execution
 
 A committed reaction move enters the same ordinary move-resolution pipeline used by an ordinary attack. Accuracy, evasion, deterministic damage arithmetic, RNG consumption, pre-damage reactions, damage application, injury/history updates, move-special effects, post-damage effects and semantic event ordering remain owned by `BattleRuntime`.
