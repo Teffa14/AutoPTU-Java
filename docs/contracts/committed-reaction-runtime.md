@@ -25,6 +25,8 @@ A committed reaction move enters the same ordinary move-resolution pipeline used
 
 The reaction commit already paid the reaction/action-window resource. Runtime execution therefore uses `spendOrdinaryMoveResources = false`. It must not spend a Standard/Swift/Shift action again and must not consume move frequency a second time.
 
+The committed-reaction handoff is already identity-validated by `CommittedReactionRuntimeExecutionGuard`. The ordinary resolver must therefore enter through an explicit already-validated reaction path. It must not fall through the existing area-target or delayed-hit validators. Those validators intentionally require ordinary move/action metadata relationships that do not hold for a committed reaction, where a Standard move may execute under a Free reaction `MoveChoice`. Reconstructing a Standard choice, cloning the move as Free, or otherwise changing either frozen value to satisfy those validators is forbidden because it changes hook-visible metadata or resource ownership.
+
 Minecraft, Cobblemon and Craftics adapters may submit or render the frozen contract. They must not recompute PTU legality, targeting, accuracy, damage, RNG, resource spending or state transitions.
 
 ## Required parity trace
