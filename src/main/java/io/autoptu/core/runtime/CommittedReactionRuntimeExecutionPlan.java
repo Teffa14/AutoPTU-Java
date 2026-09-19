@@ -54,6 +54,23 @@ public record CommittedReactionRuntimeExecutionPlan(
         Objects.requireNonNull(dependencies, "dependencies");
     }
 
+    /**
+     * The action window already owns the committed reaction cost. The ordinary resolver must not
+     * spend Standard, Swift, Shift, or move-frequency resources a second time at runtime ingress.
+     */
+    public boolean spendOrdinaryMoveResources() {
+        return false;
+    }
+
+    /**
+     * Participant and move identity validation is completed by prepare() before this plan exists.
+     * BattleRuntime may therefore skip only declaration validation while retaining ordinary
+     * accuracy, damage, hook, RNG, history, and semantic-event resolution.
+     */
+    public boolean declarationAlreadyValidated() {
+        return true;
+    }
+
     public static CommittedReactionRuntimeExecutionPlan prepare(
             BattleRuntimeState state,
             CommittedReactionMoveExecution execution
