@@ -9,7 +9,7 @@ import io.autoptu.core.action.MoveOption;
  *
  * <p>The action-window instruction has already frozen trigger legality and resource payment.
  * This binding freezes the ordinary move inputs that execution needs without allowing an
- * adapter to choose a different actor, target, move, or action type after the reaction was committed.</p>
+ * adapter to choose a different actor, target, or move after the reaction was committed.</p>
  */
 public record CommittedReactionMoveBinding(
         MoveOption move,
@@ -20,9 +20,6 @@ public record CommittedReactionMoveBinding(
         if (choice == null) throw new IllegalArgumentException("choice is required");
         if (!move.moveId().equals(choice.moveId())) {
             throw new IllegalArgumentException("move identity does not match committed reaction choice");
-        }
-        if (move.actionType() != choice.actionType()) {
-            throw new IllegalArgumentException("move action type does not match committed reaction choice");
         }
     }
 
