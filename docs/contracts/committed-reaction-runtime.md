@@ -27,6 +27,14 @@ The reaction commit already paid the reaction/action-window resource. Runtime ex
 
 The committed-reaction handoff is already identity-validated by `CommittedReactionRuntimeExecutionGuard`. The ordinary resolver must therefore enter through an explicit already-validated reaction path. It must not fall through the existing area-target or delayed-hit validators. Those validators intentionally require ordinary move/action metadata relationships that do not hold for a committed reaction, where a Standard move may execute under a Free reaction `MoveChoice`. Reconstructing a Standard choice, cloning the move as Free, or otherwise changing either frozen value to satisfy those validators is forbidden because it changes hook-visible metadata or resource ownership.
 
+### Runtime ingress dispatch
+
+`BattleRuntime` must accept the prepared `CommittedReactionRuntimeExecutionPlan` as one server-owned value. The ingress must pass the plan's frozen choice, move, RNG, input, pre-resolution events, move-special registry, pre-damage registry, post-damage registry, effective metadata and dependency snapshot directly to the ordinary internal resolver.
+
+The dispatch tuple is fixed as `spendOrdinaryMoveResources = plan.spendOrdinaryMoveResources()`, `runPreDamageReactions = true`, and `declaredChoiceAlreadyValidated = plan.declarationAlreadyValidated()`. No area anchor is supplied. This tuple is a distinct committed-reaction mode: internal validation must not reinterpret `spendOrdinaryMoveResources = false` plus `runPreDamageReactions = true` as an area-resolved move.
+
+The internal resolver therefore needs declaration-validation ownership to be independent from execution mode. When `declaredChoiceAlreadyValidated` is true for this ingress, it must skip only declaration revalidation. Accuracy, rerolls, damage RNG, move-special hooks, pre-damage reactions, post-damage hooks, HP/history mutation and ordered events must execute unchanged. The ingress must delegate exactly once.
+
 Minecraft, Cobblemon and Craftics adapters may submit or render the frozen contract. They must not recompute PTU legality, targeting, accuracy, damage, RNG, resource spending or state transitions.
 
 ## Required parity trace
