@@ -7,11 +7,11 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Deterministic calculation primitives ported from auto_ptu/rules/calculations.py.
+ * Deterministic calculation primitives for PTU battles.
  *
- * Keep formulas behaviorally identical to the Python oracle. Stateful ability,
- * item, and status resolution belongs in higher-level adapters until its own
- * parity slice is ready.
+ * Rule-bearing formulas follow the selected PTU rule profile. Python AutoPTU is
+ * still used as an executable migration oracle, but a documented rulebook
+ * divergence must not override an explicit PTU rule.
  */
 public final class Calculations {
     public static final int STAGE_MIN = -6;
@@ -35,15 +35,23 @@ public final class Calculations {
         return Math.max(STAGE_MIN, Math.min(STAGE_MAX, value));
     }
 
+    /**
+     * PTU 1.05 combat stages: +20% of the base stat per positive stage and
+     * -10% of the base stat per negative stage, bounded to -6..+6.
+     *
+     * This intentionally differs from the previously pinned Python oracle,
+     * which used the mainline-video-game stage ratio formula. PTU 1.05 and the
+     * Kairos core both specify the percentage table directly.
+     */
     public static double stageMultiplier(int stage) {
         int clamped = clampStage(stage);
         if (clamped >= 0) {
-            return (2.0 + clamped) / 2.0;
+            return 1.0 + (clamped * 0.2);
         }
-        return 2.0 / (2.0 - clamped);
+        return 1.0 + (clamped * 0.1);
     }
 
-    /** Accuracy stages are a flat modifier in the Python engine. */
+    /** Accuracy stages are a flat modifier in PTU and in the Python engine. */
     public static int accuracyStageValue(int stage) {
         return clampStage(stage);
     }
