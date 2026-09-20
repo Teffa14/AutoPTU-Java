@@ -15,6 +15,25 @@ public final class CommittedReactionRuntimeIngress {
             Objects.requireNonNull(executionMode, "executionMode");
         }
 
+        /**
+         * Source-compatible constructor for callers that still spell out the historical ownership
+         * tuple. The tuple may only describe the supplied execution mode; execution identity remains
+         * authoritative.
+         */
+        public Dispatch(
+                MoveRuntimeExecutionMode executionMode,
+                boolean spendOrdinaryMoveResources,
+                boolean runPreDamageReactions,
+                boolean declaredChoiceAlreadyValidated
+        ) {
+            this(executionMode);
+            if (spendOrdinaryMoveResources != executionMode.spendOrdinaryMoveResources()
+                    || runPreDamageReactions != executionMode.runPreDamageReactions()
+                    || declaredChoiceAlreadyValidated != executionMode.declarationAlreadyValidated()) {
+                throw new IllegalArgumentException("ownership tuple must match execution mode");
+            }
+        }
+
         public boolean spendOrdinaryMoveResources() {
             return executionMode.spendOrdinaryMoveResources();
         }
