@@ -33,6 +33,21 @@ public final class CommittedReactionRuntimeIngress {
         R resolve(CommittedReactionRuntimeExecutionPlan plan, MoveRuntimeExecutionMode executionMode);
     }
 
+    /**
+     * Compatibility boundary for callers that still consume the pre-execution-mode ownership tuple.
+     * New authoritative runtime wiring should use {@link Resolver} so execution identity is not
+     * reconstructed from independent booleans.
+     */
+    @FunctionalInterface
+    public interface LegacyResolver<R> {
+        R resolve(
+                CommittedReactionRuntimeExecutionPlan plan,
+                boolean spendOrdinaryMoveResources,
+                boolean runPreDamageReactions,
+                boolean declaredChoiceAlreadyValidated
+        );
+    }
+
     public static Dispatch dispatch(CommittedReactionRuntimeExecutionPlan plan) {
         Objects.requireNonNull(plan, "plan is required");
         if (!plan.declarationAlreadyValidated()) {
@@ -51,5 +66,19 @@ public final class CommittedReactionRuntimeIngress {
         Objects.requireNonNull(resolver, "resolver is required");
         Dispatch dispatch = dispatch(plan);
         return resolver.resolve(plan, dispatch.executionMode());
+    }
+
+    public static <R> R resolve(
+            CommittedReactionRuntimeExecutionPlan plan,
+            LegacyResolver<R> resolver
+    ) {
+        Objects.requireNonNull(resolver, "resolver is required");
+        Dispatch dispatch = dispatch(plan);
+        return resolver.resolve(
+                plan,
+                dispatch.spendOrdinaryMoveResources(),
+                dispatch.runPreDamageReactions(),
+                dispatch.declaredChoiceAlreadyValidated()
+        );
     }
 }
