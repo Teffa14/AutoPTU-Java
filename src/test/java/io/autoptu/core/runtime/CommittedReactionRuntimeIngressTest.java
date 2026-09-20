@@ -18,13 +18,13 @@ class CommittedReactionRuntimeIngressTest {
     @Test
     void committedReactionDispatchCarriesExplicitExecutionOwnership() {
         CommittedReactionRuntimeIngress.Dispatch dispatch = new CommittedReactionRuntimeIngress.Dispatch(
-                CommittedReactionRuntimeIngress.ExecutionMode.COMMITTED_REACTION,
+                MoveRuntimeExecutionMode.COMMITTED_REACTION,
                 false,
                 true,
                 true
         );
 
-        assertEquals(CommittedReactionRuntimeIngress.ExecutionMode.COMMITTED_REACTION, dispatch.executionMode());
+        assertEquals(MoveRuntimeExecutionMode.COMMITTED_REACTION, dispatch.executionMode());
         assertFalse(dispatch.spendOrdinaryMoveResources());
         assertTrue(dispatch.runPreDamageReactions());
         assertTrue(dispatch.declaredChoiceAlreadyValidated());
