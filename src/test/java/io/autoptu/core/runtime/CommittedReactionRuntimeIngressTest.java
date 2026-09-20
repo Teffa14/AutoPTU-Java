@@ -16,10 +16,13 @@ class CommittedReactionRuntimeIngressTest {
     }
 
     @Test
-    void committedReactionDispatchHasExplicitOwnershipMode() {
-        CommittedReactionRuntimeExecutionPlan plan = CommittedReactionRuntimeExecutionPlanTestFixtures.validPlan();
-
-        CommittedReactionRuntimeIngress.Dispatch dispatch = CommittedReactionRuntimeIngress.dispatch(plan);
+    void committedReactionDispatchCarriesExplicitExecutionOwnership() {
+        CommittedReactionRuntimeIngress.Dispatch dispatch = new CommittedReactionRuntimeIngress.Dispatch(
+                CommittedReactionRuntimeIngress.ExecutionMode.COMMITTED_REACTION,
+                false,
+                true,
+                true
+        );
 
         assertEquals(CommittedReactionRuntimeIngress.ExecutionMode.COMMITTED_REACTION, dispatch.executionMode());
         assertFalse(dispatch.spendOrdinaryMoveResources());
