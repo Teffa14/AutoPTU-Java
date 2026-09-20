@@ -10,25 +10,27 @@ import java.util.Objects;
 public final class CommittedReactionRuntimeIngress {
     private CommittedReactionRuntimeIngress() {}
 
-    public record Dispatch(
-            MoveRuntimeExecutionMode executionMode,
-            boolean spendOrdinaryMoveResources,
-            boolean runPreDamageReactions,
-            boolean declaredChoiceAlreadyValidated
-    ) {
+    public record Dispatch(MoveRuntimeExecutionMode executionMode) {
         public Dispatch {
             Objects.requireNonNull(executionMode, "executionMode");
+        }
+
+        public boolean spendOrdinaryMoveResources() {
+            return executionMode.spendOrdinaryMoveResources();
+        }
+
+        public boolean runPreDamageReactions() {
+            return executionMode.runPreDamageReactions();
+        }
+
+        public boolean declaredChoiceAlreadyValidated() {
+            return executionMode.declarationAlreadyValidated();
         }
     }
 
     @FunctionalInterface
     public interface Resolver<R> {
-        R resolve(
-                CommittedReactionRuntimeExecutionPlan plan,
-                boolean spendOrdinaryMoveResources,
-                boolean runPreDamageReactions,
-                boolean declaredChoiceAlreadyValidated
-        );
+        R resolve(CommittedReactionRuntimeExecutionPlan plan, MoveRuntimeExecutionMode executionMode);
     }
 
     public static Dispatch dispatch(CommittedReactionRuntimeExecutionPlan plan) {
@@ -39,13 +41,7 @@ public final class CommittedReactionRuntimeIngress {
         if (plan.spendOrdinaryMoveResources()) {
             throw new IllegalArgumentException("committed reaction must not spend ordinary move resources twice");
         }
-        MoveRuntimeExecutionMode mode = MoveRuntimeExecutionMode.COMMITTED_REACTION;
-        return new Dispatch(
-                mode,
-                mode.spendOrdinaryMoveResources(),
-                mode.runPreDamageReactions(),
-                mode.declarationAlreadyValidated()
-        );
+        return new Dispatch(MoveRuntimeExecutionMode.COMMITTED_REACTION);
     }
 
     public static <R> R resolve(
@@ -54,11 +50,6 @@ public final class CommittedReactionRuntimeIngress {
     ) {
         Objects.requireNonNull(resolver, "resolver is required");
         Dispatch dispatch = dispatch(plan);
-        return resolver.resolve(
-                plan,
-                dispatch.spendOrdinaryMoveResources(),
-                dispatch.runPreDamageReactions(),
-                dispatch.declaredChoiceAlreadyValidated()
-        );
+        return resolver.resolve(plan, dispatch.executionMode());
     }
 }
