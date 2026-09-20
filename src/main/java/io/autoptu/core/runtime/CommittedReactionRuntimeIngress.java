@@ -10,17 +10,47 @@ import java.util.Objects;
 public final class CommittedReactionRuntimeIngress {
     private CommittedReactionRuntimeIngress() {}
 
-    public record Dispatch(
-            MoveRuntimeExecutionMode executionMode,
-            boolean spendOrdinaryMoveResources,
-            boolean runPreDamageReactions,
-            boolean declaredChoiceAlreadyValidated
-    ) {
+    public record Dispatch(MoveRuntimeExecutionMode executionMode) {
         public Dispatch {
             Objects.requireNonNull(executionMode, "executionMode");
         }
+
+        /**
+         * Source-compatible constructor for callers that still spell out the historical ownership
+         * tuple. The tuple may only describe the supplied execution mode; execution identity remains
+         * authoritative.
+         */
+        public Dispatch(
+                MoveRuntimeExecutionMode executionMode,
+                boolean spendOrdinaryMoveResources,
+                boolean runPreDamageReactions,
+                boolean declaredChoiceAlreadyValidated
+        ) {
+            this(executionMode);
+            if (spendOrdinaryMoveResources != executionMode.spendOrdinaryMoveResources()
+                    || runPreDamageReactions != executionMode.runPreDamageReactions()
+                    || declaredChoiceAlreadyValidated != executionMode.declarationAlreadyValidated()) {
+                throw new IllegalArgumentException("ownership tuple must match execution mode");
+            }
+        }
+
+        public boolean spendOrdinaryMoveResources() {
+            return executionMode.spendOrdinaryMoveResources();
+        }
+
+        public boolean runPreDamageReactions() {
+            return executionMode.runPreDamageReactions();
+        }
+
+        public boolean declaredChoiceAlreadyValidated() {
+            return executionMode.declarationAlreadyValidated();
+        }
     }
 
+    /**
+     * Existing source-compatible resolver boundary. Ownership values are projected from the single
+     * execution-mode identity; callers must not reconstruct execution identity from this tuple.
+     */
     @FunctionalInterface
     public interface Resolver<R> {
         R resolve(
@@ -31,6 +61,12 @@ public final class CommittedReactionRuntimeIngress {
         );
     }
 
+    /** Authoritative resolver boundary for new runtime wiring. */
+    @FunctionalInterface
+    public interface ExecutionModeResolver<R> {
+        R resolve(CommittedReactionRuntimeExecutionPlan plan, MoveRuntimeExecutionMode executionMode);
+    }
+
     public static Dispatch dispatch(CommittedReactionRuntimeExecutionPlan plan) {
         Objects.requireNonNull(plan, "plan is required");
         if (!plan.declarationAlreadyValidated()) {
@@ -39,13 +75,7 @@ public final class CommittedReactionRuntimeIngress {
         if (plan.spendOrdinaryMoveResources()) {
             throw new IllegalArgumentException("committed reaction must not spend ordinary move resources twice");
         }
-        MoveRuntimeExecutionMode mode = MoveRuntimeExecutionMode.COMMITTED_REACTION;
-        return new Dispatch(
-                mode,
-                mode.spendOrdinaryMoveResources(),
-                mode.runPreDamageReactions(),
-                mode.declarationAlreadyValidated()
-        );
+        return new Dispatch(MoveRuntimeExecutionMode.COMMITTED_REACTION);
     }
 
     public static <R> R resolve(
@@ -60,5 +90,14 @@ public final class CommittedReactionRuntimeIngress {
                 dispatch.runPreDamageReactions(),
                 dispatch.declaredChoiceAlreadyValidated()
         );
+    }
+
+    public static <R> R resolveExecutionMode(
+            CommittedReactionRuntimeExecutionPlan plan,
+            ExecutionModeResolver<R> resolver
+    ) {
+        Objects.requireNonNull(resolver, "resolver is required");
+        Dispatch dispatch = dispatch(plan);
+        return resolver.resolve(plan, dispatch.executionMode());
     }
 }
