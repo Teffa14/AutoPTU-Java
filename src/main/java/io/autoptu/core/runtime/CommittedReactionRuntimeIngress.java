@@ -10,17 +10,8 @@ import java.util.Objects;
 public final class CommittedReactionRuntimeIngress {
     private CommittedReactionRuntimeIngress() {}
 
-    /**
-     * Explicit execution ownership for the downstream BattleRuntime dispatcher. Keeping this as a
-     * named mode prevents committed reactions from being inferred as AoE merely because ordinary
-     * move resources are not spent a second time.
-     */
-    public enum ExecutionMode {
-        COMMITTED_REACTION
-    }
-
     public record Dispatch(
-            ExecutionMode executionMode,
+            MoveRuntimeExecutionMode executionMode,
             boolean spendOrdinaryMoveResources,
             boolean runPreDamageReactions,
             boolean declaredChoiceAlreadyValidated
@@ -48,7 +39,13 @@ public final class CommittedReactionRuntimeIngress {
         if (plan.spendOrdinaryMoveResources()) {
             throw new IllegalArgumentException("committed reaction must not spend ordinary move resources twice");
         }
-        return new Dispatch(ExecutionMode.COMMITTED_REACTION, false, true, true);
+        MoveRuntimeExecutionMode mode = MoveRuntimeExecutionMode.COMMITTED_REACTION;
+        return new Dispatch(
+                mode,
+                mode.spendOrdinaryMoveResources(),
+                mode.runPreDamageReactions(),
+                mode.declarationAlreadyValidated()
+        );
     }
 
     public static <R> R resolve(
