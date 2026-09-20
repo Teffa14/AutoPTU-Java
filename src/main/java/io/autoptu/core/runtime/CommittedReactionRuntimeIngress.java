@@ -28,24 +28,24 @@ public final class CommittedReactionRuntimeIngress {
         }
     }
 
-    @FunctionalInterface
-    public interface Resolver<R> {
-        R resolve(CommittedReactionRuntimeExecutionPlan plan, MoveRuntimeExecutionMode executionMode);
-    }
-
     /**
-     * Compatibility boundary for callers that still consume the pre-execution-mode ownership tuple.
-     * New authoritative runtime wiring should use {@link Resolver} so execution identity is not
-     * reconstructed from independent booleans.
+     * Existing source-compatible resolver boundary. Ownership values are projected from the single
+     * execution-mode identity; callers must not reconstruct execution identity from this tuple.
      */
     @FunctionalInterface
-    public interface LegacyResolver<R> {
+    public interface Resolver<R> {
         R resolve(
                 CommittedReactionRuntimeExecutionPlan plan,
                 boolean spendOrdinaryMoveResources,
                 boolean runPreDamageReactions,
                 boolean declaredChoiceAlreadyValidated
         );
+    }
+
+    /** Authoritative resolver boundary for new runtime wiring. */
+    @FunctionalInterface
+    public interface ExecutionModeResolver<R> {
+        R resolve(CommittedReactionRuntimeExecutionPlan plan, MoveRuntimeExecutionMode executionMode);
     }
 
     public static Dispatch dispatch(CommittedReactionRuntimeExecutionPlan plan) {
@@ -65,20 +65,20 @@ public final class CommittedReactionRuntimeIngress {
     ) {
         Objects.requireNonNull(resolver, "resolver is required");
         Dispatch dispatch = dispatch(plan);
-        return resolver.resolve(plan, dispatch.executionMode());
-    }
-
-    public static <R> R resolve(
-            CommittedReactionRuntimeExecutionPlan plan,
-            LegacyResolver<R> resolver
-    ) {
-        Objects.requireNonNull(resolver, "resolver is required");
-        Dispatch dispatch = dispatch(plan);
         return resolver.resolve(
                 plan,
                 dispatch.spendOrdinaryMoveResources(),
                 dispatch.runPreDamageReactions(),
                 dispatch.declaredChoiceAlreadyValidated()
         );
+    }
+
+    public static <R> R resolveExecutionMode(
+            CommittedReactionRuntimeExecutionPlan plan,
+            ExecutionModeResolver<R> resolver
+    ) {
+        Objects.requireNonNull(resolver, "resolver is required");
+        Dispatch dispatch = dispatch(plan);
+        return resolver.resolve(plan, dispatch.executionMode());
     }
 }
