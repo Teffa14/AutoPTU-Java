@@ -4,11 +4,12 @@ package io.autoptu.core.runtime;
  * Explicit ownership policy for the authoritative move resolver.
  *
  * <p>Execution identity must not be inferred from whether ordinary action resources are spent.
- * Area targets, delayed hits, and committed reactions can all bypass ordinary resource spending
- * while requiring different declaration validation and reaction behavior.</p>
+ * Area targets, delayed hits, committed reactions, and pre-resolution target replacement can
+ * share individual ownership decisions while requiring different declaration validation.</p>
  */
 public enum MoveRuntimeExecutionMode {
     ORDINARY(true, true, false, DeclarationValidation.ORDINARY),
+    PRE_RESOLUTION_RESOLVED(true, true, true, DeclarationValidation.ALREADY_VALIDATED),
     AREA_RESOLVED(false, true, true, DeclarationValidation.AREA_RESOLVED),
     DELAYED(false, false, true, DeclarationValidation.DELAYED),
     COMMITTED_REACTION(false, true, true, DeclarationValidation.ALREADY_VALIDATED);
@@ -59,7 +60,7 @@ public enum MoveRuntimeExecutionMode {
     }
 
     /**
-     * Compatibility bridge for the historical BattleRuntime tuple while callers migrate to an
+     * Compatibility bridge for historical BattleRuntime tuples while callers migrate to an
      * explicit execution identity. Ambiguous tuples are rejected instead of guessing whether a
      * no-spend reaction is area-resolved or a committed reaction.
      */
@@ -70,6 +71,9 @@ public enum MoveRuntimeExecutionMode {
     ) {
         if (spendOrdinaryMoveResources && runPreDamageReactions && !declarationAlreadyValidated) {
             return ORDINARY;
+        }
+        if (spendOrdinaryMoveResources && runPreDamageReactions && declarationAlreadyValidated) {
+            return PRE_RESOLUTION_RESOLVED;
         }
         if (!spendOrdinaryMoveResources && !runPreDamageReactions && !declarationAlreadyValidated) {
             return DELAYED;
