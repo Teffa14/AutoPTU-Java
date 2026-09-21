@@ -35,6 +35,14 @@ final class MoveRuntimeExecutionPolicy {
         return mode.runPreDamageReactions();
     }
 
+    MoveRuntimeExecutionMode.DeclarationValidation declarationValidation() {
+        return mode.declarationValidation();
+    }
+
+    boolean declarationAlreadyValidated() {
+        return mode.declarationAlreadyValidated();
+    }
+
     void requireValidDeclaration(
             BattleRuntimeState state,
             MoveChoice choice,
