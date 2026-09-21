@@ -39,7 +39,7 @@ class MoveRuntimeExecutionContextOwnershipTest {
         assertAll(
                 () -> assertFalse(context.spendOrdinaryMoveResources()),
                 () -> assertTrue(context.runPreDamageReactions()),
-                () -> assertFalse(context.declarationAlreadyValidated())
+                () -> assertTrue(context.declarationAlreadyValidated())
         );
     }
 
@@ -49,7 +49,7 @@ class MoveRuntimeExecutionContextOwnershipTest {
         assertAll(
                 () -> assertFalse(context.spendOrdinaryMoveResources()),
                 () -> assertFalse(context.runPreDamageReactions()),
-                () -> assertFalse(context.declarationAlreadyValidated())
+                () -> assertTrue(context.declarationAlreadyValidated())
         );
     }
 
