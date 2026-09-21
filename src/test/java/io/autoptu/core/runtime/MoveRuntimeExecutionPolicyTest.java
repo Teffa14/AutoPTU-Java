@@ -10,6 +10,7 @@ class MoveRuntimeExecutionPolicyTest {
     @Test
     void projectsOwnershipFromOneExecutionIdentity() {
         assertPolicy(MoveRuntimeExecutionMode.ORDINARY, true, true);
+        assertPolicy(MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, true, true);
         assertPolicy(MoveRuntimeExecutionMode.AREA_RESOLVED, false, true);
         assertPolicy(MoveRuntimeExecutionMode.DELAYED, false, false);
         assertPolicy(MoveRuntimeExecutionMode.COMMITTED_REACTION, false, true);
@@ -26,6 +27,19 @@ class MoveRuntimeExecutionPolicyTest {
         assertEquals(MoveRuntimeExecutionMode.AREA_RESOLVED, area.mode());
         assertEquals(reaction.spendOrdinaryMoveResources(), area.spendOrdinaryMoveResources());
         assertEquals(reaction.runPreDamageReactions(), area.runPreDamageReactions());
+    }
+
+    @Test
+    void preResolvedTargetRetainsDistinctIdentityFromOrdinaryExecution() {
+        MoveRuntimeExecutionPolicy preResolved = MoveRuntimeExecutionPolicy.of(
+                MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED);
+        MoveRuntimeExecutionPolicy ordinary = MoveRuntimeExecutionPolicy.of(
+                MoveRuntimeExecutionMode.ORDINARY);
+
+        assertEquals(MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, preResolved.mode());
+        assertEquals(MoveRuntimeExecutionMode.ORDINARY, ordinary.mode());
+        assertEquals(preResolved.spendOrdinaryMoveResources(), ordinary.spendOrdinaryMoveResources());
+        assertEquals(preResolved.runPreDamageReactions(), ordinary.runPreDamageReactions());
     }
 
     private static void assertPolicy(
