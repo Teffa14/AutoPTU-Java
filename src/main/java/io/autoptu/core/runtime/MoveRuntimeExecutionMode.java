@@ -69,7 +69,7 @@ public enum MoveRuntimeExecutionMode {
             boolean runPreDamageReactions,
             boolean declarationAlreadyValidated
     ) {
-        if (spendOrdinaryMoveResources && runPreDamageReactions && !declaredChoiceAlreadyValidated) {
+        if (spendOrdinaryMoveResources && runPreDamageReactions && !declarationAlreadyValidated) {
             return ORDINARY;
         }
         if (spendOrdinaryMoveResources && runPreDamageReactions && declarationAlreadyValidated) {
