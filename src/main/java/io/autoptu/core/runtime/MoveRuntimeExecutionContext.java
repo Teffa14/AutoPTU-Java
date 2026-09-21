@@ -57,6 +57,10 @@ final class MoveRuntimeExecutionContext {
         return policy.runPreDamageReactions();
     }
 
+    MoveRuntimeExecutionMode.DeclarationValidation declarationValidation() {
+        return policy.declarationValidation();
+    }
+
     boolean declarationAlreadyValidated() {
         return policy.declarationAlreadyValidated();
     }
