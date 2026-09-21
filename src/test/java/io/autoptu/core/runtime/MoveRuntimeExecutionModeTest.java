@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MoveRuntimeExecutionModeTest {
@@ -41,5 +42,31 @@ class MoveRuntimeExecutionModeTest {
         assertFalse(mode.spendOrdinaryMoveResources());
         assertTrue(mode.runPreDamageReactions());
         assertTrue(mode.declarationAlreadyValidated());
+    }
+
+    @Test
+    void legacyUnambiguousTuplesMapToTheirExecutionIdentity() {
+        assertEquals(MoveRuntimeExecutionMode.ORDINARY,
+                MoveRuntimeExecutionMode.requireLegacyTuple(true, true, false));
+        assertEquals(MoveRuntimeExecutionMode.AREA_RESOLVED,
+                MoveRuntimeExecutionMode.requireLegacyTuple(false, true, false));
+        assertEquals(MoveRuntimeExecutionMode.DELAYED,
+                MoveRuntimeExecutionMode.requireLegacyTuple(false, false, false));
+    }
+
+    @Test
+    void committedReactionCannotBeReconstructedFromLegacyBooleans() {
+        assertThrows(IllegalArgumentException.class,
+                () -> MoveRuntimeExecutionMode.requireLegacyTuple(false, true, true));
+    }
+
+    @Test
+    void unsupportedLegacyTuplesFailClosed() {
+        assertThrows(IllegalArgumentException.class,
+                () -> MoveRuntimeExecutionMode.requireLegacyTuple(true, false, false));
+        assertThrows(IllegalArgumentException.class,
+                () -> MoveRuntimeExecutionMode.requireLegacyTuple(true, true, true));
+        assertThrows(IllegalArgumentException.class,
+                () -> MoveRuntimeExecutionMode.requireLegacyTuple(false, false, true));
     }
 }

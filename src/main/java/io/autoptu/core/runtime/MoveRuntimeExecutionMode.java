@@ -57,4 +57,36 @@ public enum MoveRuntimeExecutionMode {
     public DeclarationValidation declarationValidation() {
         return declarationValidation;
     }
+
+    /**
+     * Compatibility bridge for the historical BattleRuntime tuple while callers migrate to an
+     * explicit execution identity. Ambiguous tuples are rejected instead of guessing whether a
+     * no-spend reaction is area-resolved or a committed reaction.
+     */
+    static MoveRuntimeExecutionMode requireLegacyTuple(
+            boolean spendOrdinaryMoveResources,
+            boolean runPreDamageReactions,
+            boolean declarationAlreadyValidated
+    ) {
+        if (spendOrdinaryMoveResources && runPreDamageReactions && !declarationAlreadyValidated) {
+            return ORDINARY;
+        }
+        if (!spendOrdinaryMoveResources && !runPreDamageReactions && !declarationAlreadyValidated) {
+            return DELAYED;
+        }
+        if (!spendOrdinaryMoveResources && runPreDamageReactions && !declarationAlreadyValidated) {
+            return AREA_RESOLVED;
+        }
+        if (!spendOrdinaryMoveResources && runPreDamageReactions && declarationAlreadyValidated) {
+            throw new IllegalArgumentException(
+                    "legacy move tuple is ambiguous between AREA_RESOLVED and COMMITTED_REACTION; pass MoveRuntimeExecutionMode explicitly"
+            );
+        }
+        throw new IllegalArgumentException(
+                "unsupported legacy move execution tuple: spendOrdinaryMoveResources="
+                        + spendOrdinaryMoveResources
+                        + ", runPreDamageReactions=" + runPreDamageReactions
+                        + ", declarationAlreadyValidated=" + declarationAlreadyValidated
+        );
+    }
 }
