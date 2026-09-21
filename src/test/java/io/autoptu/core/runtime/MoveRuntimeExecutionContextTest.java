@@ -9,11 +9,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MoveRuntimeExecutionContextTest {
     @Test
     void projectsAllOwnershipFromOneExecutionIdentity() {
-        assertContext(MoveRuntimeExecutionMode.ORDINARY, true, true, false);
-        assertContext(MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, true, true, true);
-        assertContext(MoveRuntimeExecutionMode.AREA_RESOLVED, false, true, true);
-        assertContext(MoveRuntimeExecutionMode.DELAYED, false, false, true);
-        assertContext(MoveRuntimeExecutionMode.COMMITTED_REACTION, false, true, true);
+        assertContext(
+                MoveRuntimeExecutionMode.ORDINARY,
+                MoveRuntimeExecutionMode.DeclarationValidation.ORDINARY,
+                true, true, false);
+        assertContext(
+                MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED,
+                MoveRuntimeExecutionMode.DeclarationValidation.ALREADY_VALIDATED,
+                true, true, true);
+        assertContext(
+                MoveRuntimeExecutionMode.AREA_RESOLVED,
+                MoveRuntimeExecutionMode.DeclarationValidation.AREA_RESOLVED,
+                false, true, true);
+        assertContext(
+                MoveRuntimeExecutionMode.DELAYED,
+                MoveRuntimeExecutionMode.DeclarationValidation.DELAYED,
+                false, false, true);
+        assertContext(
+                MoveRuntimeExecutionMode.COMMITTED_REACTION,
+                MoveRuntimeExecutionMode.DeclarationValidation.ALREADY_VALIDATED,
+                false, true, true);
     }
 
     @Test
@@ -33,18 +48,22 @@ class MoveRuntimeExecutionContextTest {
         assertEquals(area.spendOrdinaryMoveResources(), reaction.spendOrdinaryMoveResources());
         assertEquals(area.runPreDamageReactions(), reaction.runPreDamageReactions());
         assertEquals(area.declarationAlreadyValidated(), reaction.declarationAlreadyValidated());
+        assertEquals(MoveRuntimeExecutionMode.DeclarationValidation.AREA_RESOLVED, area.declarationValidation());
+        assertEquals(MoveRuntimeExecutionMode.DeclarationValidation.ALREADY_VALIDATED, reaction.declarationValidation());
         assertEquals(MoveRuntimeExecutionMode.AREA_RESOLVED, area.mode());
         assertEquals(MoveRuntimeExecutionMode.COMMITTED_REACTION, reaction.mode());
     }
 
     private static void assertContext(
             MoveRuntimeExecutionMode mode,
+            MoveRuntimeExecutionMode.DeclarationValidation declarationValidation,
             boolean spendsResources,
             boolean runsReactions,
             boolean declarationAlreadyValidated
     ) {
         MoveRuntimeExecutionContext context = MoveRuntimeExecutionContext.of(mode);
         assertEquals(mode, context.mode());
+        assertEquals(declarationValidation, context.declarationValidation());
         if (spendsResources) assertTrue(context.spendOrdinaryMoveResources());
         else assertFalse(context.spendOrdinaryMoveResources());
         if (runsReactions) assertTrue(context.runPreDamageReactions());
