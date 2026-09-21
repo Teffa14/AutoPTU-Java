@@ -17,9 +17,18 @@ class MoveRuntimeExecutionContextTest {
     }
 
     @Test
+    void namedIngressFactoriesPreserveExecutionIdentity() {
+        assertEquals(MoveRuntimeExecutionMode.ORDINARY, MoveRuntimeExecutionContext.ordinary().mode());
+        assertEquals(MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, MoveRuntimeExecutionContext.preResolutionResolved().mode());
+        assertEquals(MoveRuntimeExecutionMode.AREA_RESOLVED, MoveRuntimeExecutionContext.areaResolved().mode());
+        assertEquals(MoveRuntimeExecutionMode.DELAYED, MoveRuntimeExecutionContext.delayed().mode());
+        assertEquals(MoveRuntimeExecutionMode.COMMITTED_REACTION, MoveRuntimeExecutionContext.committedReaction().mode());
+    }
+
+    @Test
     void preservesDistinctIdentityWhenOwnershipValuesOverlap() {
-        MoveRuntimeExecutionContext area = MoveRuntimeExecutionContext.of(MoveRuntimeExecutionMode.AREA_RESOLVED);
-        MoveRuntimeExecutionContext reaction = MoveRuntimeExecutionContext.of(MoveRuntimeExecutionMode.COMMITTED_REACTION);
+        MoveRuntimeExecutionContext area = MoveRuntimeExecutionContext.areaResolved();
+        MoveRuntimeExecutionContext reaction = MoveRuntimeExecutionContext.committedReaction();
 
         assertEquals(area.spendOrdinaryMoveResources(), reaction.spendOrdinaryMoveResources());
         assertEquals(area.runPreDamageReactions(), reaction.runPreDamageReactions());

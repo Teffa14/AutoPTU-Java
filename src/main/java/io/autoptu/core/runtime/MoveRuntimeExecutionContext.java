@@ -25,6 +25,26 @@ final class MoveRuntimeExecutionContext {
         return new MoveRuntimeExecutionContext(mode);
     }
 
+    static MoveRuntimeExecutionContext ordinary() {
+        return of(MoveRuntimeExecutionMode.ORDINARY);
+    }
+
+    static MoveRuntimeExecutionContext preResolutionResolved() {
+        return of(MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED);
+    }
+
+    static MoveRuntimeExecutionContext areaResolved() {
+        return of(MoveRuntimeExecutionMode.AREA_RESOLVED);
+    }
+
+    static MoveRuntimeExecutionContext delayed() {
+        return of(MoveRuntimeExecutionMode.DELAYED);
+    }
+
+    static MoveRuntimeExecutionContext committedReaction() {
+        return of(MoveRuntimeExecutionMode.COMMITTED_REACTION);
+    }
+
     MoveRuntimeExecutionMode mode() {
         return policy.mode();
     }
