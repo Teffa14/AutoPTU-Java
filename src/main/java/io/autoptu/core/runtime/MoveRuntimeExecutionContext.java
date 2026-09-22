@@ -10,9 +10,9 @@ import java.util.Set;
 /**
  * Typed execution context for the authoritative move resolver.
  *
- * <p>This keeps declaration validation, ordinary resource ownership, and PRE-damage reaction
- * ownership attached to one execution identity. BattleRuntime can carry this value through the
- * ordinary single-target pipeline without reconstructing mode from independent booleans.</p>
+ * <p>This keeps declaration validation, action spending, move-frequency ownership, and PRE-damage
+ * reaction ownership attached to one execution identity. BattleRuntime can carry this value through
+ * the ordinary single-target pipeline without reconstructing mode from independent booleans.</p>
  */
 final class MoveRuntimeExecutionContext {
     private final MoveRuntimeExecutionPolicy policy;
@@ -49,8 +49,16 @@ final class MoveRuntimeExecutionContext {
         return policy.mode();
     }
 
+    /**
+     * Legacy compatibility projection for resolver call sites that have not yet migrated to split
+     * action-spend and move-frequency ownership. New wiring must use the two explicit projections.
+     */
+    @Deprecated
     boolean spendOrdinaryMoveResources() {
-        return policy.spendOrdinaryMoveResources();
+        if (ownsActionSpend() != ownsMoveFrequency()) {
+            throw new IllegalStateException("legacy resource projection cannot represent split ownership");
+        }
+        return ownsActionSpend();
     }
 
     boolean ownsActionSpend() {

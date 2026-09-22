@@ -12,23 +12,23 @@ class MoveRuntimeExecutionContextTest {
         assertContext(
                 MoveRuntimeExecutionMode.ORDINARY,
                 MoveRuntimeExecutionMode.DeclarationValidation.ORDINARY,
-                true, true, false);
+                true, true, true, false);
         assertContext(
                 MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED,
                 MoveRuntimeExecutionMode.DeclarationValidation.ALREADY_VALIDATED,
-                true, true, true);
+                true, true, true, true);
         assertContext(
                 MoveRuntimeExecutionMode.AREA_RESOLVED,
                 MoveRuntimeExecutionMode.DeclarationValidation.AREA_RESOLVED,
-                false, true, true);
+                false, false, true, true);
         assertContext(
                 MoveRuntimeExecutionMode.DELAYED,
                 MoveRuntimeExecutionMode.DeclarationValidation.DELAYED,
-                false, false, true);
+                false, false, false, true);
         assertContext(
                 MoveRuntimeExecutionMode.COMMITTED_REACTION,
                 MoveRuntimeExecutionMode.DeclarationValidation.ALREADY_VALIDATED,
-                false, true, true);
+                false, false, true, true);
     }
 
     @Test
@@ -41,11 +41,9 @@ class MoveRuntimeExecutionContextTest {
     }
 
     @Test
-    void actionSpendAndFrequencyRemainOneResourceOwnershipContract() {
+    void actionSpendAndFrequencyOwnershipAreProjectedIndependently() {
         for (MoveRuntimeExecutionMode mode : MoveRuntimeExecutionMode.values()) {
             MoveRuntimeExecutionContext context = MoveRuntimeExecutionContext.of(mode);
-            assertEquals(context.spendOrdinaryMoveResources(), context.ownsActionSpend(), mode.name());
-            assertEquals(context.spendOrdinaryMoveResources(), context.ownsMoveFrequency(), mode.name());
             assertEquals(context.ownsActionSpend(), context.ownsMoveFrequency(), mode.name());
         }
     }
@@ -55,7 +53,8 @@ class MoveRuntimeExecutionContextTest {
         MoveRuntimeExecutionContext area = MoveRuntimeExecutionContext.areaResolved();
         MoveRuntimeExecutionContext reaction = MoveRuntimeExecutionContext.committedReaction();
 
-        assertEquals(area.spendOrdinaryMoveResources(), reaction.spendOrdinaryMoveResources());
+        assertEquals(area.ownsActionSpend(), reaction.ownsActionSpend());
+        assertEquals(area.ownsMoveFrequency(), reaction.ownsMoveFrequency());
         assertEquals(area.runPreDamageReactions(), reaction.runPreDamageReactions());
         assertEquals(area.declarationAlreadyValidated(), reaction.declarationAlreadyValidated());
         assertEquals(MoveRuntimeExecutionMode.DeclarationValidation.AREA_RESOLVED, area.declarationValidation());
@@ -67,15 +66,18 @@ class MoveRuntimeExecutionContextTest {
     private static void assertContext(
             MoveRuntimeExecutionMode mode,
             MoveRuntimeExecutionMode.DeclarationValidation declarationValidation,
-            boolean spendsResources,
+            boolean ownsActionSpend,
+            boolean ownsMoveFrequency,
             boolean runsReactions,
             boolean declarationAlreadyValidated
     ) {
         MoveRuntimeExecutionContext context = MoveRuntimeExecutionContext.of(mode);
         assertEquals(mode, context.mode());
         assertEquals(declarationValidation, context.declarationValidation());
-        if (spendsResources) assertTrue(context.spendOrdinaryMoveResources());
-        else assertFalse(context.spendOrdinaryMoveResources());
+        if (ownsActionSpend) assertTrue(context.ownsActionSpend());
+        else assertFalse(context.ownsActionSpend());
+        if (ownsMoveFrequency) assertTrue(context.ownsMoveFrequency());
+        else assertFalse(context.ownsMoveFrequency());
         if (runsReactions) assertTrue(context.runPreDamageReactions());
         else assertFalse(context.runPreDamageReactions());
         if (declarationAlreadyValidated) assertTrue(context.declarationAlreadyValidated());
