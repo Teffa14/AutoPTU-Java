@@ -31,6 +31,14 @@ final class MoveRuntimeExecutionPolicy {
         return mode.spendOrdinaryMoveResources();
     }
 
+    boolean ownsActionSpend() {
+        return mode.spendOrdinaryMoveResources();
+    }
+
+    boolean ownsMoveFrequency() {
+        return mode.spendOrdinaryMoveResources();
+    }
+
     boolean runPreDamageReactions() {
         return mode.runPreDamageReactions();
     }
