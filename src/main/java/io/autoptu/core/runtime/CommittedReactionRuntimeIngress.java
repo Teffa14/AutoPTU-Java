@@ -32,7 +32,8 @@ public final class CommittedReactionRuntimeIngress {
                 boolean declaredChoiceAlreadyValidated
         ) {
             this(executionMode);
-            if (spendOrdinaryMoveResources != executionContext.spendOrdinaryMoveResources()
+            if (spendOrdinaryMoveResources != executionContext.ownsActionSpend()
+                    || spendOrdinaryMoveResources != executionContext.ownsMoveFrequency()
                     || runPreDamageReactions != executionContext.runPreDamageReactions()
                     || declaredChoiceAlreadyValidated != executionContext.declarationAlreadyValidated()) {
                 throw new IllegalArgumentException("ownership tuple must match execution mode");
@@ -43,8 +44,20 @@ public final class CommittedReactionRuntimeIngress {
             return executionContext.mode();
         }
 
+        public boolean ownsActionSpend() {
+            return executionContext.ownsActionSpend();
+        }
+
+        public boolean ownsMoveFrequency() {
+            return executionContext.ownsMoveFrequency();
+        }
+
+        /** Legacy projection retained until the BattleRuntime resolver migration is complete. */
         public boolean spendOrdinaryMoveResources() {
-            return executionContext.spendOrdinaryMoveResources();
+            if (ownsActionSpend() != ownsMoveFrequency()) {
+                throw new IllegalStateException("legacy resource projection cannot represent split ownership");
+            }
+            return ownsActionSpend();
         }
 
         public boolean runPreDamageReactions() {
@@ -91,8 +104,11 @@ public final class CommittedReactionRuntimeIngress {
         if (!executionContext.declarationAlreadyValidated()) {
             throw new IllegalArgumentException("committed reaction declaration must already be validated");
         }
-        if (executionContext.spendOrdinaryMoveResources()) {
-            throw new IllegalArgumentException("committed reaction must not spend ordinary move resources twice");
+        if (executionContext.ownsActionSpend()) {
+            throw new IllegalArgumentException("committed reaction must not spend an ordinary action twice");
+        }
+        if (executionContext.ownsMoveFrequency()) {
+            throw new IllegalArgumentException("committed reaction must not record ordinary move frequency twice");
         }
         return new Dispatch(executionContext);
     }
