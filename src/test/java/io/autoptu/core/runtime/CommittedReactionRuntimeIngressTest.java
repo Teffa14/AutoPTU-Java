@@ -9,24 +9,33 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CommittedReactionRuntimeIngressTest {
     @Test
-    void rejectsMissingValidatedPlanBeforeResolverRuns() {
+    void rejectsMissingValidatedPlanBeforeContextResolverRuns() {
         assertThrows(NullPointerException.class, () ->
-                CommittedReactionRuntimeIngress.resolve(null, (plan, spend, preDamage, validated) -> "unreachable")
+                CommittedReactionRuntimeIngress.resolveExecutionContext(null, (plan, context) -> "unreachable")
         );
     }
 
     @Test
-    void committedReactionDispatchCarriesExplicitExecutionOwnership() {
+    void committedReactionDispatchCarriesOneExecutionContextIdentity() {
         CommittedReactionRuntimeIngress.Dispatch dispatch = new CommittedReactionRuntimeIngress.Dispatch(
-                MoveRuntimeExecutionMode.COMMITTED_REACTION,
-                false,
-                true,
-                true
+                MoveRuntimeExecutionContext.committedReaction()
         );
 
+        assertEquals(MoveRuntimeExecutionMode.COMMITTED_REACTION, dispatch.executionContext().mode());
         assertEquals(MoveRuntimeExecutionMode.COMMITTED_REACTION, dispatch.executionMode());
-        assertFalse(dispatch.spendOrdinaryMoveResources());
-        assertTrue(dispatch.runPreDamageReactions());
-        assertTrue(dispatch.declaredChoiceAlreadyValidated());
+        assertFalse(dispatch.executionContext().ownsActionSpend());
+        assertFalse(dispatch.executionContext().ownsMoveFrequency());
+        assertTrue(dispatch.executionContext().runPreDamageReactions());
+        assertTrue(dispatch.executionContext().declarationAlreadyValidated());
+    }
+
+    @Test
+    void legacyTupleCannotDescribeCommittedReactionWithDifferentOwnership() {
+        assertThrows(IllegalArgumentException.class, () -> new CommittedReactionRuntimeIngress.Dispatch(
+                MoveRuntimeExecutionMode.COMMITTED_REACTION,
+                true,
+                true,
+                true
+        ));
     }
 }
