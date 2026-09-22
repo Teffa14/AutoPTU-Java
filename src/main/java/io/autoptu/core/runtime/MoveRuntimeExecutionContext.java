@@ -10,9 +10,9 @@ import java.util.Set;
 /**
  * Typed execution context for the authoritative move resolver.
  *
- * <p>This keeps declaration validation, ordinary resource ownership, and PRE-damage reaction
- * ownership attached to one execution identity. BattleRuntime can carry this value through the
- * ordinary single-target pipeline without reconstructing mode from independent booleans.</p>
+ * <p>This keeps declaration validation, action spending, move-frequency ownership, and PRE-damage
+ * reaction ownership attached to one execution identity. BattleRuntime can carry this value through
+ * the ordinary single-target pipeline without reconstructing mode from independent booleans.</p>
  */
 final class MoveRuntimeExecutionContext {
     private final MoveRuntimeExecutionPolicy policy;
@@ -47,10 +47,6 @@ final class MoveRuntimeExecutionContext {
 
     MoveRuntimeExecutionMode mode() {
         return policy.mode();
-    }
-
-    boolean spendOrdinaryMoveResources() {
-        return policy.spendOrdinaryMoveResources();
     }
 
     boolean ownsActionSpend() {
