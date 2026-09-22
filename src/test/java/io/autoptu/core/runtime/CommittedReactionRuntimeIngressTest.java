@@ -23,8 +23,9 @@ class CommittedReactionRuntimeIngressTest {
 
         assertEquals(MoveRuntimeExecutionMode.COMMITTED_REACTION, dispatch.executionContext().mode());
         assertEquals(MoveRuntimeExecutionMode.COMMITTED_REACTION, dispatch.executionMode());
-        assertFalse(dispatch.executionContext().ownsActionSpend());
-        assertFalse(dispatch.executionContext().ownsMoveFrequency());
+        assertFalse(dispatch.ownsActionSpend());
+        assertFalse(dispatch.ownsMoveFrequency());
+        assertFalse(dispatch.spendOrdinaryMoveResources());
         assertTrue(dispatch.executionContext().runPreDamageReactions());
         assertTrue(dispatch.executionContext().declarationAlreadyValidated());
     }
