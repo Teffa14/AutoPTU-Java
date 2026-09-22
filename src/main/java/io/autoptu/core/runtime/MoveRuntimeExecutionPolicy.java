@@ -27,16 +27,21 @@ final class MoveRuntimeExecutionPolicy {
         return mode;
     }
 
+    /**
+     * Legacy compatibility projection for resolver call sites that have not yet migrated to split
+     * action-spend and move-frequency ownership.
+     */
+    @Deprecated
     boolean spendOrdinaryMoveResources() {
         return mode.spendOrdinaryMoveResources();
     }
 
     boolean ownsActionSpend() {
-        return mode.spendOrdinaryMoveResources();
+        return mode.ownsActionSpend();
     }
 
     boolean ownsMoveFrequency() {
-        return mode.spendOrdinaryMoveResources();
+        return mode.ownsMoveFrequency();
     }
 
     boolean runPreDamageReactions() {
