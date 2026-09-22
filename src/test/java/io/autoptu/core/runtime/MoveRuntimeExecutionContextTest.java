@@ -41,6 +41,16 @@ class MoveRuntimeExecutionContextTest {
     }
 
     @Test
+    void actionSpendAndFrequencyRemainOneResourceOwnershipContract() {
+        for (MoveRuntimeExecutionMode mode : MoveRuntimeExecutionMode.values()) {
+            MoveRuntimeExecutionContext context = MoveRuntimeExecutionContext.of(mode);
+            assertEquals(context.spendOrdinaryMoveResources(), context.ownsActionSpend(), mode.name());
+            assertEquals(context.spendOrdinaryMoveResources(), context.ownsMoveFrequency(), mode.name());
+            assertEquals(context.ownsActionSpend(), context.ownsMoveFrequency(), mode.name());
+        }
+    }
+
+    @Test
     void preservesDistinctIdentityWhenOwnershipValuesOverlap() {
         MoveRuntimeExecutionContext area = MoveRuntimeExecutionContext.areaResolved();
         MoveRuntimeExecutionContext reaction = MoveRuntimeExecutionContext.committedReaction();
