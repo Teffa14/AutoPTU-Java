@@ -10,15 +10,15 @@ final class BattleRuntimeExecutionContextOwnershipTest {
     @Test
     void freezesResolverOwnershipForEveryExecutionIdentity() {
         assertContext(MoveRuntimeExecutionContext.ordinary(),
-                MoveRuntimeExecutionMode.ORDINARY, true, true, false);
+                MoveRuntimeExecutionMode.ORDINARY, true, true, true, false);
         assertContext(MoveRuntimeExecutionContext.preResolutionResolved(),
-                MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, true, true, true);
+                MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, true, true, true, true);
         assertContext(MoveRuntimeExecutionContext.areaResolved(),
-                MoveRuntimeExecutionMode.AREA_RESOLVED, false, true, true);
+                MoveRuntimeExecutionMode.AREA_RESOLVED, false, false, true, true);
         assertContext(MoveRuntimeExecutionContext.delayed(),
-                MoveRuntimeExecutionMode.DELAYED, false, false, true);
+                MoveRuntimeExecutionMode.DELAYED, false, false, false, true);
         assertContext(MoveRuntimeExecutionContext.committedReaction(),
-                MoveRuntimeExecutionMode.COMMITTED_REACTION, false, true, true);
+                MoveRuntimeExecutionMode.COMMITTED_REACTION, false, false, true, true);
     }
 
     @Test
@@ -36,16 +36,26 @@ final class BattleRuntimeExecutionContextOwnershipTest {
         assertFalse(area.mode() == reaction.mode());
     }
 
+    @Test
+    void actionSpendAndMoveFrequencyAreIndependentContractDimensions() {
+        for (MoveRuntimeExecutionMode mode : MoveRuntimeExecutionMode.values()) {
+            MoveRuntimeExecutionContext context = MoveRuntimeExecutionContext.of(mode);
+            assertEquals(mode.ownsActionSpend(), context.ownsActionSpend());
+            assertEquals(mode.ownsMoveFrequency(), context.ownsMoveFrequency());
+        }
+    }
+
     private static void assertContext(
             MoveRuntimeExecutionContext context,
             MoveRuntimeExecutionMode mode,
-            boolean ownsOrdinaryResources,
+            boolean ownsActionSpend,
+            boolean ownsMoveFrequency,
             boolean runsPreDamageReactions,
             boolean declarationAlreadyValidated
     ) {
         assertEquals(mode, context.mode());
-        assertEquals(ownsOrdinaryResources, context.ownsActionSpend());
-        assertEquals(ownsOrdinaryResources, context.ownsMoveFrequency());
+        assertEquals(ownsActionSpend, context.ownsActionSpend());
+        assertEquals(ownsMoveFrequency, context.ownsMoveFrequency());
         assertEquals(runsPreDamageReactions, context.runPreDamageReactions());
         assertEquals(declarationAlreadyValidated, context.declarationAlreadyValidated());
     }
