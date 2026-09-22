@@ -54,11 +54,11 @@ final class MoveRuntimeExecutionContext {
     }
 
     boolean ownsActionSpend() {
-        return policy.spendOrdinaryMoveResources();
+        return policy.ownsActionSpend();
     }
 
     boolean ownsMoveFrequency() {
-        return policy.spendOrdinaryMoveResources();
+        return policy.ownsMoveFrequency();
     }
 
     boolean runPreDamageReactions() {
