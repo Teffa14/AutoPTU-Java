@@ -55,20 +55,27 @@ public record CommittedReactionRuntimeExecutionPlan(
     }
 
     /**
-     * The action window already owns the committed reaction cost. The ordinary resolver must not
-     * spend Standard, Swift, Shift, or move-frequency resources a second time at runtime ingress.
+     * Carries the committed-reaction identity into the authoritative move resolver. The context is
+     * the single owner of declaration-validation, ordinary resource, and PRE-reaction policy.
      */
-    public boolean spendOrdinaryMoveResources() {
-        return false;
+    MoveRuntimeExecutionContext executionContext() {
+        return MoveRuntimeExecutionContext.committedReaction();
     }
 
     /**
+     * Transitional projection retained for callers that have not yet moved to executionContext().
+     * The action window already owns the committed reaction cost.
+     */
+    public boolean spendOrdinaryMoveResources() {
+        return executionContext().spendOrdinaryMoveResources();
+    }
+
+    /**
+     * Transitional projection retained for callers that have not yet moved to executionContext().
      * Participant and move identity validation is completed by prepare() before this plan exists.
-     * BattleRuntime may therefore skip only declaration validation while retaining ordinary
-     * accuracy, damage, hook, RNG, history, and semantic-event resolution.
      */
     public boolean declarationAlreadyValidated() {
-        return true;
+        return executionContext().declarationAlreadyValidated();
     }
 
     public static CommittedReactionRuntimeExecutionPlan prepare(
