@@ -8,11 +8,11 @@ package io.autoptu.core.runtime;
  * share individual ownership decisions while requiring different declaration validation.</p>
  */
 public enum MoveRuntimeExecutionMode {
-    ORDINARY(true, true, false, DeclarationValidation.ORDINARY),
-    PRE_RESOLUTION_RESOLVED(true, true, true, DeclarationValidation.ALREADY_VALIDATED),
-    AREA_RESOLVED(false, true, true, DeclarationValidation.AREA_RESOLVED),
-    DELAYED(false, false, true, DeclarationValidation.DELAYED),
-    COMMITTED_REACTION(false, true, true, DeclarationValidation.ALREADY_VALIDATED);
+    ORDINARY(true, true, true, false, DeclarationValidation.ORDINARY),
+    PRE_RESOLUTION_RESOLVED(true, true, true, true, DeclarationValidation.ALREADY_VALIDATED),
+    AREA_RESOLVED(false, false, true, true, DeclarationValidation.AREA_RESOLVED),
+    DELAYED(false, false, false, true, DeclarationValidation.DELAYED),
+    COMMITTED_REACTION(false, false, true, true, DeclarationValidation.ALREADY_VALIDATED);
 
     /**
      * Names the authoritative declaration contract independently from action-resource ownership.
@@ -26,25 +26,44 @@ public enum MoveRuntimeExecutionMode {
         ALREADY_VALIDATED
     }
 
-    private final boolean spendOrdinaryMoveResources;
+    private final boolean ownsActionSpend;
+    private final boolean ownsMoveFrequency;
     private final boolean runPreDamageReactions;
     private final boolean declarationAlreadyValidated;
     private final DeclarationValidation declarationValidation;
 
     MoveRuntimeExecutionMode(
-            boolean spendOrdinaryMoveResources,
+            boolean ownsActionSpend,
+            boolean ownsMoveFrequency,
             boolean runPreDamageReactions,
             boolean declarationAlreadyValidated,
             DeclarationValidation declarationValidation
     ) {
-        this.spendOrdinaryMoveResources = spendOrdinaryMoveResources;
+        this.ownsActionSpend = ownsActionSpend;
+        this.ownsMoveFrequency = ownsMoveFrequency;
         this.runPreDamageReactions = runPreDamageReactions;
         this.declarationAlreadyValidated = declarationAlreadyValidated;
         this.declarationValidation = declarationValidation;
     }
 
+    /**
+     * Legacy compatibility projection for resolver call sites that have not yet migrated to split
+     * action-spend and move-frequency ownership. New wiring must consume the explicit projections.
+     */
+    @Deprecated
     public boolean spendOrdinaryMoveResources() {
-        return spendOrdinaryMoveResources;
+        if (ownsActionSpend != ownsMoveFrequency) {
+            throw new IllegalStateException("legacy resource projection cannot represent split ownership");
+        }
+        return ownsActionSpend;
+    }
+
+    public boolean ownsActionSpend() {
+        return ownsActionSpend;
+    }
+
+    public boolean ownsMoveFrequency() {
+        return ownsMoveFrequency;
     }
 
     public boolean runPreDamageReactions() {
