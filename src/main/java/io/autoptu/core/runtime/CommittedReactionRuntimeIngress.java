@@ -10,9 +10,14 @@ import java.util.Objects;
 public final class CommittedReactionRuntimeIngress {
     private CommittedReactionRuntimeIngress() {}
 
-    public record Dispatch(MoveRuntimeExecutionMode executionMode) {
+    public record Dispatch(MoveRuntimeExecutionContext executionContext) {
         public Dispatch {
-            Objects.requireNonNull(executionMode, "executionMode");
+            Objects.requireNonNull(executionContext, "executionContext");
+        }
+
+        /** Source-compatible constructor for callers that still provide only execution identity. */
+        public Dispatch(MoveRuntimeExecutionMode executionMode) {
+            this(MoveRuntimeExecutionContext.of(Objects.requireNonNull(executionMode, "executionMode")));
         }
 
         /**
@@ -27,29 +32,33 @@ public final class CommittedReactionRuntimeIngress {
                 boolean declaredChoiceAlreadyValidated
         ) {
             this(executionMode);
-            if (spendOrdinaryMoveResources != executionMode.spendOrdinaryMoveResources()
-                    || runPreDamageReactions != executionMode.runPreDamageReactions()
-                    || declaredChoiceAlreadyValidated != executionMode.declarationAlreadyValidated()) {
+            if (spendOrdinaryMoveResources != executionContext.spendOrdinaryMoveResources()
+                    || runPreDamageReactions != executionContext.runPreDamageReactions()
+                    || declaredChoiceAlreadyValidated != executionContext.declarationAlreadyValidated()) {
                 throw new IllegalArgumentException("ownership tuple must match execution mode");
             }
         }
 
+        public MoveRuntimeExecutionMode executionMode() {
+            return executionContext.mode();
+        }
+
         public boolean spendOrdinaryMoveResources() {
-            return executionMode.spendOrdinaryMoveResources();
+            return executionContext.spendOrdinaryMoveResources();
         }
 
         public boolean runPreDamageReactions() {
-            return executionMode.runPreDamageReactions();
+            return executionContext.runPreDamageReactions();
         }
 
         public boolean declaredChoiceAlreadyValidated() {
-            return executionMode.declarationAlreadyValidated();
+            return executionContext.declarationAlreadyValidated();
         }
     }
 
     /**
      * Existing source-compatible resolver boundary. Ownership values are projected from the single
-     * execution-mode identity; callers must not reconstruct execution identity from this tuple.
+     * execution-context identity; callers must not reconstruct execution identity from this tuple.
      */
     @FunctionalInterface
     public interface Resolver<R> {
@@ -61,21 +70,31 @@ public final class CommittedReactionRuntimeIngress {
         );
     }
 
-    /** Authoritative resolver boundary for new runtime wiring. */
+    /** Source-compatible resolver boundary for callers that still consume only execution mode. */
     @FunctionalInterface
     public interface ExecutionModeResolver<R> {
         R resolve(CommittedReactionRuntimeExecutionPlan plan, MoveRuntimeExecutionMode executionMode);
     }
 
+    /** Authoritative resolver boundary for new runtime wiring. */
+    @FunctionalInterface
+    public interface ExecutionContextResolver<R> {
+        R resolve(CommittedReactionRuntimeExecutionPlan plan, MoveRuntimeExecutionContext executionContext);
+    }
+
     public static Dispatch dispatch(CommittedReactionRuntimeExecutionPlan plan) {
         Objects.requireNonNull(plan, "plan is required");
-        if (!plan.declarationAlreadyValidated()) {
+        MoveRuntimeExecutionContext executionContext = plan.executionContext();
+        if (executionContext.mode() != MoveRuntimeExecutionMode.COMMITTED_REACTION) {
+            throw new IllegalArgumentException("committed reaction plan must use COMMITTED_REACTION execution context");
+        }
+        if (!executionContext.declarationAlreadyValidated()) {
             throw new IllegalArgumentException("committed reaction declaration must already be validated");
         }
-        if (plan.spendOrdinaryMoveResources()) {
+        if (executionContext.spendOrdinaryMoveResources()) {
             throw new IllegalArgumentException("committed reaction must not spend ordinary move resources twice");
         }
-        return new Dispatch(MoveRuntimeExecutionMode.COMMITTED_REACTION);
+        return new Dispatch(executionContext);
     }
 
     public static <R> R resolve(
@@ -99,5 +118,14 @@ public final class CommittedReactionRuntimeIngress {
         Objects.requireNonNull(resolver, "resolver is required");
         Dispatch dispatch = dispatch(plan);
         return resolver.resolve(plan, dispatch.executionMode());
+    }
+
+    public static <R> R resolveExecutionContext(
+            CommittedReactionRuntimeExecutionPlan plan,
+            ExecutionContextResolver<R> resolver
+    ) {
+        Objects.requireNonNull(resolver, "resolver is required");
+        Dispatch dispatch = dispatch(plan);
+        return resolver.resolve(plan, dispatch.executionContext());
     }
 }
