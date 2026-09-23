@@ -6,18 +6,29 @@ This contract freezes the execution-identity seam required before committed reac
 
 ## Server-authoritative rule
 
-`BattleRuntime` selects declaration validation and resource ownership from `MoveRuntimeExecutionMode`. Callers and adapters must not infer execution identity from resource-spend or reaction booleans. Minecraft, Cobblemon, and Craftics may submit or render outcomes but do not reproduce these rules.
+`BattleRuntime` selects declaration validation, action-spend ownership, move-frequency ownership, and PRE-damage reaction ownership from one `MoveRuntimeExecutionContext`. Callers and adapters must not infer execution identity from resource-spend or reaction booleans. Minecraft, Cobblemon, and Craftics may submit or render outcomes but do not reproduce these rules.
 
 ## Execution modes
 
-| Mode | Declaration validation | Spend ordinary action/frequency | Pre-damage reactions | Resolution path |
-| --- | --- | --- | --- | --- |
-| `ORDINARY` | full ordinary legality | yes | yes | ordinary single-target |
-| `AREA_RESOLVED` | area target already selected | no | yes | area target execution |
-| `DELAYED` | delayed binding | no | no | delayed single-target |
-| `COMMITTED_REACTION` | actor/target/move binding only | no | yes | ordinary single-target |
+| Mode | Declaration validation | Own action spend | Own move frequency | Pre-damage reactions | Resolution path |
+| --- | --- | --- | --- | --- | --- |
+| `ORDINARY` | full ordinary legality | yes | yes | yes | ordinary single-target |
+| `PRE_RESOLUTION_RESOLVED` | declaration already validated | yes | yes | yes | ordinary single-target after target replacement |
+| `AREA_RESOLVED` | area target already selected | no | no | yes | area target execution |
+| `DELAYED` | delayed binding | no | no | no | delayed single-target |
+| `COMMITTED_REACTION` | actor/target/move binding only | no | no | yes | ordinary single-target |
 
-`COMMITTED_REACTION` must not be routed through `AREA_RESOLVED` merely because both modes skip ordinary resource spending and run pre-damage reactions.
+Action spending and move-frequency accounting are independent ownership dimensions even when every currently frozen mode gives them the same value. Production code must query `ownsActionSpend()` and `ownsMoveFrequency()` separately. The deprecated combined projection exists only while legacy resolver call sites are migrated and must not become part of a new contract.
+
+`COMMITTED_REACTION` must not be routed through `AREA_RESOLVED` merely because both modes currently skip action spending and move-frequency accounting and run PRE-damage reactions.
+
+## Resolver migration invariant
+
+`BattleRuntime.applyAuthoritativeMoveInternal` must receive one `MoveRuntimeExecutionContext`. It must not receive parallel booleans for action spending, move-frequency accounting, PRE-damage reactions, or prior declaration validation.
+
+The resolver must call `requireValidDeclaration(...)` exactly once for the selected execution identity. It must use `runPreDamageReactions()` to select PRE hooks, `ownsActionSpend()` only at the action-budget mutation point, and `ownsMoveFrequency()` only at the frequency-recording point. No caller may reconstruct these decisions independently.
+
+Changing this dispatch seam must not alter accuracy/evasion, RNG draw order, move-special ordering, post-damage hooks, type multiplier handling, HP/injury history, forced-movement dispatch, or ordered semantic events.
 
 ## Committed-reaction invariants
 
@@ -38,7 +49,7 @@ The implementation slice that wires this contract into `BattleRuntime` must free
 7. ordered semantic battle events;
 8. final battle state.
 
-The gate must also include a regression case proving that `AREA_RESOLVED` and `DELAYED` retain their existing validation and ownership semantics.
+The gate must also include regression cases proving that `PRE_RESOLUTION_RESOLVED`, `AREA_RESOLVED`, and `DELAYED` retain their existing validation and ownership semantics. A regression test must fail if action-spend ownership and move-frequency ownership are collapsed back into one production decision.
 
 ## Adapter boundary
 
