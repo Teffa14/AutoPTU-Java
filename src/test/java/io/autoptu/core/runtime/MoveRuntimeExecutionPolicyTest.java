@@ -30,7 +30,8 @@ class MoveRuntimeExecutionPolicyTest {
 
         assertEquals(MoveRuntimeExecutionMode.COMMITTED_REACTION, reaction.mode());
         assertEquals(MoveRuntimeExecutionMode.AREA_RESOLVED, area.mode());
-        assertEquals(reaction.spendOrdinaryMoveResources(), area.spendOrdinaryMoveResources());
+        assertEquals(reaction.ownsActionSpend(), area.ownsActionSpend());
+        assertEquals(reaction.ownsMoveFrequency(), area.ownsMoveFrequency());
         assertEquals(reaction.runPreDamageReactions(), area.runPreDamageReactions());
         assertEquals(MoveRuntimeExecutionMode.DeclarationValidation.ALREADY_VALIDATED,
                 reaction.declarationValidation());
@@ -47,7 +48,8 @@ class MoveRuntimeExecutionPolicyTest {
 
         assertEquals(MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, preResolved.mode());
         assertEquals(MoveRuntimeExecutionMode.ORDINARY, ordinary.mode());
-        assertEquals(preResolved.spendOrdinaryMoveResources(), ordinary.spendOrdinaryMoveResources());
+        assertEquals(preResolved.ownsActionSpend(), ordinary.ownsActionSpend());
+        assertEquals(preResolved.ownsMoveFrequency(), ordinary.ownsMoveFrequency());
         assertEquals(preResolved.runPreDamageReactions(), ordinary.runPreDamageReactions());
         assertTrue(preResolved.declarationAlreadyValidated());
         assertFalse(ordinary.declarationAlreadyValidated());
@@ -55,8 +57,8 @@ class MoveRuntimeExecutionPolicyTest {
 
     private static void assertPolicy(
             MoveRuntimeExecutionMode mode,
-            boolean spendOrdinaryMoveResources,
-            boolean runPreDamageReactions,
+            boolean ownsActionSpend,
+            boolean ownsMoveFrequency,
             MoveRuntimeExecutionMode.DeclarationValidation declarationValidation,
             boolean declarationAlreadyValidated
     ) {
@@ -64,15 +66,15 @@ class MoveRuntimeExecutionPolicyTest {
         assertEquals(mode, policy.mode());
         assertEquals(declarationValidation, policy.declarationValidation());
         assertEquals(declarationAlreadyValidated, policy.declarationAlreadyValidated());
-        if (spendOrdinaryMoveResources) {
-            assertTrue(policy.spendOrdinaryMoveResources());
+        if (ownsActionSpend) {
+            assertTrue(policy.ownsActionSpend());
         } else {
-            assertFalse(policy.spendOrdinaryMoveResources());
+            assertFalse(policy.ownsActionSpend());
         }
-        if (runPreDamageReactions) {
-            assertTrue(policy.runPreDamageReactions());
+        if (ownsMoveFrequency) {
+            assertTrue(policy.ownsMoveFrequency());
         } else {
-            assertFalse(policy.runPreDamageReactions());
+            assertFalse(policy.ownsMoveFrequency());
         }
     }
 }
