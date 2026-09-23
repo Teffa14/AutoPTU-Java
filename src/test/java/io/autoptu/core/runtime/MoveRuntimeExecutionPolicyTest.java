@@ -9,15 +9,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MoveRuntimeExecutionPolicyTest {
     @Test
     void projectsOwnershipFromOneExecutionIdentity() {
-        assertPolicy(MoveRuntimeExecutionMode.ORDINARY, true, true,
+        assertPolicy(MoveRuntimeExecutionMode.ORDINARY, true, true, true,
                 MoveRuntimeExecutionMode.DeclarationValidation.ORDINARY, false);
-        assertPolicy(MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, true, true,
+        assertPolicy(MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, true, true, true,
                 MoveRuntimeExecutionMode.DeclarationValidation.ALREADY_VALIDATED, true);
-        assertPolicy(MoveRuntimeExecutionMode.AREA_RESOLVED, false, true,
+        assertPolicy(MoveRuntimeExecutionMode.AREA_RESOLVED, false, false, true,
                 MoveRuntimeExecutionMode.DeclarationValidation.AREA_RESOLVED, true);
-        assertPolicy(MoveRuntimeExecutionMode.DELAYED, false, false,
+        assertPolicy(MoveRuntimeExecutionMode.DELAYED, false, false, false,
                 MoveRuntimeExecutionMode.DeclarationValidation.DELAYED, true);
-        assertPolicy(MoveRuntimeExecutionMode.COMMITTED_REACTION, false, true,
+        assertPolicy(MoveRuntimeExecutionMode.COMMITTED_REACTION, false, false, true,
                 MoveRuntimeExecutionMode.DeclarationValidation.ALREADY_VALIDATED, true);
     }
 
@@ -30,7 +30,8 @@ class MoveRuntimeExecutionPolicyTest {
 
         assertEquals(MoveRuntimeExecutionMode.COMMITTED_REACTION, reaction.mode());
         assertEquals(MoveRuntimeExecutionMode.AREA_RESOLVED, area.mode());
-        assertEquals(reaction.spendOrdinaryMoveResources(), area.spendOrdinaryMoveResources());
+        assertEquals(reaction.ownsActionSpend(), area.ownsActionSpend());
+        assertEquals(reaction.ownsMoveFrequency(), area.ownsMoveFrequency());
         assertEquals(reaction.runPreDamageReactions(), area.runPreDamageReactions());
         assertEquals(MoveRuntimeExecutionMode.DeclarationValidation.ALREADY_VALIDATED,
                 reaction.declarationValidation());
@@ -47,7 +48,8 @@ class MoveRuntimeExecutionPolicyTest {
 
         assertEquals(MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, preResolved.mode());
         assertEquals(MoveRuntimeExecutionMode.ORDINARY, ordinary.mode());
-        assertEquals(preResolved.spendOrdinaryMoveResources(), ordinary.spendOrdinaryMoveResources());
+        assertEquals(preResolved.ownsActionSpend(), ordinary.ownsActionSpend());
+        assertEquals(preResolved.ownsMoveFrequency(), ordinary.ownsMoveFrequency());
         assertEquals(preResolved.runPreDamageReactions(), ordinary.runPreDamageReactions());
         assertTrue(preResolved.declarationAlreadyValidated());
         assertFalse(ordinary.declarationAlreadyValidated());
@@ -55,7 +57,8 @@ class MoveRuntimeExecutionPolicyTest {
 
     private static void assertPolicy(
             MoveRuntimeExecutionMode mode,
-            boolean spendOrdinaryMoveResources,
+            boolean ownsActionSpend,
+            boolean ownsMoveFrequency,
             boolean runPreDamageReactions,
             MoveRuntimeExecutionMode.DeclarationValidation declarationValidation,
             boolean declarationAlreadyValidated
@@ -64,10 +67,15 @@ class MoveRuntimeExecutionPolicyTest {
         assertEquals(mode, policy.mode());
         assertEquals(declarationValidation, policy.declarationValidation());
         assertEquals(declarationAlreadyValidated, policy.declarationAlreadyValidated());
-        if (spendOrdinaryMoveResources) {
-            assertTrue(policy.spendOrdinaryMoveResources());
+        if (ownsActionSpend) {
+            assertTrue(policy.ownsActionSpend());
         } else {
-            assertFalse(policy.spendOrdinaryMoveResources());
+            assertFalse(policy.ownsActionSpend());
+        }
+        if (ownsMoveFrequency) {
+            assertTrue(policy.ownsMoveFrequency());
+        } else {
+            assertFalse(policy.ownsMoveFrequency());
         }
         if (runPreDamageReactions) {
             assertTrue(policy.runPreDamageReactions());
