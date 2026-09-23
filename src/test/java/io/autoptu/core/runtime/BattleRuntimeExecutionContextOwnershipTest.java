@@ -10,15 +10,20 @@ final class BattleRuntimeExecutionContextOwnershipTest {
     @Test
     void freezesResolverOwnershipForEveryExecutionIdentity() {
         assertContext(MoveRuntimeExecutionContext.ordinary(),
-                MoveRuntimeExecutionMode.ORDINARY, true, true, true, false);
+                MoveRuntimeExecutionMode.ORDINARY, true, true, true, false,
+                MoveRuntimeExecutionMode.DeclarationValidation.ORDINARY);
         assertContext(MoveRuntimeExecutionContext.preResolutionResolved(),
-                MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, true, true, true, true);
+                MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, true, true, true, true,
+                MoveRuntimeExecutionMode.DeclarationValidation.ALREADY_VALIDATED);
         assertContext(MoveRuntimeExecutionContext.areaResolved(),
-                MoveRuntimeExecutionMode.AREA_RESOLVED, false, false, true, true);
+                MoveRuntimeExecutionMode.AREA_RESOLVED, false, false, true, true,
+                MoveRuntimeExecutionMode.DeclarationValidation.AREA_RESOLVED);
         assertContext(MoveRuntimeExecutionContext.delayed(),
-                MoveRuntimeExecutionMode.DELAYED, false, false, false, true);
+                MoveRuntimeExecutionMode.DELAYED, false, false, false, true,
+                MoveRuntimeExecutionMode.DeclarationValidation.DELAYED);
         assertContext(MoveRuntimeExecutionContext.committedReaction(),
-                MoveRuntimeExecutionMode.COMMITTED_REACTION, false, false, true, true);
+                MoveRuntimeExecutionMode.COMMITTED_REACTION, false, false, true, true,
+                MoveRuntimeExecutionMode.DeclarationValidation.ALREADY_VALIDATED);
     }
 
     @Test
@@ -37,11 +42,15 @@ final class BattleRuntimeExecutionContextOwnershipTest {
     }
 
     @Test
-    void actionSpendAndMoveFrequencyAreIndependentContractDimensions() {
+    void executionContextProjectsEveryModeDecisionWithoutReconstruction() {
         for (MoveRuntimeExecutionMode mode : MoveRuntimeExecutionMode.values()) {
             MoveRuntimeExecutionContext context = MoveRuntimeExecutionContext.of(mode);
+            assertEquals(mode, context.mode());
             assertEquals(mode.ownsActionSpend(), context.ownsActionSpend());
             assertEquals(mode.ownsMoveFrequency(), context.ownsMoveFrequency());
+            assertEquals(mode.runPreDamageReactions(), context.runPreDamageReactions());
+            assertEquals(mode.declarationAlreadyValidated(), context.declarationAlreadyValidated());
+            assertEquals(mode.declarationValidation(), context.declarationValidation());
         }
     }
 
@@ -51,12 +60,14 @@ final class BattleRuntimeExecutionContextOwnershipTest {
             boolean ownsActionSpend,
             boolean ownsMoveFrequency,
             boolean runsPreDamageReactions,
-            boolean declarationAlreadyValidated
+            boolean declarationAlreadyValidated,
+            MoveRuntimeExecutionMode.DeclarationValidation declarationValidation
     ) {
         assertEquals(mode, context.mode());
         assertEquals(ownsActionSpend, context.ownsActionSpend());
         assertEquals(ownsMoveFrequency, context.ownsMoveFrequency());
         assertEquals(runsPreDamageReactions, context.runPreDamageReactions());
         assertEquals(declarationAlreadyValidated, context.declarationAlreadyValidated());
+        assertEquals(declarationValidation, context.declarationValidation());
     }
 }
