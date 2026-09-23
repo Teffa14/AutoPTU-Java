@@ -56,18 +56,19 @@ public record CommittedReactionRuntimeExecutionPlan(
 
     /**
      * Carries the committed-reaction identity into the authoritative move resolver. The context is
-     * the single owner of declaration-validation, ordinary resource, and PRE-reaction policy.
+     * the single owner of declaration-validation, action-spend, move-frequency, and PRE-reaction policy.
      */
     MoveRuntimeExecutionContext executionContext() {
         return MoveRuntimeExecutionContext.committedReaction();
     }
 
     /**
-     * Transitional projection retained for callers that have not yet moved to executionContext().
-     * The action window already owns the committed reaction cost.
+     * Transitional action-spend projection retained for callers that have not yet moved to
+     * executionContext(). The action window already owns the committed reaction cost. Move-frequency
+     * ownership remains an independent execution-context decision and must not be inferred here.
      */
     public boolean spendOrdinaryMoveResources() {
-        return executionContext().spendOrdinaryMoveResources();
+        return executionContext().ownsActionSpend();
     }
 
     /**
