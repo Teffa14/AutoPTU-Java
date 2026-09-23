@@ -63,11 +63,11 @@ public record CommittedReactionRuntimeExecutionPlan(
     }
 
     /**
-     * Transitional projection retained for callers that have not yet moved to executionContext().
-     * The action window already owns the committed reaction cost.
+     * Transitional action-spend projection retained for callers that have not yet moved to
+     * executionContext(). The action window already owns the committed reaction cost.
      */
     public boolean spendOrdinaryMoveResources() {
-        return executionContext().spendOrdinaryMoveResources();
+        return executionContext().ownsActionSpend();
     }
 
     /**
