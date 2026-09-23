@@ -9,15 +9,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MoveRuntimeExecutionPolicyTest {
     @Test
     void projectsOwnershipFromOneExecutionIdentity() {
-        assertPolicy(MoveRuntimeExecutionMode.ORDINARY, true, true,
+        assertPolicy(MoveRuntimeExecutionMode.ORDINARY, true, true, true,
                 MoveRuntimeExecutionMode.DeclarationValidation.ORDINARY, false);
-        assertPolicy(MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, true, true,
+        assertPolicy(MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, true, true, true,
                 MoveRuntimeExecutionMode.DeclarationValidation.ALREADY_VALIDATED, true);
-        assertPolicy(MoveRuntimeExecutionMode.AREA_RESOLVED, false, true,
+        assertPolicy(MoveRuntimeExecutionMode.AREA_RESOLVED, false, false, true,
                 MoveRuntimeExecutionMode.DeclarationValidation.AREA_RESOLVED, true);
-        assertPolicy(MoveRuntimeExecutionMode.DELAYED, false, false,
+        assertPolicy(MoveRuntimeExecutionMode.DELAYED, false, false, false,
                 MoveRuntimeExecutionMode.DeclarationValidation.DELAYED, true);
-        assertPolicy(MoveRuntimeExecutionMode.COMMITTED_REACTION, false, true,
+        assertPolicy(MoveRuntimeExecutionMode.COMMITTED_REACTION, false, false, true,
                 MoveRuntimeExecutionMode.DeclarationValidation.ALREADY_VALIDATED, true);
     }
 
@@ -59,6 +59,7 @@ class MoveRuntimeExecutionPolicyTest {
             MoveRuntimeExecutionMode mode,
             boolean ownsActionSpend,
             boolean ownsMoveFrequency,
+            boolean runPreDamageReactions,
             MoveRuntimeExecutionMode.DeclarationValidation declarationValidation,
             boolean declarationAlreadyValidated
     ) {
@@ -75,6 +76,11 @@ class MoveRuntimeExecutionPolicyTest {
             assertTrue(policy.ownsMoveFrequency());
         } else {
             assertFalse(policy.ownsMoveFrequency());
+        }
+        if (runPreDamageReactions) {
+            assertTrue(policy.runPreDamageReactions());
+        } else {
+            assertFalse(policy.runPreDamageReactions());
         }
     }
 }
