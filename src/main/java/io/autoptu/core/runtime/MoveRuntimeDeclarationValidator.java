@@ -1,5 +1,6 @@
 package io.autoptu.core.runtime;
 
+import io.autoptu.core.action.ChoiceTargetMode;
 import io.autoptu.core.action.MoveChoice;
 import io.autoptu.core.action.MoveOption;
 import io.autoptu.core.model.GridCoord;
@@ -37,6 +38,9 @@ final class MoveRuntimeDeclarationValidator {
         if (state == null) throw new IllegalArgumentException("state is required");
         if (choice == null) throw new IllegalArgumentException("choice is required");
         if (move == null) throw new IllegalArgumentException("move is required");
+        if (choice.targetMode() != ChoiceTargetMode.COMBATANT || choice.targetId().isBlank()) {
+            throw new IllegalArgumentException("already-validated move execution requires a combatant target");
+        }
         if (!choice.moveId().equals(move.moveId())) {
             throw new IllegalArgumentException("move metadata does not match committed choice moveId");
         }
@@ -48,7 +52,7 @@ final class MoveRuntimeDeclarationValidator {
         if (state == null) throw new IllegalArgumentException("state is required");
         if (choice == null) throw new IllegalArgumentException("choice is required");
         if (move == null) throw new IllegalArgumentException("move is required");
-        if (choice.targetMode() != io.autoptu.core.action.ChoiceTargetMode.COMBATANT || choice.targetId().isBlank()) {
+        if (choice.targetMode() != ChoiceTargetMode.COMBATANT || choice.targetId().isBlank()) {
             throw new IllegalArgumentException("delayed move execution currently requires a combatant target");
         }
         if (!choice.moveId().equals(move.moveId())) {
@@ -62,7 +66,7 @@ final class MoveRuntimeDeclarationValidator {
         if (state == null) throw new IllegalArgumentException("state is required");
         if (choice == null) throw new IllegalArgumentException("choice is required");
         if (move == null) throw new IllegalArgumentException("move is required");
-        if (choice.targetMode() != io.autoptu.core.action.ChoiceTargetMode.COMBATANT || choice.targetId().isBlank()) {
+        if (choice.targetMode() != ChoiceTargetMode.COMBATANT || choice.targetId().isBlank()) {
             throw new IllegalArgumentException("area move target execution requires a combatant target");
         }
         if (!choice.moveId().equals(move.moveId()) || choice.actionType() != move.actionType()) {
