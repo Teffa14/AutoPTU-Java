@@ -38,6 +38,16 @@ final class MoveRuntimeExecutionModeSplitOwnershipTest {
         assertEquals(MoveRuntimeExecutionMode.COMMITTED_REACTION, context.mode());
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    void legacyCombinedProjectionRemainsAvailableUntilResolverMigrationCompletes() {
+        assertTrue(MoveRuntimeExecutionContext.ordinary().spendOrdinaryMoveResources());
+        assertTrue(MoveRuntimeExecutionContext.preResolutionResolved().spendOrdinaryMoveResources());
+        assertFalse(MoveRuntimeExecutionContext.areaResolved().spendOrdinaryMoveResources());
+        assertFalse(MoveRuntimeExecutionContext.delayed().spendOrdinaryMoveResources());
+        assertFalse(MoveRuntimeExecutionContext.committedReaction().spendOrdinaryMoveResources());
+    }
+
     private static void assertOwnership(
             MoveRuntimeExecutionMode mode,
             boolean ownsActionSpend,
