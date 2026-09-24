@@ -49,18 +49,6 @@ final class MoveRuntimeExecutionContext {
         return policy.mode();
     }
 
-    /**
-     * Legacy compatibility projection for resolver call sites that have not yet migrated to split
-     * action-spend and move-frequency ownership. New wiring must use the two explicit projections.
-     */
-    @Deprecated
-    boolean spendOrdinaryMoveResources() {
-        if (ownsActionSpend() != ownsMoveFrequency()) {
-            throw new IllegalStateException("legacy resource projection cannot represent split ownership");
-        }
-        return ownsActionSpend();
-    }
-
     boolean ownsActionSpend() {
         return policy.ownsActionSpend();
     }
