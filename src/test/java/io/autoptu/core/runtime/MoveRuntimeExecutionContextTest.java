@@ -41,11 +41,12 @@ class MoveRuntimeExecutionContextTest {
     }
 
     @Test
-    void actionSpendAndFrequencyOwnershipAreProjectedIndependently() {
-        for (MoveRuntimeExecutionMode mode : MoveRuntimeExecutionMode.values()) {
-            MoveRuntimeExecutionContext context = MoveRuntimeExecutionContext.of(mode);
-            assertEquals(context.ownsActionSpend(), context.ownsMoveFrequency(), mode.name());
-        }
+    void actionSpendAndFrequencyOwnershipAreGuardedAsIndependentProjections() {
+        assertResourceOwnership(MoveRuntimeExecutionMode.ORDINARY, true, true);
+        assertResourceOwnership(MoveRuntimeExecutionMode.PRE_RESOLUTION_RESOLVED, true, true);
+        assertResourceOwnership(MoveRuntimeExecutionMode.AREA_RESOLVED, false, false);
+        assertResourceOwnership(MoveRuntimeExecutionMode.DELAYED, false, false);
+        assertResourceOwnership(MoveRuntimeExecutionMode.COMMITTED_REACTION, false, false);
     }
 
     @Test
@@ -61,6 +62,16 @@ class MoveRuntimeExecutionContextTest {
         assertEquals(MoveRuntimeExecutionMode.DeclarationValidation.ALREADY_VALIDATED, reaction.declarationValidation());
         assertEquals(MoveRuntimeExecutionMode.AREA_RESOLVED, area.mode());
         assertEquals(MoveRuntimeExecutionMode.COMMITTED_REACTION, reaction.mode());
+    }
+
+    private static void assertResourceOwnership(
+            MoveRuntimeExecutionMode mode,
+            boolean ownsActionSpend,
+            boolean ownsMoveFrequency
+    ) {
+        MoveRuntimeExecutionContext context = MoveRuntimeExecutionContext.of(mode);
+        assertEquals(ownsActionSpend, context.ownsActionSpend(), mode.name() + " action spend");
+        assertEquals(ownsMoveFrequency, context.ownsMoveFrequency(), mode.name() + " move frequency");
     }
 
     private static void assertContext(
